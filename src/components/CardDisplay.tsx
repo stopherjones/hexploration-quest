@@ -80,11 +80,16 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
           }`}
           title={onDrawCard ? 'Click to Draw Delve Card' : undefined}
         >
-          {/* Playing Card Back Graphic */}
-          <div className="w-10 h-14 bg-[#ede4d3] border-2 border-[#2b261f] rounded-md shadow-xs flex flex-col items-center justify-center p-0.5 flex-shrink-0">
-            <span className="text-base text-[#b91c1c] font-black">♥</span>
-            <div className="w-5 h-5 rounded-full border border-[#2b261f]/30 flex items-center justify-center mt-0.5">
-              <Sparkle className="w-3 h-3 text-[#786e5e]" />
+          {/* Playing Card Back Graphic with stacked deck depth */}
+          <div className="relative flex-shrink-0">
+            {deckCount > 1 && (
+              <div className="absolute inset-0 bg-[#3b342a] rounded-md translate-x-1 translate-y-1 border border-[#2b261f]"></div>
+            )}
+            <div className="w-10 h-14 bg-[#ede4d3] border-2 border-[#2b261f] rounded-md shadow-xs flex flex-col items-center justify-center p-0.5 relative z-10">
+              <span className="text-base text-[#b91c1c] font-black">♥</span>
+              <div className="w-5 h-5 rounded-full border border-[#2b261f]/30 flex items-center justify-center mt-0.5">
+                <Sparkle className="w-3 h-3 text-[#786e5e]" />
+              </div>
             </div>
           </div>
           <div className="flex-1 min-w-0 font-mono">
@@ -107,8 +112,11 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
         </div>
       ) : card ? (
         <div className="flex items-center gap-3 px-1 py-0.5">
-          {/* Card Face Graphic */}
-          <div className="relative w-11 h-15 bg-[#fffdfa] border-2 border-[#2b261f] rounded-md shadow-xs select-none flex-shrink-0 overflow-hidden">
+          {/* Card Face Graphic with Draw Flip Animation */}
+          <div
+            key={`${card.rank}-${card.effect}`}
+            className="relative w-11 h-15 bg-[#fffdfa] border-2 border-[#2b261f] rounded-md shadow-md select-none flex-shrink-0 overflow-hidden animate-card-flip-from-deck"
+          >
             {/* Top-left corner */}
             <div className="absolute top-1 left-1 flex flex-col items-center leading-none pointer-events-none">
               <span className="font-serif font-black text-xs text-[#b91c1c] leading-none">

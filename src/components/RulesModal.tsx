@@ -126,7 +126,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <div className="pl-2 border-l-2 border-[#991b1b]/40 space-y-0.5 text-[#443d33]">
                 <div>• <strong>Exploration Deck (♠, ♣, ♦):</strong> 39 cards. Starts on an initial numbered baseline (2 to 10).</div>
                 <div>• <strong>Higher / Lower Call:</strong> Correct call gives +Energy; incorrect call drains -Energy. Streaks are cumulative! (+1, +2, +3... or -1, -2, -3...). Breaking a streak resets it; pairs push with no energy change.</div>
-                <div>• <strong>Honor Cards (J, Q, K, A):</strong> When drawn, choose either to discard and redraw a fresh comparison card, OR gamble on drawing another card immediately seeking the <strong>Ace of Spades (A♠)</strong> for instant victory!</div>
+                <div>• <strong>Honor Cards (J, Q, K, A):</strong> Drawing an honor card does <em>not</em> affect your streak or your Higher/Lower bid! You can choose either to discard your base card for a fresh comparison card, OR draw again keeping your active Higher/Lower guess and streak (seeking the <strong>Ace of Spades (A♠)</strong> for instant gateway victory)!</div>
                 <div>• <strong>Ace of Spades (A♠):</strong> Shuffled anywhere in the 39-card deck. Drawing it opens the gateway to Level 3!</div>
                 <div>• <strong>Hearts Delve Deck:</strong> Carves corridor exits (Fork, Chamber, Dead End, Trap, or Vaults). Ace of Hearts now acts as an Ancient Vault.</div>
                 <div>• <strong>Navigation:</strong> Step forward through carved exits (-1 ⚡) or use the retrace direction button to backtrack.</div>

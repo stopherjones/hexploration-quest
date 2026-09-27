@@ -18,6 +18,27 @@ class SoundEffects {
     return this.ctx;
   }
 
+  // Card draw and flip paper whoosh / snap
+  playCardFlip() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    // Fast paper snap & flutter
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(260, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.16);
+    gain.gain.setValueAtTime(0.14, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.16);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.16);
+  }
+
   // Clattering dice roll
   playDiceRoll() {
     const ctx = this.getContext();

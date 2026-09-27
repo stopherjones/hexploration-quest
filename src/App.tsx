@@ -42,7 +42,6 @@ import {
   drawInitialComparisonCard,
   ExplorationCard,
 } from './utils/explorationDeck';
-import { Level2ExplorationBar } from './components/Level2ExplorationBar';
 import { ChamberExplorationModal } from './components/ChamberExplorationModal';
 import { Level2VictoryModal } from './components/Level2VictoryModal';
 import { FlowerHexGrid } from './components/FlowerHexGrid';
@@ -1486,7 +1485,10 @@ export default function App() {
     const [nextCard] = updatedDeck.splice(cardIndexToDraw, 1);
     if (!nextCard) return;
 
-    sounds.playBonus();
+    sounds.playCardFlip();
+    setTimeout(() => {
+      sounds.playBonus();
+    }, 320);
     const drawnCount = level2CardsDrawn + 1;
     setLevel2CardsDrawn(drawnCount);
 
@@ -1565,6 +1567,7 @@ export default function App() {
 
   // Exploration Deck: Player predicts Higher or Lower when entering a chamber
   const handleExplorationPredict = (prediction: 'higher' | 'lower') => {
+    sounds.playCardFlip();
     setActivePrediction(prediction);
 
     if (explorationDeck.length === 0) {
@@ -1582,10 +1585,12 @@ export default function App() {
 
     // If drawn card is Ace of Spades (A♠) -> INSTANT VICTORY / GATEWAY TO LEVEL 3!
     if (drawn.isAceOfSpades) {
-      sounds.playVictory();
-      setLevel2TargetFound(true);
-      setShowChamberExplorationModal(false);
-      setShowLevel2VictoryModal(true);
+      setTimeout(() => {
+        sounds.playVictory();
+        setLevel2TargetFound(true);
+        setShowChamberExplorationModal(false);
+        setShowLevel2VictoryModal(true);
+      }, 420);
       setPendingExplorationChoice(null);
       setActivePrediction(null);
       setExplorationResultText('♠ ACE OF SPADES REVEALED! The Gateway to Level 3 is open!');
@@ -1596,7 +1601,9 @@ export default function App() {
     // If drawn card is an Honor card (J, Q, K, or non-Spade Ace):
     // NOTE: Drawing JQKA does NOT affect your streak or your guess!
     if (drawn.isHonor) {
-      sounds.playBonus();
+      setTimeout(() => {
+        sounds.playBonus();
+      }, 320);
       setPendingExplorationChoice('face_gamble');
       setExplorationResultText(
         `Honor card drawn: ${drawn.rank} of ${drawn.suit}! Your "${prediction.toUpperCase()}" call and streak are preserved. Choose: Discard base (${comparisonCard?.rank || ''}${comparisonCard?.suit || ''}) for a fresh card, OR draw again keeping your "${prediction.toUpperCase()}" guess seeking the Ace of Spades (A♠)!`
@@ -1613,7 +1620,9 @@ export default function App() {
 
     if (drawnVal === baseVal) {
       // Pair / Equal rank: Push, no energy change, streak resets to 0
-      sounds.playClick();
+      setTimeout(() => {
+        sounds.playClick();
+      }, 320);
       setExplorationStreak(0);
       setComparisonCard(drawn);
       setPendingExplorationChoice(null);
@@ -1631,7 +1640,9 @@ export default function App() {
 
       if (isCorrect) {
         // Correct prediction
-        sounds.playBonus();
+        setTimeout(() => {
+          sounds.playBonus();
+        }, 320);
         const nextStreak = explorationStreak >= 0 ? explorationStreak + 1 : 1;
         setExplorationStreak(nextStreak);
         const energyReward = nextStreak;
@@ -1647,7 +1658,9 @@ export default function App() {
         );
       } else {
         // Incorrect prediction
-        sounds.playHazard();
+        setTimeout(() => {
+          sounds.playHazard();
+        }, 320);
         const nextStreak = explorationStreak <= 0 ? explorationStreak - 1 : -1;
         setExplorationStreak(nextStreak);
         const energyPenalty = Math.abs(nextStreak);
@@ -1664,9 +1677,11 @@ export default function App() {
         );
 
         if (remainingE <= 0) {
-          sounds.playHazard();
-          setIsLost(true);
-          setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+          setTimeout(() => {
+            sounds.playHazard();
+            setIsLost(true);
+            setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+          }, 420);
         }
       }
     }
@@ -1674,6 +1689,7 @@ export default function App() {
 
   // Honor Card Choice: Discard & Redraw Base vs. Draw Again (keeping guess & streak)
   const handleFaceChoice = (choice: 'discard_redraw' | 'gamble_ace') => {
+    sounds.playCardFlip();
     if (choice === 'discard_redraw') {
       // Discard current base card and draw a fresh base comparison card from the exploration deck
       const currentDeck = [...explorationDeck];
@@ -1683,7 +1699,9 @@ export default function App() {
       setDrawnExplorationCard(null);
       setPendingExplorationChoice(null);
       setActivePrediction(null);
-      sounds.playBonus();
+      setTimeout(() => {
+        sounds.playBonus();
+      }, 320);
       setExplorationResultText(
         `Discarded previous base. Fresh base card established: ${freshBase.rank} of ${freshBase.suit}. Streak remains unchanged (${explorationStreak >= 0 ? `+${explorationStreak}` : explorationStreak}).`
       );
@@ -1702,10 +1720,12 @@ export default function App() {
 
       // Check for Ace of Spades (Instant Level 3 Discovery!)
       if (gambleCard.isAceOfSpades) {
-        sounds.playVictory();
-        setLevel2TargetFound(true);
-        setShowChamberExplorationModal(false);
-        setShowLevel2VictoryModal(true);
+        setTimeout(() => {
+          sounds.playVictory();
+          setLevel2TargetFound(true);
+          setShowChamberExplorationModal(false);
+          setShowLevel2VictoryModal(true);
+        }, 420);
         setPendingExplorationChoice(null);
         setActivePrediction(null);
         setExplorationResultText('♠ ACE OF SPADES DRAWN! Instant Victory and Gateway to Level 3!');
@@ -1715,7 +1735,9 @@ export default function App() {
 
       // If ANOTHER honor card is drawn (e.g. Jack then King or Queen):
       if (gambleCard.isHonor) {
-        sounds.playBonus();
+        setTimeout(() => {
+          sounds.playBonus();
+        }, 320);
         setPendingExplorationChoice('face_gamble');
         const guessLabel = (activePrediction || 'higher').toUpperCase();
         setExplorationResultText(
@@ -1733,7 +1755,9 @@ export default function App() {
       const drawnVal = gambleCard.value;
 
       if (drawnVal === baseVal) {
-        sounds.playClick();
+        setTimeout(() => {
+          sounds.playClick();
+        }, 320);
         setExplorationStreak(0);
         setComparisonCard(gambleCard);
         setPendingExplorationChoice(null);
@@ -1748,7 +1772,9 @@ export default function App() {
           (prediction === 'higher' && isHigher) || (prediction === 'lower' && !isHigher);
 
         if (isCorrect) {
-          sounds.playBonus();
+          setTimeout(() => {
+            sounds.playBonus();
+          }, 320);
           const nextStreak = explorationStreak >= 0 ? explorationStreak + 1 : 1;
           setExplorationStreak(nextStreak);
           const energyReward = nextStreak;
@@ -1763,7 +1789,9 @@ export default function App() {
             `Drew ${gambleCard.rank}${gambleCard.suit} — correct "${prediction}"! Streak +${nextStreak} (+${energyReward}⚡).`
           );
         } else {
-          sounds.playHazard();
+          setTimeout(() => {
+            sounds.playHazard();
+          }, 320);
           const nextStreak = explorationStreak <= 0 ? explorationStreak - 1 : -1;
           setExplorationStreak(nextStreak);
           const energyPenalty = Math.abs(nextStreak);
@@ -1780,9 +1808,11 @@ export default function App() {
           );
 
           if (remainingE <= 0) {
-            sounds.playHazard();
-            setIsLost(true);
-            setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+            setTimeout(() => {
+              sounds.playHazard();
+              setIsLost(true);
+              setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+            }, 420);
           }
         }
       }
@@ -1834,6 +1864,8 @@ export default function App() {
         level={currentLevel}
         level2CardsRemaining={tunnelMap.deck.length}
         level2TargetFound={level2TargetFound}
+        level2Streak={explorationStreak}
+        onOpenExplorationModal={() => setShowChamberExplorationModal(true)}
       />
 
       {/* 2. Interactive SVG Hex Grid (Middle Map Area) */}
@@ -1894,16 +1926,6 @@ export default function App() {
       ) : currentLevel === 2 ? (
         <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none flex flex-col shadow-lg z-30">
           <div className="p-2 flex flex-col gap-2">
-            {/* Level 2 Exploration Base Card Status Bar */}
-            <Level2ExplorationBar
-              comparisonCard={comparisonCard}
-              drawnCard={drawnExplorationCard}
-              deckCount={explorationDeck.length}
-              streak={explorationStreak}
-              hasPendingPrediction={pendingExplorationChoice !== null}
-              onOpenExplorationModal={() => setShowChamberExplorationModal(true)}
-            />
-
             {/* Card Display with Heart theme and Deck Tracker */}
             <CardDisplay
               card={tunnelMap.activeCard}
@@ -1941,37 +1963,16 @@ export default function App() {
                   const exitKey = `${exitCoord.col},${exitCoord.row}`;
                   const exitTile = tunnelMap.tiles.get(exitKey);
                   const isTarget = Boolean(exitTile?.isTarget);
-                  const currentTile = tunnelMap.tiles.get(
-                    `${tunnelMap.playerCoord.col},${tunnelMap.playerCoord.row}`
-                  );
-                  const isDeadEnd = Boolean(currentTile?.isDeadEnd);
-                  const isRetrace = Boolean(exitTile?.visited && !isTarget);
 
                   if (isTarget) {
                     return (
                       <button
                         key={`exit-${exitCoord.col}-${exitCoord.row}-${idx}`}
                         onClick={() => handleTunnelTileClick(exitCoord)}
-                        className="flex-1 py-2 px-3 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:translate-y-0.5"
+                        className="flex-1 min-w-0 py-2 px-2 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-between gap-1 cursor-pointer transition-transform active:translate-y-0.5"
                       >
-                        <span>🏆 ESCAPE: {bearing}</span>
-                        <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] ml-auto">
-                          -1⚡
-                        </span>
-                      </button>
-                    );
-                  }
-
-                  if (isDeadEnd || isRetrace) {
-                    return (
-                      <button
-                        key={`exit-retrace-${exitCoord.col}-${exitCoord.row}-${idx}`}
-                        onClick={() => handleTunnelTileClick(exitCoord)}
-                        className="flex-1 py-2 px-2.5 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-bold text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:translate-y-0.5"
-                      >
-                        <span className="text-xs">↩</span>
-                        <span>Retrace: {bearing}</span>
-                        <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] ml-auto">
+                        <span className="truncate">🏆 {bearing}</span>
+                        <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] shrink-0">
                           -1⚡
                         </span>
                       </button>
@@ -1982,10 +1983,10 @@ export default function App() {
                     <button
                       key={`exit-${exitCoord.col}-${exitCoord.row}-${idx}`}
                       onClick={() => handleTunnelTileClick(exitCoord)}
-                      className="flex-1 py-2 px-2 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-bold text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:translate-y-0.5"
+                      className="flex-1 min-w-0 py-2 px-2 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-bold text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-between gap-1 cursor-pointer transition-transform active:translate-y-0.5"
                     >
-                      <span>{bearing}</span>
-                      <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] ml-auto">
+                      <span className="truncate font-black">{bearing}</span>
+                      <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] shrink-0">
                         -1⚡
                       </span>
                     </button>

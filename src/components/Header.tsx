@@ -19,6 +19,8 @@ interface HeaderProps {
   level?: 1 | 2 | 3;
   level2CardsRemaining?: number;
   level2TargetFound?: boolean;
+  level2Streak?: number;
+  onOpenExplorationModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -39,6 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
   level = 1,
   level2CardsRemaining = 13,
   level2TargetFound = false,
+  level2Streak = 0,
+  onOpenExplorationModal,
 }) => {
   const exploredPct = Math.round((revealedCount / totalHexes) * 100);
   const isLowEnergy = energy <= 5;
@@ -68,6 +72,23 @@ export const Header: React.FC<HeaderProps> = ({
               <>
                 <span className="text-slate-900 text-sm leading-none">♠</span>
                 <span>Level 2: Tunnels</span>
+                <button
+                  type="button"
+                  onClick={onOpenExplorationModal}
+                  className={`ml-1 px-1.5 py-0.5 rounded font-black font-mono text-[10px] border shadow-2xs cursor-pointer flex items-center gap-1 active:translate-y-px transition-colors ${
+                    level2Streak > 0
+                      ? 'bg-[#dcfce7] text-[#15803d] border-[#86efac] hover:bg-[#bbf7d0]'
+                      : level2Streak < 0
+                      ? 'bg-[#fee2e2] text-[#b91c1c] border-[#fca5a5] hover:bg-[#fecaca]'
+                      : 'bg-[#f5efe3] text-[#5c5244] border-[#2b261f]/40 hover:bg-[#fff9ed]'
+                  }`}
+                  title="View Chamber Exploration survey popup"
+                >
+                  <span>♠ Survey</span>
+                  {level2Streak !== 0 && (
+                    <span>{level2Streak > 0 ? `▲+${level2Streak}` : `▼${level2Streak}`}</span>
+                  )}
+                </button>
               </>
             ) : (
               <>

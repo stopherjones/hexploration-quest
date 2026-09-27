@@ -1,7 +1,7 @@
 import React from 'react';
 import { ExplorationCard } from '../utils/explorationDeck';
 import { HexCoord } from '../types';
-import { Compass, Flame, ShieldAlert, Sparkles, Trophy, ArrowRight, RotateCcw } from 'lucide-react';
+import { Compass, Flame, ShieldAlert, Sparkles, Trophy, ArrowRight, RotateCcw, X } from 'lucide-react';
 
 interface ChamberExplorationModalProps {
   isOpen: boolean;
@@ -51,8 +51,8 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/65 backdrop-blur-xs select-none">
       <div className="w-full max-w-sm bg-[#f4edd9] border-2 border-[#2b261f] rounded-xl shadow-2xl overflow-hidden text-center animate-in fade-in zoom-in-95 duration-150 text-[#2b261f]">
         
-        {/* Header Bar matching EventModal / LevelTransitionModal */}
-        <div className="py-2.5 px-3.5 border-b-2 border-[#2b261f] font-mono font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between bg-[#ede4d3]">
+        {/* Header Bar matching EventModal / LevelTransitionModal with Close X button */}
+        <div className="py-2 px-3 border-b-2 border-[#2b261f] font-mono font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between bg-[#ede4d3]">
           <div className="flex items-center gap-1.5 text-left">
             <span className="text-sm">♠</span>
             <div>
@@ -64,8 +64,18 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-[10px] font-mono font-bold bg-[#e0d3bc] px-2 py-0.5 rounded border border-[#cfbe9f] text-[#5c5244]">
-            <span>{deckCount} cards left</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-[10px] font-mono font-bold bg-[#e0d3bc] px-2 py-0.5 rounded border border-[#cfbe9f] text-[#5c5244]">
+              <span>{deckCount} cards left</span>
+            </div>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="p-1 rounded hover:bg-[#d6c8b0] text-[#5c5244] border border-[#2b261f]/20 cursor-pointer transition-colors"
+              title="Close Survey Modal"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
@@ -90,57 +100,89 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
             )}
           </div>
 
-          {/* Cards Comparison View */}
-          <div className="flex items-center justify-center gap-3">
+          {/* Cards Comparison View with Real 3D Deck Draw & Flip Animation */}
+          <div className="flex items-center justify-center gap-4 py-1">
             {/* Base Comparison Card */}
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1">
                 Base Card
               </span>
-              <div className="w-16 h-24 bg-white border-2 border-[#2b261f] rounded-lg shadow flex flex-col justify-between p-1.5 select-none shrink-0 relative">
+              <div
+                key={baseCard ? `${baseCard.suit}-${baseCard.rank}` : 'base-none'}
+                className="w-18 h-26 bg-white border-2 border-[#2b261f] rounded-lg shadow-md flex flex-col justify-between p-1.5 select-none shrink-0 relative transition-transform"
+              >
                 <div className={`text-xs font-bold leading-none ${getSuitColor(baseCard?.suit)}`}>
                   {baseCard?.rank}
                   <div className="text-[10px]">{baseCard?.suit}</div>
                 </div>
-                <div className={`text-2xl font-black text-center ${getSuitColor(baseCard?.suit)}`}>
+                <div className={`text-3xl font-black text-center ${getSuitColor(baseCard?.suit)}`}>
                   {baseCard?.suit}
                 </div>
                 <div className={`text-xs font-bold leading-none text-right ${getSuitColor(baseCard?.suit)}`}>
                   {baseCard?.rank}
+                  <div className="text-[10px]">{baseCard?.suit}</div>
                 </div>
               </div>
             </div>
 
             {/* VS or Arrow */}
-            <div className="flex flex-col items-center justify-center pt-4">
-              <span className="text-xs font-black text-[#7a6d59]">vs</span>
+            <div className="flex flex-col items-center justify-center pt-5">
+              <span className="text-xs font-black text-[#7a6d59] uppercase tracking-wider">vs</span>
               <ArrowRight className="w-4 h-4 text-[#8c7d67] mt-1" />
             </div>
 
-            {/* Drawn Card or Mystery Face-Down Card */}
+            {/* Drawn Card or Exploration Deck Stack */}
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1">
-                {drawnCard ? 'Drawn Card' : 'Next Card'}
+                {drawnCard ? 'Drawn Card' : 'Survey Deck'}
               </span>
-              {drawnCard ? (
-                <div className="w-16 h-24 bg-white border-2 border-[#2b261f] rounded-lg shadow flex flex-col justify-between p-1.5 select-none shrink-0 animate-in zoom-in-90 duration-150">
-                  <div className={`text-xs font-bold leading-none ${getSuitColor(drawnCard.suit)}`}>
-                    {drawnCard.rank}
-                    <div className="text-[10px]">{drawnCard.suit}</div>
+              
+              <div className="relative flex-shrink-0">
+                {/* 3D Stacked Deck Underneath */}
+                <div className="absolute inset-0 bg-[#3b342a] rounded-lg border-2 border-[#2b261f] translate-x-1.5 translate-y-1.5 opacity-60"></div>
+                <div className="absolute inset-0 bg-[#4a4235] rounded-lg border-2 border-[#2b261f] translate-x-0.5 translate-y-0.5 opacity-80"></div>
+
+                {drawnCard ? (
+                  /* Face-Up Drawn Card (Flipping in 3D from Deck) */
+                  <div
+                    key={`${drawnCard.suit}-${drawnCard.rank}`}
+                    className={`w-18 h-26 bg-white border-2 border-[#2b261f] rounded-lg shadow-lg flex flex-col justify-between p-1.5 select-none shrink-0 relative z-10 animate-card-flip-from-deck ${
+                      drawnCard.isAceOfSpades
+                        ? 'ring-4 ring-amber-400 bg-amber-50 shadow-amber-300/60'
+                        : drawnCard.isHonor
+                        ? 'ring-2 ring-orange-400 bg-orange-50/50'
+                        : ''
+                    }`}
+                  >
+                    <div className={`text-xs font-bold leading-none ${getSuitColor(drawnCard.suit)}`}>
+                      {drawnCard.rank}
+                      <div className="text-[10px]">{drawnCard.suit}</div>
+                    </div>
+                    <div className={`text-3xl font-black text-center ${getSuitColor(drawnCard.suit)}`}>
+                      {drawnCard.isAceOfSpades ? '♠' : drawnCard.suit}
+                    </div>
+                    <div className={`text-xs font-bold leading-none text-right ${getSuitColor(drawnCard.suit)}`}>
+                      {drawnCard.rank}
+                      <div className="text-[10px]">{drawnCard.suit}</div>
+                    </div>
                   </div>
-                  <div className={`text-2xl font-black text-center ${getSuitColor(drawnCard.suit)}`}>
-                    {drawnCard.suit}
+                ) : (
+                  /* Face-Down Top of Deck Card */
+                  <div className="w-18 h-26 bg-[#2b261f] border-2 border-[#f4edd9] rounded-lg shadow-md p-1 flex flex-col items-center justify-center select-none relative z-10 overflow-hidden">
+                    <div className="w-full h-full border border-dashed border-[#e8deca]/60 rounded flex flex-col items-center justify-center bg-[#3b342a] p-1">
+                      <div className="flex items-center gap-1 text-[#e8deca] text-[11px]">
+                        <span>♠</span>
+                        <span className="text-red-400">♦</span>
+                        <span>♣</span>
+                      </div>
+                      <span className="text-base font-black text-[#f4edd9] mt-0.5">?</span>
+                      <span className="text-[9px] font-mono font-bold text-[#cfbe9f]/90 mt-0.5">
+                        {deckCount} cards
+                      </span>
+                    </div>
                   </div>
-                  <div className={`text-xs font-bold leading-none text-right ${getSuitColor(drawnCard.suit)}`}>
-                    {drawnCard.rank}
-                  </div>
-                </div>
-              ) : (
-                <div className="w-16 h-24 bg-[#e8deca] border-2 border-dashed border-[#2b261f] rounded-lg shadow-inner flex flex-col items-center justify-center p-1.5 select-none shrink-0">
-                  <span className="text-lg text-[#786e5e]">♠♦♣</span>
-                  <span className="text-lg font-black text-[#5c5244] mt-1">?</span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
