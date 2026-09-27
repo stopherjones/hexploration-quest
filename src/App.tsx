@@ -1501,59 +1501,62 @@ export default function App() {
       currentTunnelHeading
     );
 
-    if (nextCard.effect === 'target') {
-      setLevel2TargetFound(true);
-      setStatusMessage(
-        `THE ACE OF HEARTS! The grand subterranean exit archway is revealed at (${carveResult.targetCoord?.col ?? '?'}, ${carveResult.targetCoord?.row ?? '?'})! Move into the archway to escape and win!`
-      );
-    } else if (nextCard.effect === 'trap') {
-      sounds.playHazard();
-      setEventPrompt({
-        title: 'Subterranean Trap Chamber! (J♥)',
-        category: 'Hazard',
-        description:
-          'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
-        type: 'tunnel_trap',
-        coord: tunnelMap.playerCoord,
-        statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
-      });
-      setStatusMessage(
-        'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
-      );
-    } else if (nextCard.effect === 'treasure') {
-      sounds.playBonus();
-      setEventPrompt({
-        title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
-        category: 'Discovery',
-        description:
-          'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
-        type: 'tunnel_treasure',
-        coord: tunnelMap.playerCoord,
-        statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
-      });
-      setStatusMessage(
-        `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
-      );
-    } else if (nextCard.effect === 'dead_end') {
-      sounds.playHazard();
-      setStatusMessage(
-        `Drawn ${nextCard.name} — Dead end cave-in! Rockfall blocks the passage ahead. Retrace steps back along the corridor.`
-      );
-      if (energy <= 0) {
+    // Delay modal pop-ups slightly so player sees the card drawn and flipped first
+    setTimeout(() => {
+      if (nextCard.effect === 'target') {
+        setLevel2TargetFound(true);
+        setStatusMessage(
+          `THE ACE OF HEARTS! The grand subterranean exit archway is revealed at (${carveResult.targetCoord?.col ?? '?'}, ${carveResult.targetCoord?.row ?? '?'})! Move into the archway to escape and win!`
+        );
+      } else if (nextCard.effect === 'trap') {
         sounds.playHazard();
-        setIsLost(true);
-        setStatusMessage('Energy exhausted in a subterranean dead end! The delve is lost.');
-      }
-    } else {
-      setStatusMessage(
-        `Drawn ${nextCard.name}: ${carveResult.openedCoords.length} corridor exits carved!`
-      );
-      if (energy <= 0) {
+        setEventPrompt({
+          title: 'Subterranean Trap Chamber! (J♥)',
+          category: 'Hazard',
+          description:
+            'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
+          type: 'tunnel_trap',
+          coord: tunnelMap.playerCoord,
+          statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
+        });
+        setStatusMessage(
+          'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
+        );
+      } else if (nextCard.effect === 'treasure') {
+        sounds.playBonus();
+        setEventPrompt({
+          title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
+          category: 'Discovery',
+          description:
+            'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
+          type: 'tunnel_treasure',
+          coord: tunnelMap.playerCoord,
+          statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
+        });
+        setStatusMessage(
+          `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
+        );
+      } else if (nextCard.effect === 'dead_end') {
         sounds.playHazard();
-        setIsLost(true);
-        setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
+        setStatusMessage(
+          `Drawn ${nextCard.name} — Dead end cave-in! Rockfall blocks the passage ahead. Retrace steps back along the corridor.`
+        );
+        if (energy <= 0) {
+          sounds.playHazard();
+          setIsLost(true);
+          setStatusMessage('Energy exhausted in a subterranean dead end! The delve is lost.');
+        }
+      } else {
+        setStatusMessage(
+          `Drawn ${nextCard.name}: ${carveResult.openedCoords.length} corridor exits carved!`
+        );
+        if (energy <= 0) {
+          sounds.playHazard();
+          setIsLost(true);
+          setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
+        }
       }
-    }
+    }, 700);
 
     setTunnelMap((prev) => ({
       ...prev,
@@ -1600,14 +1603,15 @@ export default function App() {
 
     // If drawn card is an Honor card (J, Q, K, or non-Spade Ace):
     // NOTE: Drawing JQKA does NOT affect your streak or your guess!
+    // Give the card flip animation time (600ms) to complete before displaying the choices!
     if (drawn.isHonor) {
       setTimeout(() => {
         sounds.playBonus();
-      }, 320);
-      setPendingExplorationChoice('face_gamble');
-      setExplorationResultText(
-        `Honor card drawn: ${drawn.rank} of ${drawn.suit}! Your "${prediction.toUpperCase()}" call and streak are preserved. Choose: Discard base (${comparisonCard?.rank || ''}${comparisonCard?.suit || ''}) for a fresh card, OR draw again keeping your "${prediction.toUpperCase()}" guess seeking the Ace of Spades (A♠)!`
-      );
+        setPendingExplorationChoice('face_gamble');
+        setExplorationResultText(
+          `Honor card drawn: ${drawn.rank} of ${drawn.suit}! Your "${prediction.toUpperCase()}" call and streak are preserved. Choose: Discard base (${comparisonCard?.rank || ''}${comparisonCard?.suit || ''}) for a fresh card, OR draw again keeping your "${prediction.toUpperCase()}" guess seeking the Ace of Spades (A♠)!`
+        );
+      }, 600);
       setStatusMessage(
         `Honor card ${drawn.rank}${drawn.suit} drawn! Streak & "${prediction.toUpperCase()}" guess preserved.`
       );
@@ -1735,14 +1739,14 @@ export default function App() {
 
       // If ANOTHER honor card is drawn (e.g. Jack then King or Queen):
       if (gambleCard.isHonor) {
+        const guessLabel = (activePrediction || 'higher').toUpperCase();
         setTimeout(() => {
           sounds.playBonus();
-        }, 320);
-        setPendingExplorationChoice('face_gamble');
-        const guessLabel = (activePrediction || 'higher').toUpperCase();
-        setExplorationResultText(
-          `Another honor card drawn: ${gambleCard.rank} of ${gambleCard.suit}! Your "${guessLabel}" call and streak remain intact. Discard base (${comparisonCard?.rank}${comparisonCard?.suit}) or draw again for A♠!`
-        );
+          setPendingExplorationChoice('face_gamble');
+          setExplorationResultText(
+            `Another honor card drawn: ${gambleCard.rank} of ${gambleCard.suit}! Your "${guessLabel}" call and streak remain intact. Discard base (${comparisonCard?.rank}${comparisonCard?.suit}) or draw again for A♠!`
+          );
+        }, 600);
         setStatusMessage(
           `Drew ${gambleCard.rank}${gambleCard.suit}! "${guessLabel}" guess & streak still active.`
         );

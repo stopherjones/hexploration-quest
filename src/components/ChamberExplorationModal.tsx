@@ -186,22 +186,8 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
             </div>
           </div>
 
-          {/* Rank Value Details & Discrete JQKA Reminder */}
-          <div className="bg-[#ede4d3] p-2 rounded-lg border border-[#2b261f]/20 text-center">
-            <div className="text-xs font-black text-[#2b261f]">
-              {baseCard ? `${baseCard.rank} of ${getSuitName(baseCard.suit)}` : 'None'}
-            </div>
-            <div className="text-[10.5px] text-[#5c5244] mt-0.5">
-              Rank value: <span className="font-bold text-[#1f2937]">{baseCard?.value}</span> (2 to 10)
-            </div>
-            {/* Discrete rule reminder line requested by user */}
-            <div className="text-[9.5px] text-[#7a6d59] border-t border-[#2b261f]/15 pt-1 mt-1 leading-snug">
-              Drawing J, Q, K, A allows you to discard the current card or gamble for A♠
-            </div>
-          </div>
-
-          {/* Outcome / Result Message Banner */}
-          {resultMessage && (
+          {/* Result / Outcome banner if not in initial higher_lower prompt */}
+          {resultMessage && pendingChoice !== 'higher_lower' && (
             <div className="p-2 bg-[#fdfbf7] rounded-lg border border-[#2b261f]/20 text-[11px] text-[#443d33] leading-relaxed">
               {resultMessage}
             </div>
@@ -211,7 +197,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
           {pendingChoice === 'higher_lower' && (
             <div className="space-y-1.5 pt-1">
               <div className="text-[11px] font-bold text-[#2b261f]">
-                Predict next card rank:
+                Predict next card rank (2 to 10):
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -236,8 +222,8 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
                   </span>
                 </button>
               </div>
-              <div className="text-[10px] text-[#7a6d59] italic text-center">
-                Pairs push with 0⚡ change & reset streak
+              <div className="text-[10px] text-[#5c5244] leading-snug text-center pt-0.5">
+                Drawing J, Q, K, A allows you to discard the current card or gamble for A♠
               </div>
             </div>
           )}
