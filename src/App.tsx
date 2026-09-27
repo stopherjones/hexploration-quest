@@ -1492,80 +1492,87 @@ export default function App() {
     const drawnCount = level2CardsDrawn + 1;
     setLevel2CardsDrawn(drawnCount);
 
-    const updatedTiles = new Map(tunnelMap.tiles);
-
-    const carveResult = carveCorridorsForTile(
-      updatedTiles,
-      tunnelMap.playerCoord,
-      nextCard,
-      currentTunnelHeading
-    );
-
-    // Delay modal pop-ups slightly so player sees the card drawn and flipped first
-    setTimeout(() => {
-      if (nextCard.effect === 'target') {
-        setLevel2TargetFound(true);
-        setStatusMessage(
-          `THE ACE OF HEARTS! The grand subterranean exit archway is revealed at (${carveResult.targetCoord?.col ?? '?'}, ${carveResult.targetCoord?.row ?? '?'})! Move into the archway to escape and win!`
-        );
-      } else if (nextCard.effect === 'trap') {
-        sounds.playHazard();
-        setEventPrompt({
-          title: 'Subterranean Trap Chamber! (J♥)',
-          category: 'Hazard',
-          description:
-            'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
-          type: 'tunnel_trap',
-          coord: tunnelMap.playerCoord,
-          statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
-        });
-        setStatusMessage(
-          'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
-        );
-      } else if (nextCard.effect === 'treasure') {
-        sounds.playBonus();
-        setEventPrompt({
-          title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
-          category: 'Discovery',
-          description:
-            'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
-          type: 'tunnel_treasure',
-          coord: tunnelMap.playerCoord,
-          statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
-        });
-        setStatusMessage(
-          `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
-        );
-      } else if (nextCard.effect === 'dead_end') {
-        sounds.playHazard();
-        setStatusMessage(
-          `Drawn ${nextCard.name} — Dead end cave-in! Rockfall blocks the passage ahead. Retrace steps back along the corridor.`
-        );
-        if (energy <= 0) {
-          sounds.playHazard();
-          setIsLost(true);
-          setStatusMessage('Energy exhausted in a subterranean dead end! The delve is lost.');
-        }
-      } else {
-        setStatusMessage(
-          `Drawn ${nextCard.name}: ${carveResult.openedCoords.length} corridor exits carved!`
-        );
-        if (energy <= 0) {
-          sounds.playHazard();
-          setIsLost(true);
-          setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
-        }
-      }
-    }, 700);
-
+    // 1. Immediately update active card & deck so player sees the card draw flip on screen first
     setTunnelMap((prev) => ({
       ...prev,
-      tiles: updatedTiles,
       deck: updatedDeck,
       discard: [...prev.discard, nextCard],
       activeCard: nextCard,
       cardsDrawnCount: drawnCount,
     }));
+
+    // 2. Add a clear short delay before carving and revealing new corridors on the map
+    setTimeout(() => {
+      setTunnelMap((prev) => {
+        const updatedTiles = new Map(prev.tiles);
+        const carveResult = carveCorridorsForTile(
+          updatedTiles,
+          prev.playerCoord,
+          nextCard,
+          currentTunnelHeading
+        );
+
+        // Resolve event prompts, messages, and hazards after map exits appear
+        if (nextCard.effect === 'target') {
+          setLevel2TargetFound(true);
+          setStatusMessage(
+            `THE ACE OF HEARTS! The grand subterranean exit archway is revealed at (${carveResult.targetCoord?.col ?? '?'}, ${carveResult.targetCoord?.row ?? '?'})! Move into the archway to escape and win!`
+          );
+        } else if (nextCard.effect === 'trap') {
+          sounds.playHazard();
+          setEventPrompt({
+            title: 'Subterranean Trap Chamber! (J♥)',
+            category: 'Hazard',
+            description:
+              'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
+            type: 'tunnel_trap',
+            coord: prev.playerCoord,
+            statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
+          });
+          setStatusMessage(
+            'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
+          );
+        } else if (nextCard.effect === 'treasure') {
+          sounds.playBonus();
+          setEventPrompt({
+            title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
+            category: 'Discovery',
+            description:
+              'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
+            type: 'tunnel_treasure',
+            coord: prev.playerCoord,
+            statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
+          });
+          setStatusMessage(
+            `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
+          );
+        } else if (nextCard.effect === 'dead_end') {
+          sounds.playHazard();
+          setStatusMessage(
+            `Drawn ${nextCard.name} — Dead end cave-in! Rockfall blocks the passage ahead. Retrace steps back along the corridor.`
+          );
+          if (energy <= 0) {
+            sounds.playHazard();
+            setIsLost(true);
+            setStatusMessage('Energy exhausted in a subterranean dead end! The delve is lost.');
+          }
+        } else {
+          setStatusMessage(
+            `Drawn ${nextCard.name}: ${carveResult.openedCoords.length} corridor exits carved!`
+          );
+          if (energy <= 0) {
+            sounds.playHazard();
+            setIsLost(true);
+            setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
+          }
+        }
+
+        return {
+          ...prev,
+          tiles: updatedTiles,
+        };
+      });
+    }, 750);
   };
 
   // Exploration Deck: Player predicts Higher or Lower when entering a chamber
@@ -1628,7 +1635,7 @@ export default function App() {
         sounds.playClick();
       }, 320);
       setExplorationStreak(0);
-      setComparisonCard(drawn);
+      // Keep comparisonCard intact so base and drawn card show side-by-side!
       setPendingExplorationChoice(null);
       setActivePrediction(null);
       setExplorationResultText(
@@ -1651,7 +1658,7 @@ export default function App() {
         setExplorationStreak(nextStreak);
         const energyReward = nextStreak;
         setEnergy((prev) => Math.min(prev + energyReward, MAX_ENERGY));
-        setComparisonCard(drawn);
+        // Keep comparisonCard intact so base and drawn card show side-by-side!
         setPendingExplorationChoice(null);
         setActivePrediction(null);
         setExplorationResultText(
@@ -1670,7 +1677,7 @@ export default function App() {
         const energyPenalty = Math.abs(nextStreak);
         const remainingE = Math.max(0, energy - energyPenalty);
         setEnergy(remainingE);
-        setComparisonCard(drawn);
+        // Keep comparisonCard intact so base and drawn card show side-by-side!
         setPendingExplorationChoice(null);
         setActivePrediction(null);
         setExplorationResultText(
@@ -1763,7 +1770,7 @@ export default function App() {
           sounds.playClick();
         }, 320);
         setExplorationStreak(0);
-        setComparisonCard(gambleCard);
+        // Note: Keep comparisonCard visible side by side with gambleCard
         setPendingExplorationChoice(null);
         setActivePrediction(null);
         setExplorationResultText(
@@ -1783,7 +1790,7 @@ export default function App() {
           setExplorationStreak(nextStreak);
           const energyReward = nextStreak;
           setEnergy((prev) => Math.min(prev + energyReward, MAX_ENERGY));
-          setComparisonCard(gambleCard);
+          // Keep comparisonCard as the previous base card so both cards remain side-by-side
           setPendingExplorationChoice(null);
           setActivePrediction(null);
           setExplorationResultText(
@@ -1801,7 +1808,7 @@ export default function App() {
           const energyPenalty = Math.abs(nextStreak);
           const remainingE = Math.max(0, energy - energyPenalty);
           setEnergy(remainingE);
-          setComparisonCard(gambleCard);
+          // Keep comparisonCard as the previous base card so both cards remain side-by-side
           setPendingExplorationChoice(null);
           setActivePrediction(null);
           setExplorationResultText(
@@ -2031,7 +2038,13 @@ export default function App() {
         chamberCoord={tunnelMap.playerCoord}
         onPredict={handleExplorationPredict}
         onFaceChoice={handleFaceChoice}
-        onDismiss={() => setShowChamberExplorationModal(false)}
+        onDismiss={() => {
+          // If a numbered card was drawn during this survey, promote it to be the new base card for future chambers
+          if (drawnExplorationCard && !drawnExplorationCard.isHonor && !drawnExplorationCard.isAceOfSpades) {
+            setComparisonCard(drawnExplorationCard);
+          }
+          setShowChamberExplorationModal(false);
+        }}
       />
 
       {/* Rules Modal */}

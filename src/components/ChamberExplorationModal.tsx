@@ -104,8 +104,13 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
           <div className="flex items-center justify-center gap-4 py-1">
             {/* Base Comparison Card */}
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1">
-                Base Card
+              <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1 flex items-center gap-1">
+                <span>Base Card</span>
+                {baseCard && (
+                  <span className="text-[9px] font-mono font-normal text-[#5c5244] bg-[#e8deca] px-1 rounded">
+                    val: {baseCard.value}
+                  </span>
+                )}
               </span>
               <div
                 key={baseCard ? `${baseCard.suit}-${baseCard.rank}` : 'base-none'}
@@ -133,8 +138,13 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
 
             {/* Drawn Card or Exploration Deck Stack */}
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1">
-                {drawnCard ? 'Drawn Card' : 'Survey Deck'}
+              <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1 flex items-center gap-1">
+                <span>{drawnCard ? 'Drawn Card' : 'Survey Deck'}</span>
+                {drawnCard && !drawnCard.isHonor && !drawnCard.isAceOfSpades && (
+                  <span className="text-[9px] font-mono font-normal text-[#5c5244] bg-[#e8deca] px-1 rounded">
+                    val: {drawnCard.value}
+                  </span>
+                )}
               </span>
               
               <div className="relative flex-shrink-0">
