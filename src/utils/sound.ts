@@ -39,6 +39,44 @@ class SoundEffects {
     osc.stop(ctx.currentTime + 0.16);
   }
 
+  // Tactile pen / pencil scratching onto paper hex map
+  playPenScratch() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    // 3 quick pencil / inking strokes on paper
+    const strokeDelays = [0, 0.09, 0.2];
+    strokeDelays.forEach((delay, idx) => {
+      setTimeout(() => {
+        if (!this.enabled || !this.ctx) return;
+        const c = this.ctx;
+        const bufferSize = Math.floor(c.sampleRate * 0.07);
+        const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = c.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = c.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1700 + idx * 350, c.currentTime);
+        filter.Q.setValueAtTime(3.0, c.currentTime);
+
+        const gain = c.createGain();
+        gain.gain.setValueAtTime(0.1, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(c.destination);
+        noise.start();
+      }, delay * 1000);
+    });
+  }
+
   // Clattering dice roll
   playDiceRoll() {
     const ctx = this.getContext();

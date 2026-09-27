@@ -4,6 +4,12 @@ import { ShieldAlert, Sparkles, Trophy, Ban, Sparkle } from 'lucide-react';
 import { DirectionIndex } from '../types';
 import { getCardConciseDescription } from '../utils/tunnelEngine';
 
+export interface DelveExitInfo {
+  current: number;
+  total: number;
+  dirName: string;
+}
+
 interface CardDisplayProps {
   card: TunnelCard | null;
   deckCount: number;
@@ -11,6 +17,27 @@ interface CardDisplayProps {
   canDraw?: boolean;
   onDrawCard?: () => void;
   activeExitDirs?: DirectionIndex[];
+  delveStage?: 'draw' | 'ink' | null;
+  delveExitInfo?: DelveExitInfo | null;
+}
+
+export function getDelveChartEntry(card: TunnelCard): string {
+  switch (card.effect) {
+    case 'fork':
+      return 'Forking passage — divides outward into two branching corridors.';
+    case 'chamber':
+      return 'Great chamber — expansive cavern opening three illuminated exits ahead.';
+    case 'dead_end':
+      return 'Collapsed cave-in! Massive rockfall blocks forward passage.';
+    case 'trap':
+      return 'Trap chamber! Pressure plate arms spring-loaded scythe blades.';
+    case 'treasure':
+      return 'Ancient stone vault! Undisturbed mana strongbox discovered.';
+    case 'target':
+      return 'Grand subterranean exit archway! The escape gateway to the surface.';
+    default:
+      return card.description;
+  }
 }
 
 export const CardDisplay: React.FC<CardDisplayProps> = ({
@@ -20,6 +47,8 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
   canDraw = false,
   onDrawCard,
   activeExitDirs = [],
+  delveStage = null,
+  delveExitInfo = null,
 }) => {
   const drawnRanksSet = new Set(discardCards.map((c) => c.rank));
 
@@ -112,10 +141,12 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
         </div>
       ) : card ? (
         <div className="flex items-center gap-3 px-1 py-0.5">
-          {/* Card Face Graphic with Draw Flip Animation */}
+          {/* Card Face Graphic with Draw Flip Animation & Sequence Glow */}
           <div
             key={`${card.rank}-${card.effect}`}
-            className="relative w-11 h-15 bg-[#fffdfa] border-2 border-[#2b261f] rounded-md shadow-md select-none flex-shrink-0 overflow-hidden animate-card-flip-from-deck"
+            className={`relative w-11 h-15 bg-[#fffdfa] border-2 border-[#2b261f] rounded-md shadow-md select-none flex-shrink-0 overflow-hidden animate-card-flip-from-deck ${
+              delveStage ? 'ring-2 ring-amber-500 shadow-amber-500/30' : ''
+            }`}
           >
             {/* Top-left corner */}
             <div className="absolute top-1 left-1 flex flex-col items-center leading-none pointer-events-none">
@@ -149,17 +180,50 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
             </div>
           </div>
 
-          {/* Concise Card Details without clutter or chamber pill */}
+          {/* Concise Card Details or Active Delve Stage Phase */}
           <div className="flex-1 min-w-0 space-y-0.5 font-mono">
-            <div className="flex items-center justify-between gap-1">
-              <span className="font-bold text-xs text-[#2b261f] truncate">
-                {getCardTitle(card)}
-              </span>
-            </div>
-
-            <p className="text-[11px] text-[#5c5346] leading-snug">
-              {getCardConciseDescription(card, activeExitDirs)}
-            </p>
+            {delveStage === 'draw' ? (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9.5px] uppercase font-black px-1.5 py-0.2 rounded bg-amber-300 text-amber-950 border border-amber-500">
+                    Stage 1 of 2: Drawn
+                  </span>
+                  <span className="font-black text-xs text-[#2b261f]">
+                    {card.rank} of Hearts
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-[#451a03] leading-snug mt-1 bg-[#fef3c7] p-1 rounded border border-[#fde68a]">
+                  📖 {getDelveChartEntry(card)}
+                </p>
+              </div>
+            ) : delveStage === 'ink' ? (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9.5px] uppercase font-black px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-950 border border-emerald-500">
+                    Stage 2 of 2: Inking
+                  </span>
+                  <span className="font-black text-xs text-[#14532d] truncate">
+                    {delveExitInfo
+                      ? `Exit ${delveExitInfo.current} of ${delveExitInfo.total} (${delveExitInfo.dirName})`
+                      : 'Inking Corridors on Map'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#166534] leading-snug mt-1 animate-pulse">
+                  ✏️ Drawing corridors onto the map one by one...
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-bold text-xs text-[#2b261f] truncate">
+                    {getCardTitle(card)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#5c5346] leading-snug">
+                  {getCardConciseDescription(card, activeExitDirs)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ) : (

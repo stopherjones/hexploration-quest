@@ -31,6 +31,9 @@ import {
   carveCorridorsForTile,
   getLiveExits,
   getDestinationThroughHallway,
+  getExitDirectionsForCard,
+  carveSingleExitDirection,
+  getDirectionName,
   TUNNEL_START_COORD,
 } from './utils/tunnelEngine';
 import {
@@ -48,7 +51,7 @@ import { FlowerHexGrid } from './components/FlowerHexGrid';
 import { Header } from './components/Header';
 import { HexGrid } from './components/HexGrid';
 import { TunnelGrid } from './components/TunnelGrid';
-import { CardDisplay } from './components/CardDisplay';
+import { CardDisplay, getDelveChartEntry, DelveExitInfo } from './components/CardDisplay';
 import { ControlPanel } from './components/ControlPanel';
 import { RulesModal } from './components/RulesModal';
 import { EventModal } from './components/EventModal';
@@ -58,6 +61,15 @@ import { LevelTransitionModal } from './components/LevelTransitionModal';
 const MAX_ENERGY = 30;
 
 export default function App() {
+  // Delve Card Drawing Sequence State (Stage 1: Draw Card -> Stage 2: Ink on Map one by one)
+  const [delveStage, setDelveStage] = useState<'draw' | 'ink' | null>(null);
+  const [delveExitInfo, setDelveExitInfo] = useState<DelveExitInfo | null>(null);
+  const delveTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
+  const clearDelveTimeouts = () => {
+    delveTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    delveTimeoutsRef.current = [];
+  };
+
   // Level State
   const [currentLevel, setCurrentLevel] = useState<GameLevel>(1);
   const [showLevelTransitionModal, setShowLevelTransitionModal] = useState<boolean>(false);
@@ -240,6 +252,9 @@ export default function App() {
       clearTimeout(gameOverTimeoutRef.current);
       gameOverTimeoutRef.current = null;
     }
+    clearDelveTimeouts();
+    setDelveStage(null);
+    setDelveExitInfo(null);
     isPendingExhaustionRef.current = false;
     setReviewingMap(false);
 
@@ -1230,7 +1245,8 @@ export default function App() {
       isWon ||
       isLost ||
       Boolean(eventPrompt) ||
-      pendingExplorationChoice !== null
+      pendingExplorationChoice !== null ||
+      delveStage !== null
     )
       return false;
     const currentKey = `${tunnelMap.playerCoord.col},${tunnelMap.playerCoord.row}`;
@@ -1242,7 +1258,7 @@ export default function App() {
       !tile.isTarget &&
       tunnelMap.deck.length > 0
     );
-  }, [currentLevel, isWon, isLost, tunnelMap, eventPrompt, pendingExplorationChoice]);
+  }, [currentLevel, isWon, isLost, tunnelMap, eventPrompt, pendingExplorationChoice, delveStage]);
 
   // Interactive exits available from current player tile in Level 2
   // When in an unsurveyed chamber or awaiting delve card draw (after enter or after JQK),
@@ -1458,12 +1474,15 @@ export default function App() {
       isWon ||
       isLost ||
       Boolean(eventPrompt) ||
-      tunnelMap.deck.length === 0
+      tunnelMap.deck.length === 0 ||
+      delveStage !== null
     )
       return;
     const currentKey = `${tunnelMap.playerCoord.col},${tunnelMap.playerCoord.row}`;
     const currentTile = tunnelMap.tiles.get(currentKey);
     if (!currentTile || currentTile.exitsCarved || currentTile.isDeadEnd) return;
+
+    clearDelveTimeouts();
 
     // Dead end rule: "Update the dead end logic so that they can only be drawn if there is more than 1 currently live exit"
     const liveExits = getLiveExits(tunnelMap.tiles);
@@ -1485,14 +1504,17 @@ export default function App() {
     const [nextCard] = updatedDeck.splice(cardIndexToDraw, 1);
     if (!nextCard) return;
 
-    sounds.playCardFlip();
-    setTimeout(() => {
-      sounds.playBonus();
-    }, 320);
     const drawnCount = level2CardsDrawn + 1;
     setLevel2CardsDrawn(drawnCount);
 
-    // 1. Immediately update active card & deck so player sees the card draw flip on screen first
+    // =========================================================================
+    // STAGE 1 of 2: DRAW DELVE CARD (0ms to 1400ms)
+    // Tactile card draw & flip onto table; displays drawn card face & chart rule
+    // =========================================================================
+    sounds.playCardFlip();
+    setDelveStage('draw');
+    setDelveExitInfo(null);
+
     setTunnelMap((prev) => ({
       ...prev,
       deck: updatedDeck,
@@ -1501,53 +1523,48 @@ export default function App() {
       cardsDrawnCount: drawnCount,
     }));
 
-    // 2. Add a clear short delay before carving and revealing new corridors on the map
-    setTimeout(() => {
-      setTunnelMap((prev) => {
-        const updatedTiles = new Map(prev.tiles);
-        const carveResult = carveCorridorsForTile(
-          updatedTiles,
-          prev.playerCoord,
-          nextCard,
-          currentTunnelHeading
-        );
+    const chartEntry = getDelveChartEntry(nextCard);
+    setStatusMessage(
+      `Stage 1/2: Drawn ${nextCard.rank} of Hearts — ${chartEntry}`
+    );
 
-        // Resolve event prompts, messages, and hazards after map exits appear
-        if (nextCard.effect === 'target') {
-          setLevel2TargetFound(true);
-          setStatusMessage(
-            `THE ACE OF HEARTS! The grand subterranean exit archway is revealed at (${carveResult.targetCoord?.col ?? '?'}, ${carveResult.targetCoord?.row ?? '?'})! Move into the archway to escape and win!`
-          );
-        } else if (nextCard.effect === 'trap') {
-          sounds.playHazard();
-          setEventPrompt({
-            title: 'Subterranean Trap Chamber! (J♥)',
-            category: 'Hazard',
-            description:
-              'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
-            type: 'tunnel_trap',
-            coord: prev.playerCoord,
-            statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
-          });
-          setStatusMessage(
-            'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
-          );
-        } else if (nextCard.effect === 'treasure') {
-          sounds.playBonus();
-          setEventPrompt({
-            title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
-            category: 'Discovery',
-            description:
-              'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
-            type: 'tunnel_treasure',
-            coord: prev.playerCoord,
-            statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
-          });
-          setStatusMessage(
-            `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
-          );
-        } else if (nextCard.effect === 'dead_end') {
-          sounds.playHazard();
+    // Record card in current chamber history
+    setTunnelMap((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      const cur = updatedTiles.get(currentKey);
+      if (cur) {
+        cur.card = nextCard;
+        if (!cur.cardsHistory) cur.cardsHistory = [];
+        cur.cardsHistory.push(nextCard);
+      }
+      return { ...prev, tiles: updatedTiles };
+    });
+
+    // =========================================================================
+    // STAGE 2 of 2: INK ON MAP — INKING EACH EXIT ONE BY ONE!
+    // =========================================================================
+    const DRAW_STAGE_DELAY = 1350;
+
+    // Handle non-exit cards first: Dead End, Trap, Treasure
+    if (nextCard.effect === 'dead_end') {
+      const t = setTimeout(() => {
+        sounds.playHazard();
+        setDelveStage('ink');
+        setDelveExitInfo(null);
+        setStatusMessage('Stage 2/2: Inking dead end cave-in on map. Rockfall blocks forward passage!');
+
+        setTunnelMap((prev) => {
+          const updatedTiles = new Map(prev.tiles);
+          const cur = updatedTiles.get(currentKey);
+          if (cur) {
+            cur.isDeadEnd = true;
+            cur.exitsCarved = true;
+          }
+          return { ...prev, tiles: updatedTiles };
+        });
+
+        const tEnd = setTimeout(() => {
+          setDelveStage(null);
           setStatusMessage(
             `Drawn ${nextCard.name} — Dead end cave-in! Rockfall blocks the passage ahead. Retrace steps back along the corridor.`
           );
@@ -1556,23 +1573,135 @@ export default function App() {
             setIsLost(true);
             setStatusMessage('Energy exhausted in a subterranean dead end! The delve is lost.');
           }
-        } else {
-          setStatusMessage(
-            `Drawn ${nextCard.name}: ${carveResult.openedCoords.length} corridor exits carved!`
-          );
-          if (energy <= 0) {
-            sounds.playHazard();
-            setIsLost(true);
-            setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
-          }
-        }
+        }, 650);
+        delveTimeoutsRef.current.push(tEnd);
+      }, DRAW_STAGE_DELAY);
+      delveTimeoutsRef.current.push(t);
+      return;
+    }
 
-        return {
-          ...prev,
-          tiles: updatedTiles,
-        };
-      });
-    }, 750);
+    if (nextCard.effect === 'trap' || nextCard.effect === 'treasure') {
+      const t = setTimeout(() => {
+        setDelveStage('ink');
+        setDelveExitInfo(null);
+
+        setTunnelMap((prev) => {
+          const updatedTiles = new Map(prev.tiles);
+          const cur = updatedTiles.get(currentKey);
+          if (cur) {
+            if (nextCard.effect === 'trap') cur.isTrap = true;
+            if (nextCard.effect === 'treasure') cur.isTreasure = true;
+            cur.exitsCarved = false;
+          }
+          return { ...prev, tiles: updatedTiles };
+        });
+
+        const tEvent = setTimeout(() => {
+          setDelveStage(null);
+          if (nextCard.effect === 'trap') {
+            sounds.playHazard();
+            setEventPrompt({
+              title: 'Subterranean Trap Chamber! (J♥)',
+              category: 'Hazard',
+              description:
+                'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
+              type: 'tunnel_trap',
+              coord: tunnelMap.playerCoord,
+              statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
+            });
+            setStatusMessage(
+              'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
+            );
+          } else {
+            sounds.playBonus();
+            setEventPrompt({
+              title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
+              category: 'Discovery',
+              description:
+                'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
+              type: 'tunnel_treasure',
+              coord: tunnelMap.playerCoord,
+              statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
+            });
+            setStatusMessage(
+              `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
+            );
+          }
+        }, 650);
+        delveTimeoutsRef.current.push(tEvent);
+      }, DRAW_STAGE_DELAY);
+      delveTimeoutsRef.current.push(t);
+      return;
+    }
+
+    // Corridor exit cards (Fork, Chamber, Ace Target): Inking each exit one by one!
+    const exitsToCarve = getExitDirectionsForCard(
+      tunnelMap.tiles,
+      tunnelMap.playerCoord,
+      nextCard,
+      currentTunnelHeading
+    );
+    const isTarget = nextCard.effect === 'target';
+    const EXIT_INTERVAL = 550; // time between drawing consecutive exits
+
+    exitsToCarve.forEach((exitDir, idx) => {
+      const exitTime = DRAW_STAGE_DELAY + idx * EXIT_INTERVAL;
+      const dirName = getDirectionName(exitDir);
+
+      const tExit = setTimeout(() => {
+        sounds.playPenScratch();
+        setDelveStage('ink');
+        setDelveExitInfo({
+          current: idx + 1,
+          total: exitsToCarve.length,
+          dirName,
+        });
+        setStatusMessage(
+          `Stage 2/2: Inking exit ${idx + 1} of ${exitsToCarve.length} (${dirName}) on map...`
+        );
+
+        // Carve this individual exit direction onto the tiles map!
+        setTunnelMap((prev) => {
+          const updatedTiles = new Map(prev.tiles);
+          carveSingleExitDirection(updatedTiles, prev.playerCoord, exitDir, isTarget);
+
+          // If this is the final exit, mark exitsCarved = true on the player chamber
+          if (idx === exitsToCarve.length - 1) {
+            const cur = updatedTiles.get(currentKey);
+            if (cur) cur.exitsCarved = true;
+          }
+
+          return { ...prev, tiles: updatedTiles };
+        });
+      }, exitTime);
+      delveTimeoutsRef.current.push(tExit);
+    });
+
+    // Sequence wrap-up after all exits are inked
+    const totalInkTime = DRAW_STAGE_DELAY + exitsToCarve.length * EXIT_INTERVAL + 500;
+    const tFinish = setTimeout(() => {
+      setDelveStage(null);
+      setDelveExitInfo(null);
+
+      if (isTarget) {
+        sounds.playVictory();
+        setLevel2TargetFound(true);
+        setStatusMessage(
+          `THE ACE OF HEARTS! The grand subterranean exit archway is revealed! Move into the archway to escape and win!`
+        );
+      } else {
+        sounds.playBonus();
+        setStatusMessage(
+          `Drawn ${nextCard.name}: ${exitsToCarve.length} exits carved! Select an illuminated corridor to advance (-1⚡).`
+        );
+        if (energy <= 0) {
+          sounds.playHazard();
+          setIsLost(true);
+          setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
+        }
+      }
+    }, totalInkTime);
+    delveTimeoutsRef.current.push(tFinish);
   };
 
   // Exploration Deck: Player predicts Higher or Lower when entering a chamber
@@ -1600,7 +1729,7 @@ export default function App() {
         setLevel2TargetFound(true);
         setShowChamberExplorationModal(false);
         setShowLevel2VictoryModal(true);
-      }, 420);
+      }, 550);
       setPendingExplorationChoice(null);
       setActivePrediction(null);
       setExplorationResultText('♠ ACE OF SPADES REVEALED! The Gateway to Level 3 is open!');
@@ -1610,7 +1739,7 @@ export default function App() {
 
     // If drawn card is an Honor card (J, Q, K, or non-Spade Ace):
     // NOTE: Drawing JQKA does NOT affect your streak or your guess!
-    // Give the card flip animation time (600ms) to complete before displaying the choices!
+    // Give the card flip animation time (700ms) to complete before displaying the choices!
     if (drawn.isHonor) {
       setTimeout(() => {
         sounds.playBonus();
@@ -1618,84 +1747,85 @@ export default function App() {
         setExplorationResultText(
           `Honor card drawn: ${drawn.rank} of ${drawn.suit}! Your "${prediction.toUpperCase()}" call and streak are preserved. Choose: Discard base (${comparisonCard?.rank || ''}${comparisonCard?.suit || ''}) for a fresh card, OR draw again keeping your "${prediction.toUpperCase()}" guess seeking the Ace of Spades (A♠)!`
         );
-      }, 600);
+      }, 700);
       setStatusMessage(
         `Honor card ${drawn.rank}${drawn.suit} drawn! Streak & "${prediction.toUpperCase()}" guess preserved.`
       );
       return;
     }
 
-    // Numbered card (2 to 10): Compare against comparisonCard
+    // Numbered card (2 to 10): Compare against comparisonCard side-by-side
     const baseVal = comparisonCard ? comparisonCard.value : 7;
     const drawnVal = drawn.value;
 
-    if (drawnVal === baseVal) {
-      // Pair / Equal rank: Push, no energy change, streak resets to 0
-      setTimeout(() => {
-        sounds.playClick();
-      }, 320);
-      setExplorationStreak(0);
-      // Keep comparisonCard intact so base and drawn card show side-by-side!
-      setPendingExplorationChoice(null);
-      setActivePrediction(null);
-      setExplorationResultText(
-        `Pair drawn (${drawn.rank}${drawn.suit} matches ${comparisonCard?.rank || baseVal})! Push — no energy change. Streak reset to 0.`
-      );
-      setStatusMessage(
-        `Exploration: Pair drawn (${drawn.rank}${drawn.suit})! Push. No energy change. Chamber explored!`
-      );
-    } else {
-      const isHigher = drawnVal > baseVal;
-      const isCorrect =
-        (prediction === 'higher' && isHigher) || (prediction === 'lower' && !isHigher);
+    setExplorationResultText(
+      `Comparing cards side-by-side: Base ${comparisonCard?.rank || baseVal} vs Drawn ${drawn.rank} (${drawnVal}) — Predicted "${prediction.toUpperCase()}"...`
+    );
 
-      if (isCorrect) {
-        // Correct prediction
-        setTimeout(() => {
-          sounds.playBonus();
-        }, 320);
-        const nextStreak = explorationStreak >= 0 ? explorationStreak + 1 : 1;
-        setExplorationStreak(nextStreak);
-        const energyReward = nextStreak;
-        setEnergy((prev) => Math.min(prev + energyReward, MAX_ENERGY));
+    // Allow player to digest the two cards side-by-side (1200ms) before applying streak/energy outcome
+    setTimeout(() => {
+      if (drawnVal === baseVal) {
+        // Pair / Equal rank: Push, no energy change, streak resets to 0
+        sounds.playClick();
+        setExplorationStreak(0);
         // Keep comparisonCard intact so base and drawn card show side-by-side!
         setPendingExplorationChoice(null);
         setActivePrediction(null);
         setExplorationResultText(
-          `Correct! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${baseVal}. Streak: +${nextStreak} (+${energyReward} ⚡).`
+          `Pair drawn (${drawn.rank}${drawn.suit} matches ${comparisonCard?.rank || baseVal})! Push — no energy change. Streak reset to 0.`
         );
         setStatusMessage(
-          `Correct call! Drawn ${drawn.rank}${drawn.suit}. Streak +${nextStreak}: Gained +${energyReward} Energy!`
+          `Exploration: Pair drawn (${drawn.rank}${drawn.suit})! Push. No energy change. Chamber explored!`
         );
       } else {
-        // Incorrect prediction
-        setTimeout(() => {
-          sounds.playHazard();
-        }, 320);
-        const nextStreak = explorationStreak <= 0 ? explorationStreak - 1 : -1;
-        setExplorationStreak(nextStreak);
-        const energyPenalty = Math.abs(nextStreak);
-        const remainingE = Math.max(0, energy - energyPenalty);
-        setEnergy(remainingE);
-        // Keep comparisonCard intact so base and drawn card show side-by-side!
-        setPendingExplorationChoice(null);
-        setActivePrediction(null);
-        setExplorationResultText(
-          `Wrong call! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${baseVal}. Streak: ${nextStreak} (-${energyPenalty} ⚡).`
-        );
-        setStatusMessage(
-          `Wrong call! Drawn ${drawn.rank}${drawn.suit}. Streak ${nextStreak}: Lost -${energyPenalty} Energy!`
-        );
+        const isHigher = drawnVal > baseVal;
+        const isCorrect =
+          (prediction === 'higher' && isHigher) || (prediction === 'lower' && !isHigher);
 
-        if (remainingE <= 0) {
-          setTimeout(() => {
-            sounds.playHazard();
-            setIsLost(true);
-            setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
-          }, 420);
+        if (isCorrect) {
+          // Correct prediction
+          sounds.playBonus();
+          const nextStreak = explorationStreak >= 0 ? explorationStreak + 1 : 1;
+          setExplorationStreak(nextStreak);
+          const energyReward = nextStreak;
+          setEnergy((prev) => Math.min(prev + energyReward, MAX_ENERGY));
+          // Keep comparisonCard intact so base and drawn card show side-by-side!
+          setPendingExplorationChoice(null);
+          setActivePrediction(null);
+          setExplorationResultText(
+            `Correct! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${baseVal}. Streak: +${nextStreak} (+${energyReward} ⚡).`
+          );
+          setStatusMessage(
+            `Correct call! Drawn ${drawn.rank}${drawn.suit}. Streak +${nextStreak}: Gained +${energyReward} Energy!`
+          );
+        } else {
+          // Incorrect prediction
+          sounds.playHazard();
+          const nextStreak = explorationStreak <= 0 ? explorationStreak - 1 : -1;
+          setExplorationStreak(nextStreak);
+          const energyPenalty = Math.abs(nextStreak);
+          const remainingE = Math.max(0, energy - energyPenalty);
+          setEnergy(remainingE);
+          // Keep comparisonCard intact so base and drawn card show side-by-side!
+          setPendingExplorationChoice(null);
+          setActivePrediction(null);
+          setExplorationResultText(
+            `Wrong call! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${baseVal}. Streak: ${nextStreak} (-${energyPenalty} ⚡).`
+          );
+          setStatusMessage(
+            `Wrong call! Drawn ${drawn.rank}${drawn.suit}. Streak ${nextStreak}: Lost -${energyPenalty} Energy!`
+          );
+
+          if (remainingE <= 0) {
+            setTimeout(() => {
+              sounds.playHazard();
+              setIsLost(true);
+              setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+            }, 420);
+          }
         }
       }
-    }
+    }, 1200);
   };
 
   // Honor Card Choice: Discard & Redraw Base vs. Draw Again (keeping guess & streak)
@@ -1944,6 +2074,8 @@ export default function App() {
               discardCards={tunnelMap.discard}
               onDrawCard={handleTunnelDrawCard}
               canDraw={canDrawTunnelCard}
+              delveStage={delveStage}
+              delveExitInfo={delveExitInfo}
               activeExitDirs={
                 tunnelMap.tiles.get(
                   `${tunnelMap.playerCoord.col},${tunnelMap.playerCoord.row}`
@@ -1952,7 +2084,51 @@ export default function App() {
             />
 
             {/* Primary Action Buttons Area: Consistent with Level 1 bottom CTA */}
-            {canDrawTunnelCard ? (
+            {delveStage ? (
+              /* Active 2-stage tabletop sequence progress bar */
+              <div className="w-full py-2.5 px-3 bg-[#241e18] border-2 border-[#2b261f] rounded-lg shadow-md flex items-center justify-between gap-2 text-xs font-mono select-none">
+                <div className="flex items-center gap-2 min-w-0">
+                  {delveStage === 'draw' && (
+                    <>
+                      <span className="text-amber-400 font-black text-sm animate-pulse shrink-0">🃏</span>
+                      <div className="truncate">
+                        <span className="text-[#a89d8d] text-[10px] block uppercase font-bold tracking-wider leading-tight">Stage 1 of 2: Drawn Card</span>
+                        <span className="text-[#fef3c7] font-black tracking-wide">{tunnelMap.activeCard?.rank} of Hearts</span>
+                      </div>
+                    </>
+                  )}
+                  {delveStage === 'ink' && (
+                    <>
+                      <span className="text-emerald-400 font-black text-sm animate-pulse shrink-0">✏️</span>
+                      <div className="truncate">
+                        <span className="text-[#a89d8d] text-[10px] block uppercase font-bold tracking-wider leading-tight">Stage 2 of 2: Inking Map</span>
+                        <span className="text-[#bbf7d0] font-black tracking-wide">
+                          {delveExitInfo
+                            ? `Inking exit ${delveExitInfo.current} of ${delveExitInfo.total} (${delveExitInfo.dirName})...`
+                            : 'Inking passages on map...'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* 2 Stage Pill Tracker */}
+                <div className="flex items-center gap-1.5 shrink-0 bg-[#191410] px-2 py-1 rounded border border-[#3d3429]">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      delveStage === 'draw' ? 'bg-amber-400 ring-2 ring-amber-300/40 animate-pulse' : 'bg-amber-500'
+                    }`}
+                    title="Stage 1: Draw Card"
+                  />
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      delveStage === 'ink' ? 'bg-emerald-400 ring-2 ring-emerald-300/40 animate-pulse' : 'bg-[#4a4034]'
+                    }`}
+                    title="Stage 2: Ink on Map"
+                  />
+                </div>
+              </div>
+            ) : canDrawTunnelCard ? (
               /* When in an unsurveyed chamber or awaiting next card (after entering or after JQK),
                  the ONLY action is Draw Delve Card */
               <button

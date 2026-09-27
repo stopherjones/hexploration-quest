@@ -248,6 +248,108 @@ export function selectSmartExitDirections(
   return chosen.slice(0, countNeeded);
 }
 
+export function getExitDirectionsForCard(
+  tiles: Map<string, TunnelTile>,
+  currentCoord: HexCoord,
+  card: TunnelCard,
+  headingFrom?: DirectionIndex
+): DirectionIndex[] {
+  if (card.effect === 'dead_end' || card.effect === 'trap' || card.effect === 'treasure') {
+    return [];
+  }
+  let countNeeded = 2;
+  if (card.effect === 'chamber') countNeeded = 3;
+  if (card.effect === 'target') countNeeded = 1;
+
+  return selectSmartExitDirections(tiles, currentCoord, countNeeded, headingFrom);
+}
+
+export function carveSingleExitDirection(
+  tiles: Map<string, TunnelTile>,
+  currentCoord: HexCoord,
+  exitDir: DirectionIndex,
+  isTarget: boolean = false
+): HexCoord {
+  const currentKey = `${currentCoord.col},${currentCoord.row}`;
+  const currentTile = tiles.get(currentKey);
+  if (!currentTile) return currentCoord;
+
+  const step1Coord = getOrganicNeighbor(currentCoord, exitDir);
+  const step2Coord = getOrganicNeighbor(step1Coord, exitDir);
+
+  const step1Key = `${step1Coord.col},${step1Coord.row}`;
+  const step2Key = `${step2Coord.col},${step2Coord.row}`;
+
+  // 1. Setup step1 (Hallway)
+  let step1Tile = tiles.get(step1Key);
+  if (!step1Tile) {
+    step1Tile = {
+      id: step1Key,
+      col: step1Coord.col,
+      row: step1Coord.row,
+      status: 'lit',
+      isHallway: true,
+      visited: true,
+      connections: [],
+      exitsCarved: true,
+    };
+    tiles.set(step1Key, step1Tile);
+  } else {
+    step1Tile.status = 'lit';
+    step1Tile.isHallway = true;
+  }
+
+  // Connect currentCoord <-> step1Coord
+  if (!currentTile.connections.includes(exitDir)) {
+    currentTile.connections.push(exitDir);
+  }
+  const oppExit = OPPOSITE_DIRECTIONS[exitDir];
+  if (!step1Tile.connections.includes(oppExit)) {
+    step1Tile.connections.push(oppExit);
+  }
+
+  // Connect step1Coord <-> step2Coord
+  if (!step1Tile.connections.includes(exitDir)) {
+    step1Tile.connections.push(exitDir);
+  }
+
+  // 2. Setup step2 (Destination chamber or Joining existing chamber)
+  let step2Tile = tiles.get(step2Key);
+  if (!step2Tile) {
+    // Fresh new destination chamber
+    step2Tile = {
+      id: step2Key,
+      col: step2Coord.col,
+      row: step2Coord.row,
+      status: 'lit',
+      isHallway: false,
+      visited: false,
+      connections: [oppExit],
+      exitsCarved: false,
+      isTarget,
+    };
+    tiles.set(step2Key, step2Tile);
+  } else {
+    // Joining up to an existing chamber / loop!
+    step2Tile.status = 'lit';
+    if (!step2Tile.connections.includes(oppExit)) {
+      step2Tile.connections.push(oppExit);
+    }
+    if (isTarget) {
+      step2Tile.isTarget = true;
+    }
+  }
+
+  if (!currentTile.carvedExitDirs) {
+    currentTile.carvedExitDirs = [];
+  }
+  if (!currentTile.carvedExitDirs.includes(exitDir)) {
+    currentTile.carvedExitDirs.push(exitDir);
+  }
+
+  return step2Coord;
+}
+
 /**
  * Applies card effects to the current chamber:
  * - 5, 7 (Dead Ends): Do NOT create new exits. Marks current chamber as dead end.
@@ -294,96 +396,21 @@ export function carveCorridorsForTile(
   }
 
   // 3. Exit Cards: Fork (2 exits), Chamber (3 exits), or Ace Target (1 exit)
-  let countNeeded = 2;
-  if (card.effect === 'chamber') countNeeded = 3;
-  if (card.effect === 'target') countNeeded = 1;
-
-  const exits = selectSmartExitDirections(tiles, currentCoord, countNeeded, headingFrom);
+  const exits = getExitDirectionsForCard(tiles, currentCoord, card, headingFrom);
+  const isTarget = card.effect === 'target';
 
   const openedCoords: HexCoord[] = [];
   let targetCoord: HexCoord | undefined = undefined;
 
-  // For each exit direction, grow 2 hexes:
-  // step 1 = intermediate hallway corridor
-  // step 2 = destination chamber (or joins existing chamber)
   for (const exitDir of exits) {
-    const step1Coord = getOrganicNeighbor(currentCoord, exitDir);
-    const step2Coord = getOrganicNeighbor(step1Coord, exitDir);
-
-    const step1Key = `${step1Coord.col},${step1Coord.row}`;
-    const step2Key = `${step2Coord.col},${step2Coord.row}`;
-
-    // 1. Setup step1 (Hallway)
-    let step1Tile = tiles.get(step1Key);
-    if (!step1Tile) {
-      step1Tile = {
-        id: step1Key,
-        col: step1Coord.col,
-        row: step1Coord.row,
-        status: 'lit',
-        isHallway: true,
-        visited: true,
-        connections: [],
-        exitsCarved: true,
-      };
-      tiles.set(step1Key, step1Tile);
-    } else {
-      step1Tile.status = 'lit';
-      step1Tile.isHallway = true;
-    }
-
-    // Connect currentCoord <-> step1Coord
-    if (!currentTile.connections.includes(exitDir)) {
-      currentTile.connections.push(exitDir);
-    }
-    const oppExit = OPPOSITE_DIRECTIONS[exitDir];
-    if (!step1Tile.connections.includes(oppExit)) {
-      step1Tile.connections.push(oppExit);
-    }
-
-    // Connect step1Coord <-> step2Coord
-    if (!step1Tile.connections.includes(exitDir)) {
-      step1Tile.connections.push(exitDir);
-    }
-
-    // 2. Setup step2 (Destination chamber or Joining existing chamber)
-    let step2Tile = tiles.get(step2Key);
-    const isTarget = card.effect === 'target';
-
-    if (!step2Tile) {
-      // Fresh new destination chamber
-      step2Tile = {
-        id: step2Key,
-        col: step2Coord.col,
-        row: step2Coord.row,
-        status: 'lit',
-        isHallway: false,
-        visited: false,
-        connections: [oppExit],
-        exitsCarved: false,
-        isTarget,
-      };
-      tiles.set(step2Key, step2Tile);
-    } else {
-      // Joining up to an existing chamber / loop!
-      step2Tile.status = 'lit';
-      if (!step2Tile.connections.includes(oppExit)) {
-        step2Tile.connections.push(oppExit);
-      }
-      if (isTarget) {
-        step2Tile.isTarget = true;
-      }
-    }
-
+    const dest = carveSingleExitDirection(tiles, currentCoord, exitDir, isTarget);
+    openedCoords.push(dest);
     if (isTarget) {
-      targetCoord = step2Coord;
+      targetCoord = dest;
     }
-
-    openedCoords.push(step2Coord);
   }
 
   currentTile.exitsCarved = true;
-  currentTile.carvedExitDirs = [...exits];
   return { openedCoords, targetCoord };
 }
 
