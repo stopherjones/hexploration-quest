@@ -30,6 +30,8 @@ import {
   createTunnelMap,
   carveCorridorsForTile,
   getLiveExits,
+  getUnexploredExits,
+  UnexploredExitInfo,
   getDestinationThroughHallway,
   getExitDirectionsForCard,
   carveSingleExitDirection,
@@ -47,6 +49,7 @@ import {
 } from './utils/explorationDeck';
 import { ChamberExplorationModal } from './components/ChamberExplorationModal';
 import { Level2VictoryModal } from './components/Level2VictoryModal';
+import { ReExplorePromptModal } from './components/ReExplorePromptModal';
 import { FlowerHexGrid } from './components/FlowerHexGrid';
 import { Level3EncounterModal } from './components/Level3EncounterModal';
 import {
@@ -92,6 +95,8 @@ export default function App() {
   const [level2CardsDrawn, setLevel2CardsDrawn] = useState<number>(0);
   const [level2TargetFound, setLevel2TargetFound] = useState<boolean>(false);
   const [showLevel2VictoryModal, setShowLevel2VictoryModal] = useState<boolean>(false);
+  const [level2ReExploring, setLevel2ReExploring] = useState<boolean>(false);
+  const [showReExploreModal, setShowReExploreModal] = useState<boolean>(false);
 
   // Level 2 Exploration Deck (♠, ♣, ♦ Higher/Lower and Ace of Spades hunt)
   const [explorationDeck, setExplorationDeck] = useState<ExplorationCard[]>(() =>
@@ -1245,6 +1250,8 @@ export default function App() {
     setLevel2Steps(0);
     setLevel2CardsDrawn(0);
     setLevel2TargetFound(false);
+    setLevel2ReExploring(false);
+    setShowReExploreModal(false);
     setStatusMessage(
       `Descended into Level 2: The Underground Tunnels! Base card is ${initialBaseCard.rank}${initialBaseCard.suit}. Draw a Hearts Delve Card to survey entry chamber and carve corridor exits.`
     );
@@ -1333,6 +1340,25 @@ export default function App() {
     return count;
   }, [tunnelMap.tiles]);
 
+  // Unexplored exits on Level 2 map with overlapping exit detection
+  const unexploredExits = useMemo(() => {
+    if (currentLevel !== 2) return [];
+    return getUnexploredExits(tunnelMap.tiles);
+  }, [currentLevel, tunnelMap.tiles]);
+
+  const overlappingExitsCount = useMemo(() => {
+    return unexploredExits.filter((e) => e.isOverlapping).length;
+  }, [unexploredExits]);
+
+  // Movement cost in Level 2: 1 energy normally, 2 energy in Re-Exploration phase
+  const level2MoveCost = level2ReExploring ? 2 : 1;
+
+  // Check if Level 2 map is fully drawn (all 13 cards drawn, no more exits can be carved)
+  const isLevel2MapFullyDrawn = useMemo(() => {
+    if (currentLevel !== 2 || level2TargetFound) return false;
+    return tunnelMap.deck.length === 0 && getLiveExits(tunnelMap.tiles).length === 0;
+  }, [currentLevel, level2TargetFound, tunnelMap.deck.length, tunnelMap.tiles]);
+
   // Click on a tile in Level 2 (step into lit exit or dead-end retrace)
   const handleTunnelTileClick = (targetCoord: HexCoord) => {
     if (currentLevel !== 2 || isWon || isLost) return;
@@ -1359,7 +1385,7 @@ export default function App() {
         resolvedTarget.row === tunnelMap.playerCoord.row
       ) {
         setStatusMessage(
-          'Current adventurer position. Step into an illuminated corridor exit (-1 ⚡).'
+          `Current adventurer position. Step into an illuminated corridor exit (-${level2MoveCost} ⚡).`
         );
       } else {
         setStatusMessage('That corridor is not accessible from your current chamber!');
@@ -1367,7 +1393,7 @@ export default function App() {
       return;
     }
 
-    // Step costs 1 Energy
+    // Step costs 1 Energy in Phase 1, or 2 Energy in Phase 2 (Re-Exploration)
     if (energy <= 0) {
       sounds.playHazard();
       setIsLost(true);
@@ -1375,7 +1401,7 @@ export default function App() {
       return;
     }
 
-    const nextEnergy = Math.max(0, energy - 1);
+    const nextEnergy = Math.max(0, energy - level2MoveCost);
     setEnergy(nextEnergy);
 
     // Compute heading direction from current playerCoord to resolvedTarget and find any intermediate hallway
@@ -1427,7 +1453,33 @@ export default function App() {
       return;
     }
 
-    // Check if target tile already has carved exits or is a dead end (revisiting / retracing steps)
+    // In Re-Exploration Phase: Moving into ANY chamber prompts the Higher / Lower chamber survey again!
+    if (level2ReExploring) {
+      setDrawnExplorationCard(null);
+      setPendingExplorationChoice('higher_lower');
+      setExplorationResultText('Re-Exploration: Predict if the next exploration card is HIGHER or LOWER than your base card!');
+      setShowChamberExplorationModal(true);
+
+      if (nextEnergy <= 0) {
+        setStatusMessage(
+          `⚠️ Re-Exploration (-2⚡): Chamber entered on your last breath (0⚡)! Predict Higher/Lower on base ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} to gain energy!`
+        );
+      } else {
+        setStatusMessage(
+          `Re-Exploration (-2⚡): Entered chamber (${resolvedTarget.col}, ${resolvedTarget.row}). Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} to gain energy and hunt for A♠!`
+        );
+      }
+
+      setTunnelMap((prev) => ({
+        ...prev,
+        tiles: updatedTiles,
+        playerCoord: resolvedTarget,
+        activeCard: targetTile.card || prev.activeCard,
+      }));
+      return;
+    }
+
+    // Check if target tile already has carved exits or is a dead end (revisiting / retracing steps in Phase 1)
     if (targetTile.exitsCarved || targetTile.isDeadEnd) {
       if (targetTile.isDeadEnd) {
         setStatusMessage(
@@ -1704,12 +1756,17 @@ export default function App() {
       } else {
         sounds.playBonus();
         setStatusMessage(
-          `Drawn ${nextCard.name}: ${exitsToCarve.length} exits carved! Select an illuminated corridor to advance (-1⚡).`
+          `Drawn ${nextCard.name}: ${exitsToCarve.length} exits carved! Select an illuminated corridor to advance (-${level2MoveCost}⚡).`
         );
         if (energy <= 0) {
           sounds.playHazard();
           setIsLost(true);
           setStatusMessage('Energy exhausted! With no energy left to explore the newly carved passages, the delve is lost.');
+        } else if (updatedDeck.length === 0 && !level2TargetFound && !level2ReExploring) {
+          // All 13 delve cards drawn and inked!
+          setTimeout(() => {
+            setShowReExploreModal(true);
+          }, 1200);
         }
       }
     }, totalInkTime);
@@ -2331,6 +2388,10 @@ export default function App() {
         level2TargetFound={level2TargetFound}
         level2Streak={explorationStreak}
         onOpenExplorationModal={() => setShowChamberExplorationModal(true)}
+        unexploredCount={unexploredExits.length}
+        overlappingCount={overlappingExitsCount}
+        isReExploring={level2ReExploring}
+        onOpenReExplorePrompt={() => setShowReExploreModal(true)}
       />
 
       {/* 2. Interactive SVG Hex Grid (Middle Map Area) */}
@@ -2357,6 +2418,8 @@ export default function App() {
             onTileClick={handleTunnelTileClick}
             interactiveExits={tunnelInteractiveExits}
             energy={energy}
+            moveCost={level2MoveCost}
+            isReExploring={level2ReExploring}
           />
         ) : (
           <div className="h-full overflow-hidden p-1 flex items-center justify-center">
@@ -2410,6 +2473,9 @@ export default function App() {
                   `${tunnelMap.playerCoord.col},${tunnelMap.playerCoord.row}`
                 )?.carvedExitDirs
               }
+              isReExploring={level2ReExploring}
+              canReExplore={isLevel2MapFullyDrawn && !level2ReExploring}
+              onOpenReExplorePrompt={() => setShowReExploreModal(true)}
             />
 
             {/* Primary Action Buttons Area: Consistent with Level 1 bottom CTA */}
@@ -2479,6 +2545,7 @@ export default function App() {
                   const exitKey = `${exitCoord.col},${exitCoord.row}`;
                   const exitTile = tunnelMap.tiles.get(exitKey);
                   const isTarget = Boolean(exitTile?.isTarget);
+                  const isOverlapping = Boolean(exitTile && !exitTile.visited && !exitTile.isDeadEnd && exitTile.connections.length > 1);
 
                   if (isTarget) {
                     return (
@@ -2489,7 +2556,7 @@ export default function App() {
                       >
                         <span className="truncate">🏆 {bearing}</span>
                         <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] shrink-0">
-                          -1⚡
+                          -{level2MoveCost}⚡
                         </span>
                       </button>
                     );
@@ -2499,11 +2566,25 @@ export default function App() {
                     <button
                       key={`exit-${exitCoord.col}-${exitCoord.row}-${idx}`}
                       onClick={() => handleTunnelTileClick(exitCoord)}
-                      className="flex-1 min-w-0 py-2 px-2 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-bold text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-between gap-1 cursor-pointer transition-transform active:translate-y-0.5"
+                      className={`flex-1 min-w-0 py-2 px-2 text-white border-2 border-[#2b261f] rounded-lg font-mono font-bold text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-between gap-1 cursor-pointer transition-transform active:translate-y-0.5 ${
+                        isOverlapping
+                          ? 'bg-[#92400e] hover:bg-[#78350f] active:bg-[#451a03]'
+                          : level2ReExploring
+                          ? 'bg-[#1e3a8a] hover:bg-[#172554] active:bg-[#0f172a]'
+                          : 'bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332]'
+                      }`}
                     >
-                      <span className="truncate font-black">{bearing}</span>
+                      <span className="truncate font-black flex items-center gap-1">
+                        {isOverlapping && <span className="text-amber-300">✦</span>}
+                        <span>{bearing}</span>
+                        {isOverlapping && exitTile && (
+                          <span className="text-[10px] text-amber-200">
+                            ({exitTile.connections.length}x)
+                          </span>
+                        )}
+                      </span>
                       <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] shrink-0">
-                        -1⚡
+                        -{level2MoveCost}⚡
                       </span>
                     </button>
                   );
@@ -2598,6 +2679,23 @@ export default function App() {
           }
           setShowChamberExplorationModal(false);
         }}
+      />
+
+      {/* Re-Explore Prompt Modal (Map Fully Drawn -> Re-Explore at 2⚡) */}
+      <ReExplorePromptModal
+        isOpen={showReExploreModal}
+        energy={energy}
+        unexploredCount={unexploredExits.length}
+        overlappingCount={overlappingExitsCount}
+        onConfirmReExplore={() => {
+          setLevel2ReExploring(true);
+          setShowReExploreModal(false);
+          sounds.playBonus();
+          setStatusMessage(
+            'Re-Exploration started! Movement now costs 2⚡ per chamber. Survey every chamber with Higher/Lower to discover the Ace of Spades!'
+          );
+        }}
+        onDismiss={() => setShowReExploreModal(false)}
       />
 
       {/* Rules Modal */}

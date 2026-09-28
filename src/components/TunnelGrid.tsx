@@ -15,6 +15,8 @@ interface TunnelGridProps {
   onTileClick: (coord: HexCoord) => void;
   interactiveExits: HexCoord[];
   energy: number;
+  moveCost?: number;
+  isReExploring?: boolean;
 }
 
 // Computes the 6 corner vertices of a pointy-topped hex for corner pillars/buttresses
@@ -35,11 +37,28 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
   playerCoord,
   onTileClick,
   interactiveExits,
+  moveCost = 1,
+  isReExploring = false,
 }) => {
   // Set of interactive exit keys for fast lookup
   const exitKeySet = React.useMemo(() => {
     return new Set(interactiveExits.map((c) => `${c.col},${c.row}`));
   }, [interactiveExits]);
+
+  // Unexplored exits list and overlapping exit count
+  const { unexploredList, overlappingCount } = React.useMemo(() => {
+    const list: TunnelTile[] = [];
+    let overlap = 0;
+    for (const t of tiles.values()) {
+      if (t.status === 'lit' && !t.isHallway && !t.visited && !t.isDeadEnd && !t.isStart) {
+        list.push(t);
+        if (t.connections.length > 1) {
+          overlap++;
+        }
+      }
+    }
+    return { unexploredList: list, overlappingCount: overlap };
+  }, [tiles]);
 
   // Dynamic ViewBox: frames all revealed chambers and corridors organically
   const viewBox = React.useMemo(() => {
@@ -124,6 +143,14 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
             <stop offset="0%" stopColor="#10b981" stopOpacity="0.38" />
             <stop offset="65%" stopColor="#047857" stopOpacity="0.18" />
             <stop offset="100%" stopColor="#064e3b" stopOpacity="0.05" />
+          </radialGradient>
+
+          {/* Overlapping Convergent Exit Radial Pulse (Radiant Amber / Violet / Emerald) */}
+          <radialGradient id="overlapping-exit-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.55" />
+            <stop offset="45%" stopColor="#10b981" stopOpacity="0.3" />
+            <stop offset="75%" stopColor="#9333ea" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0" />
           </radialGradient>
 
           {/* Explored Subterranean Flagstone texture pattern */}
@@ -424,20 +451,32 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
 
           // =====================================================================
           // 3B. UNEXPLORED LIVE EXIT CHAMBER (Grand Vaulted Room with Portal Runes)
+          // Tracking single vs. overlapping exits (converging corridors)
           // =====================================================================
           if (isUnexploredExit) {
+            const incomingCount = tile.connections.length;
+            const isOverlapping = incomingCount > 1;
+
             return (
               <g
                 key={tile.id}
                 onClick={() => onTileClick({ col: tile.col, row: tile.row })}
                 className="cursor-pointer group"
               >
+                {/* Radial Glow underneath */}
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={HEX_RADIUS * (isOverlapping ? 1.4 : 1.2)}
+                  fill={isOverlapping ? 'url(#overlapping-exit-glow)' : 'url(#unexplored-exit-glow)'}
+                />
+
                 {/* Stone chamber foundation matching paper cartography */}
                 <polygon
                   points={points}
-                  fill="#2c2621"
-                  stroke="#2d6a4f"
-                  strokeWidth={isExit ? 2.4 : 1.6}
+                  fill={isOverlapping ? '#35281e' : '#2c2621'}
+                  stroke={isOverlapping ? '#f59e0b' : '#2d6a4f'}
+                  strokeWidth={isExit ? (isOverlapping ? 3.0 : 2.5) : (isOverlapping ? 2.2 : 1.6)}
                 />
 
                 {/* Corridor pavers fill */}
@@ -454,30 +493,61 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
                     cx={v.x}
                     cy={v.y}
                     r="2.8"
-                    fill="#1b4332"
-                    stroke="#2d6a4f"
+                    fill={isOverlapping ? '#78350f' : '#1b4332'}
+                    stroke={isOverlapping ? '#f59e0b' : '#2d6a4f'}
                     strokeWidth="0.8"
                   />
                 ))}
 
                 {/* Chamber Circular Dais */}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r="13"
-                  fill="#1b4332"
-                  stroke="#2d6a4f"
-                  strokeWidth="1.2"
-                />
-                <circle
-                  cx={x}
-                  cy={y}
-                  r="7.5"
-                  fill="#2d6a4f"
-                  stroke="#52b788"
-                  strokeWidth="1"
-                />
-                <circle cx={x} cy={y} r="2.5" fill="#d8f3dc" />
+                {isOverlapping ? (
+                  <>
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r="13.5"
+                      fill="#451a03"
+                      stroke="#f59e0b"
+                      strokeWidth="1.5"
+                    />
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r="8"
+                      fill="#78350f"
+                      stroke="#fde68a"
+                      strokeWidth="1.2"
+                    />
+                    <text
+                      x={x}
+                      y={y + 3}
+                      textAnchor="middle"
+                      className="text-[8.5px] font-mono font-black fill-amber-300"
+                    >
+                      ✦{incomingCount}
+                    </text>
+                  </>
+                ) : (
+                  <>
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r="13"
+                      fill="#1b4332"
+                      stroke="#2d6a4f"
+                      strokeWidth="1.2"
+                    />
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r="7.5"
+                      fill="#2d6a4f"
+                      stroke="#52b788"
+                      strokeWidth="1"
+                    />
+                    <circle cx={x} cy={y} r="2.5" fill="#d8f3dc" />
+                  </>
+                )}
 
                 {/* Carved stone portal lintels pointing toward incoming connections */}
                 {tile.connections.map((dir) => {
@@ -489,32 +559,99 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
                       key={`portal-${tile.id}-${dir}`}
                       cx={px}
                       cy={py}
-                      r="2.2"
-                      fill="#52b788"
+                      r={isOverlapping ? 2.5 : 2.2}
+                      fill={isOverlapping ? '#fbbf24' : '#52b788'}
                     />
                   );
                 })}
 
-                {/* Interactive Exit Badge: -1⚡ */}
-                {isExit && (
+                {/* Badges: Overlapping vs Single Exit, and Interactive Move vs Map Beacon */}
+                {isExit ? (
+                  isOverlapping ? (
+                    <g transform={`translate(${x}, ${y - 12})`}>
+                      <rect
+                        x="-19"
+                        y="-6.5"
+                        width="38"
+                        height="13"
+                        rx="3"
+                        fill="#b45309"
+                        stroke="#fef08a"
+                        strokeWidth="1.2"
+                      />
+                      <text
+                        x="0"
+                        y="2.5"
+                        textAnchor="middle"
+                        className="text-[7px] font-mono font-black fill-amber-100 tracking-tight"
+                      >
+                        -{moveCost}⚡ ✦{incomingCount}
+                      </text>
+                    </g>
+                  ) : (
+                    <g transform={`translate(${x}, ${y - 12})`}>
+                      <rect
+                        x="-13"
+                        y="-6"
+                        width="26"
+                        height="12"
+                        rx="3"
+                        fill="#2d6a4f"
+                        stroke="#2b261f"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x="0"
+                        y="3"
+                        textAnchor="middle"
+                        className="text-[7.5px] font-mono font-black fill-white tracking-wide"
+                      >
+                        -{moveCost}⚡
+                      </text>
+                    </g>
+                  )
+                ) : isOverlapping ? (
                   <g transform={`translate(${x}, ${y - 12})`}>
                     <rect
-                      x="-13"
+                      x="-21"
                       y="-6"
-                      width="26"
+                      width="42"
                       height="12"
                       rx="3"
-                      fill="#2d6a4f"
-                      stroke="#2b261f"
+                      fill="#78350f"
+                      stroke="#f59e0b"
                       strokeWidth="1"
+                      opacity="0.95"
                     />
                     <text
                       x="0"
-                      y="3"
+                      y="2.5"
                       textAnchor="middle"
-                      className="text-[7.5px] font-mono font-black fill-white tracking-wide"
+                      className="text-[6.2px] font-mono font-black fill-amber-200 uppercase tracking-tight"
                     >
-                      -1⚡
+                      OVERLAP ({incomingCount})
+                    </text>
+                  </g>
+                ) : (
+                  <g transform={`translate(${x}, ${y - 12})`}>
+                    <rect
+                      x="-15"
+                      y="-5.5"
+                      width="30"
+                      height="11"
+                      rx="2.5"
+                      fill="#1b4332"
+                      stroke="#52b788"
+                      strokeWidth="0.8"
+                      opacity="0.9"
+                    />
+                    <text
+                      x="0"
+                      y="2.5"
+                      textAnchor="middle"
+                      className="text-[6px] font-mono font-bold fill-emerald-200 uppercase tracking-tight"
+                    >
+                      UNEXPLORED
                     </text>
                   </g>
                 )}
@@ -692,13 +829,13 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
               {isExit && !isPlayerHere && (
                 <g transform={`translate(${x}, ${y - 12})`}>
                   <rect
-                    x="-12"
+                    x="-13"
                     y="-6"
-                    width="24"
+                    width="26"
                     height="12"
                     rx="3"
-                    fill="#2d6a4f"
-                    stroke="#2b261f"
+                    fill={isReExploring ? '#b45309' : '#2d6a4f'}
+                    stroke={isReExploring ? '#fef08a' : '#2b261f'}
                     strokeWidth="1"
                   />
                   <text
@@ -707,7 +844,7 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
                     textAnchor="middle"
                     className="text-[7.5px] font-mono font-black fill-white"
                   >
-                    -1⚡
+                    -{moveCost}⚡
                   </text>
                 </g>
               )}
@@ -745,6 +882,34 @@ export const TunnelGrid: React.FC<TunnelGridProps> = ({
           <circle cx="9" cy="-5" r="1.2" fill="#fde047" />
         </g>
       </svg>
+
+      {/* =========================================================================
+          LAYER 6: UNEXPLORED EXITS & RE-EXPLORATION HUD TRACKER
+          ========================================================================= */}
+      <div className="absolute top-2 left-2 pointer-events-none z-10 flex flex-col gap-1 text-[11px] font-mono select-none">
+        <div className="bg-[#241e18]/85 backdrop-blur-xs text-[#f4edd9] px-2.5 py-1 rounded-md border border-[#4a3f33] shadow-md flex items-center gap-1.5 pointer-events-auto">
+          <span className="text-emerald-400 font-bold">🔍</span>
+          <span className="font-bold">
+            {unexploredList.length} Unexplored Exit{unexploredList.length !== 1 ? 's' : ''}
+          </span>
+          {overlappingCount > 0 && (
+            <span
+              className="px-1.5 py-0.2 rounded bg-amber-900/90 text-amber-300 border border-amber-600 font-black text-[9.5px] flex items-center gap-0.5"
+              title={`${overlappingCount} chamber${overlappingCount !== 1 ? 's have' : ' has'} multiple converging corridors (overlapping exits)`}
+            >
+              <span>✦</span>
+              <span>{overlappingCount} Overlap{overlappingCount !== 1 ? 's' : ''}</span>
+            </span>
+          )}
+        </div>
+
+        {isReExploring && (
+          <div className="bg-amber-950/90 backdrop-blur-xs text-amber-200 px-2.5 py-0.5 rounded-md border border-amber-500/80 shadow-md text-[10px] font-black flex items-center gap-1.5">
+            <span className="animate-spin-slow">🔁</span>
+            <span>Re-Exploration Active • Move: -{moveCost}⚡</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

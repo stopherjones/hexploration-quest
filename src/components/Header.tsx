@@ -22,6 +22,10 @@ interface HeaderProps {
   level2TargetFound?: boolean;
   level2Streak?: number;
   onOpenExplorationModal?: () => void;
+  unexploredCount?: number;
+  overlappingCount?: number;
+  isReExploring?: boolean;
+  onOpenReExplorePrompt?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,6 +49,10 @@ export const Header: React.FC<HeaderProps> = ({
   level2TargetFound = false,
   level2Streak = 0,
   onOpenExplorationModal,
+  unexploredCount = 0,
+  overlappingCount = 0,
+  isReExploring = false,
+  onOpenReExplorePrompt,
 }) => {
   const exploredPct = Math.round((revealedCount / totalHexes) * 100);
   const isLowEnergy = energy <= 5;
@@ -91,6 +99,42 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>{level2Streak > 0 ? `▲+${level2Streak}` : `▼${level2Streak}`}</span>
                   )}
                 </button>
+
+                {/* Unexplored Exits & Overlaps Tracker */}
+                <div
+                  className="hidden sm:flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-[#dfd3bc] rounded text-[10px] font-bold border border-[#2b261f]/25 text-[#4a3f33]"
+                  title={`${unexploredCount} unexplored exit chambers (${overlappingCount} with overlapping corridors)`}
+                >
+                  <span>🔍 {unexploredCount}</span>
+                  {overlappingCount > 0 && (
+                    <span className="text-amber-800 font-black">
+                      ✦{overlappingCount}
+                    </span>
+                  )}
+                </div>
+
+                {/* Re-Exploration Phase Badge */}
+                {isReExploring ? (
+                  <button
+                    type="button"
+                    onClick={onOpenReExplorePrompt}
+                    className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-500 font-black text-[10px] flex items-center gap-1 shadow-2xs active:translate-y-px cursor-pointer"
+                    title="Phase 2: Re-Exploration Active. Movement costs 2⚡ per chamber."
+                  >
+                    <span>🔁</span>
+                    <span>2⚡ Move</span>
+                  </button>
+                ) : level2CardsRemaining === 0 && onOpenReExplorePrompt ? (
+                  <button
+                    type="button"
+                    onClick={onOpenReExplorePrompt}
+                    className="ml-1 px-1.5 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 border border-amber-600 font-black text-[10px] flex items-center gap-1 shadow-2xs active:translate-y-px cursor-pointer animate-pulse"
+                    title="All cards drawn! Tap to start Phase 2 Re-Exploration"
+                  >
+                    <span>🔁</span>
+                    <span>Re-Explore?</span>
+                  </button>
+                ) : null}
               </>
             ) : (
               <>

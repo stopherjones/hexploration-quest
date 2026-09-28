@@ -78,6 +78,44 @@ export function createTunnelMap(deck: TunnelCard[]): TunnelMap {
   };
 }
 
+export interface UnexploredExitInfo {
+  id: string;
+  col: number;
+  row: number;
+  incomingCount: number;
+  incomingDirs: DirectionIndex[];
+  isOverlapping: boolean;
+}
+
+/**
+ * Returns all currently unexplored exit chambers in the subterranean map,
+ * with tracking for overlapping exits (chambers where multiple corridors converge).
+ */
+export function getUnexploredExits(tiles: Map<string, TunnelTile>): UnexploredExitInfo[] {
+  const result: UnexploredExitInfo[] = [];
+  for (const tile of tiles.values()) {
+    if (
+      tile.status === 'lit' &&
+      !tile.isHallway &&
+      !tile.visited &&
+      !tile.isDeadEnd &&
+      !tile.isStart
+    ) {
+      const incomingDirs = [...tile.connections];
+      const incomingCount = incomingDirs.length;
+      result.push({
+        id: tile.id,
+        col: tile.col,
+        row: tile.row,
+        incomingCount,
+        incomingDirs,
+        isOverlapping: incomingCount > 1,
+      });
+    }
+  }
+  return result;
+}
+
 /**
  * Returns all currently live exits in the subterranean map.
  * A live exit is an illuminated chamber that is not a hallway,
@@ -206,6 +244,7 @@ export function selectSmartExitDirections(
     const s2Tile = tiles.get(`${s2.col},${s2.row}`);
     if (!s2Tile) return 'fresh'; // completely open, uncarved space
     if (s2Tile.isDeadEnd) return 'dead_end';
+    if (s2Tile.isHallway) return 'dead_end'; // Do not carve destination chamber on top of intermediate hallway
     return 'existing'; // joins an existing lit room / loop
   };
 
@@ -437,6 +476,11 @@ export function getDestinationThroughHallway(
   }
 
   if (!stepDir) return neighborCoord;
+
+  // Prefer straight continuation in direction stepDir if connected
+  if (nTile.connections.includes(stepDir)) {
+    return getOrganicNeighbor(neighborCoord, stepDir);
+  }
 
   // The connection coming into nTile from fromCoord is OPPOSITE_DIRECTIONS[stepDir]
   const backDir = OPPOSITE_DIRECTIONS[stepDir];

@@ -129,7 +129,9 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <div>• <strong>Honor Cards (J, Q, K, A):</strong> Drawing an honor card does <em>not</em> affect your streak or your Higher/Lower bid! You can choose either to discard your base card for a fresh comparison card, OR draw again keeping your active Higher/Lower guess and streak (seeking the <strong>Ace of Spades (A♠)</strong> for instant gateway victory)!</div>
                 <div>• <strong>Ace of Spades (A♠):</strong> Shuffled anywhere in the 39-card deck. Drawing it opens the gateway to Level 3!</div>
                 <div>• <strong>Hearts Delve Deck:</strong> Carves corridor exits (Fork, Chamber, Dead End, Trap, or Vaults). Ace of Hearts now acts as an Ancient Vault.</div>
-                <div>• <strong>Navigation:</strong> Step forward through carved exits (-1 ⚡) or use the retrace direction button to backtrack.</div>
+                <div>• <strong>Unexplored Exits & Overlaps:</strong> The map tracks live unexplored exits with glowing beacons. When multiple corridors converge onto the same chamber, an <strong>Overlap (✦)</strong> badge marks the convergent junction!</div>
+                <div>• <strong>Phase 2 Re-Exploration (Map Fully Drawn):</strong> If you chart the entire map without discovering the Ace of Spades (A♠), you are prompted to explore the map again. In Phase 2, moving costs <strong>2 ⚡ Energy</strong> per chamber, and stepping into any chamber prompts the Higher/Lower survey to win back energy while hunting for A♠!</div>
+                <div>• <strong>Navigation:</strong> Step forward through carved exits (-1 ⚡ in Phase 1, -2 ⚡ in Phase 2) or use the retrace direction button to backtrack.</div>
               </div>
             </div>
           </div>

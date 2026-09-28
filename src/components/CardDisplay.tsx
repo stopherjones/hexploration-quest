@@ -19,6 +19,9 @@ interface CardDisplayProps {
   activeExitDirs?: DirectionIndex[];
   delveStage?: 'draw' | 'ink' | null;
   delveExitInfo?: DelveExitInfo | null;
+  isReExploring?: boolean;
+  canReExplore?: boolean;
+  onOpenReExplorePrompt?: () => void;
 }
 
 export function getDelveChartEntry(card: TunnelCard): string {
@@ -49,6 +52,9 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
   activeExitDirs = [],
   delveStage = null,
   delveExitInfo = null,
+  isReExploring = false,
+  canReExplore = false,
+  onOpenReExplorePrompt,
 }) => {
   const drawnRanksSet = new Set(discardCards.map((c) => c.rank));
 
@@ -99,6 +105,32 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({
           );
         })}
       </div>
+
+      {/* Re-Exploration Active or Prompt Banner */}
+      {isReExploring ? (
+        <div className="bg-[#fef3c7] border border-[#f59e0b] rounded p-1.5 flex items-center justify-between text-[11px] text-[#78350f] font-mono shadow-2xs">
+          <span className="font-bold flex items-center gap-1.5">
+            <span className="animate-spin-slow">🔁</span>
+            <span>Phase 2: Re-Exploring Map (2⚡ per chamber move)</span>
+          </span>
+          <span className="text-[10px] bg-[#fde68a] text-[#78350f] px-1.5 py-0.2 rounded font-black border border-[#f59e0b]/40">
+            Hunt A♠
+          </span>
+        </div>
+      ) : canReExplore && onOpenReExplorePrompt ? (
+        <div
+          onClick={onOpenReExplorePrompt}
+          className="bg-[#fef3c7] hover:bg-[#fde68a] border-2 border-[#f59e0b] rounded p-1.5 flex items-center justify-between text-[11px] text-[#78350f] font-mono cursor-pointer transition-colors shadow-xs"
+        >
+          <span className="font-black flex items-center gap-1.5">
+            <span>🔁</span>
+            <span>Map fully drawn! Prompt to explore again?</span>
+          </span>
+          <span className="text-[10px] bg-[#b45309] text-white px-2 py-0.5 rounded font-black border border-[#78350f] shadow-2xs">
+            Start 2⚡
+          </span>
+        </div>
+      ) : null}
 
       {/* Main Status Section: Chamber Status OR Active Card Details */}
       {canDraw ? (
