@@ -17,6 +17,7 @@ interface HeaderProps {
   onOpenRules: () => void;
   onNewGame: () => void;
   level?: 1 | 2 | 3;
+  onChangeLevel?: (lvl: 1 | 2 | 3) => void;
   level2CardsRemaining?: number;
   level2TargetFound?: boolean;
   level2Streak?: number;
@@ -39,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onNewGame,
   level = 1,
+  onChangeLevel,
   level2CardsRemaining = 13,
   level2TargetFound = false,
   level2Streak = 0,
@@ -60,13 +62,13 @@ export const Header: React.FC<HeaderProps> = ({
           <span>New Game</span>
         </button>
 
-        {/* Center Title + Active Boons Badges */}
+        {/* Center Title + Active Boons Badges + Level Selector */}
         <div className="flex items-center gap-1.5 font-bold text-xs text-[#2b261f] uppercase font-mono tracking-tight">
           <div className="flex items-center gap-1">
             {level === 3 ? (
               <>
                 <span className="text-emerald-700 text-sm leading-none">⚙️</span>
-                <span>Level 3: Utopia Machine</span>
+                <span>Level 3: Flower Core</span>
               </>
             ) : level === 2 ? (
               <>
@@ -95,6 +97,26 @@ export const Header: React.FC<HeaderProps> = ({
                 <Compass className="w-3.5 h-3.5 text-[#2d6a4f]" />
                 <span>Level 1: Hex Crawl</span>
               </>
+            )}
+
+            {/* Quick Level Switcher Pills for convenience */}
+            {onChangeLevel && (
+              <div className="flex items-center gap-0.5 ml-1.5 bg-[#dfd3bc] p-0.5 rounded border border-[#2b261f]/30">
+                {([1, 2, 3] as const).map((lvl) => (
+                  <button
+                    key={`lvl-btn-${lvl}`}
+                    onClick={() => onChangeLevel(lvl)}
+                    className={`px-1.5 py-0.2 rounded text-[9px] font-black cursor-pointer transition-colors ${
+                      level === lvl
+                        ? 'bg-[#2b261f] text-white shadow-2xs'
+                        : 'text-[#5c5346] hover:bg-[#ece2d0]'
+                    }`}
+                    title={`Jump to Level ${lvl}`}
+                  >
+                    L{lvl}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
@@ -191,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center justify-center gap-1 px-1"
           title={
             level === 3
-              ? 'Floor 1 / 3'
+              ? '19-Hex Flower Engine Core'
               : level === 2
               ? level2TargetFound
                 ? 'Ace of Spades Exit Discovered!'
@@ -204,11 +226,11 @@ export const Header: React.FC<HeaderProps> = ({
           }
         >
           <span className="text-[9px] uppercase font-mono text-[#5c5446]">
-            {level === 3 ? 'Floor:' : level === 2 ? 'Exit:' : 'Goal:'}
+            {level === 3 ? 'Stage:' : level === 2 ? 'Exit:' : 'Goal:'}
           </span>
           {level === 3 ? (
-            <span className="text-[11px] font-black font-mono uppercase text-[#2d6a4f]">
-              Floor 1/3
+            <span className="text-[11px] font-black font-mono uppercase text-[#991b1b]">
+              The Core
             </span>
           ) : level === 2 ? (
             <span

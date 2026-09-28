@@ -59,10 +59,10 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
           {/* Level 3 Teaser */}
           <div className="bg-[#fdfbf7] p-2.5 rounded-lg border border-[#2b261f]/20 text-left space-y-1 text-[10.5px]">
             <span className="text-[#2d6a4f] font-bold uppercase flex items-center gap-1">
-              <span>⚙️</span> Level 3: The 19-Petal Machine Floors
+              <span>⚙️</span> Level 3: The 19-Hex Flower Engine Core
             </span>
             <p className="text-[#5c5346]">
-              Descend into a three-floor hex flower labyrinth. Explore tiles to reveal power conduits, and solve the <strong>Utopia Engine Alignment Grids</strong> to activate the machine!
+              Descend into a single-floor 19-hex concentric flower: 12-hex Outer Ring, 6-hex Inner Ring, and the Core Guardian. Flip tiles, test doors with Utopia Engine dice, and confront the Level 5 Boss!
             </p>
           </div>
 
@@ -73,7 +73,7 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
               className="w-full py-2.5 px-4 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white font-mono font-black text-xs sm:text-sm uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
             >
               <ArrowDown className="w-4 h-4" />
-              <span>Enter Level 3 (Floor 1)</span>
+              <span>Enter Level 3: The Flower Engine Core</span>
             </button>
           </div>
         </div>

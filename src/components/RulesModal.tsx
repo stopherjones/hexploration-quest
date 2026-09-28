@@ -134,18 +134,21 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Level 3: The 19-Petal Utopia Machine */}
+          {/* Level 3: The 19-Hex Flower Engine Core */}
           <div className="space-y-1.5 bg-[#dcfce7]/60 text-[#2b261f] p-2.5 rounded-lg border-2 border-[#2b261f]">
             <div className="font-black uppercase text-[#15803d] flex items-center gap-1.5 border-b border-[#2b261f]/20 pb-1 text-xs">
               <span className="text-sm leading-none">⚙️</span>
-              <span>Level 3: The 19-Petal Utopia Machine Floors</span>
+              <span>Level 3: The 19-Hex Flower Engine Core</span>
             </div>
             <p className="text-[11px] text-[#443d33]">
-              Three floors of 19-tile flower hex grids. Step onto adjacent hexes to flip and reveal machine conduits, resonator pylons, and the central core.
+              A single 19-hex concentric flower grid: 12-hex Outer Ring, 6-hex Inner Ring, and 1-hex Core Boss. All tiles start face-down and cost 1⚡ to flip (either by stepping in, or peeking from an adjacent hex).
             </p>
-            <div className="space-y-0.5 text-[10.5px] pl-2 border-l-2 border-[#15803d]/40 text-[#443d33]">
-              <div>• <strong>Utopia Engine Alignment Grid:</strong> Solved at machine nodes to power up floor resonators.</div>
-              <div>• <strong>Three Floors:</strong> Clear resonators and cores across each floor to reactivate the ancient Utopia Engine!</div>
+            <div className="space-y-1 text-[10.5px] pl-2 border-l-2 border-[#15803d]/40 text-[#443d33]">
+              <div>• <strong>Outer Ring (12 Hexes):</strong> 1 Safe Start, 4 Locked Portals, 3 Traps, 4 Mana Vaults.</div>
+              <div>• <strong>Outer Portals:</strong> Test via Utopia Engine dice: Difference 0 = Master Unlock (all 4 portals open)! 1–10 = grants 1 code fragment (need 3 fragments total). Fail twice and you need a 0 on remaining doors; fail 3 times = Game Over!</div>
+              <div>• <strong>Inner Ring (6 Hexes):</strong> 1 Safe, 2 Inner Gates, 2 Traps, 1 Mana Vault. Decrypt both gates (scores 1–10) or get a 0 on either to open the way to the Core.</div>
+              <div>• <strong>Traps & Vaults:</strong> Score 0 = Permanent Disarm / Full 30⚡ Restore. 1–10 = Temporary Disarm / +10⚡. 11–99 = +1⚡ refund / +5⚡. Larger differences spawn level 1–4 monsters!</div>
+              <div>• <strong>Combat & Boss:</strong> Level 1, 2, 3 monsters have 1 HP. Level 4 has 2 HP and receives damage on 1, 2, 3. The Level 5 Core Boss has 3 HP and receives damage on 1, 2, 3! Defeat the Boss to save Utopia!</div>
             </div>
           </div>
         </div>

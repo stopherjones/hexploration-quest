@@ -48,6 +48,14 @@ import {
 import { ChamberExplorationModal } from './components/ChamberExplorationModal';
 import { Level2VictoryModal } from './components/Level2VictoryModal';
 import { FlowerHexGrid } from './components/FlowerHexGrid';
+import { Level3EncounterModal } from './components/Level3EncounterModal';
+import {
+  generateLevel3Map,
+  Level3State,
+  FlowerTile,
+  canTraverseToTile,
+  areAxialAdjacent,
+} from './utils/level3Engine';
 import { Header } from './components/Header';
 import { HexGrid } from './components/HexGrid';
 import { TunnelGrid } from './components/TunnelGrid';
@@ -99,8 +107,10 @@ export default function App() {
   const [explorationResultText, setExplorationResultText] = useState<string | null>(null);
   const [showChamberExplorationModal, setShowChamberExplorationModal] = useState<boolean>(false);
 
-  // Level 3 State
-  const [level3Floor, setLevel3Floor] = useState<number>(1);
+  // Level 3 State (19-hex Flower Machine)
+  const [level3State, setLevel3State] = useState<Level3State>(() => generateLevel3Map());
+  const [activeLevel3Tile, setActiveLevel3Tile] = useState<FlowerTile | null>(null);
+  const [level3Steps, setLevel3Steps] = useState<number>(0);
 
   // Game Map State (Level 1)
   const [mapData, setMapData] = useState(() => generateMap());
@@ -275,7 +285,9 @@ export default function App() {
     setPendingExplorationChoice(null);
     setExplorationResultText(null);
     setShowChamberExplorationModal(false);
-    setLevel3Floor(1);
+    setLevel3State(generateLevel3Map());
+    setActiveLevel3Tile(null);
+    setLevel3Steps(0);
 
     const newMap = generateMap();
     setMapData(newMap);
@@ -1960,17 +1972,313 @@ export default function App() {
     }
   };
 
-  // Transition from Level 2 to Level 3 (Flower Hex Grid Floor 1)
+  // Transition from Level 2 to Level 3 (Flower Hex Grid Level 3)
   const handleDescendToLevel3 = () => {
     sounds.playVictory();
     setCurrentLevel(3);
     setShowLevel2VictoryModal(false);
-    setLevel3Floor(1);
+    setLevel3State(generateLevel3Map());
+    setActiveLevel3Tile(null);
+    setLevel3Steps(0);
     setIsWon(false);
     setIsLost(false);
     setStatusMessage(
-      'Descended to Level 3: Floor 1 of 3! Explore the 19-petal flower machine floor to align the Utopia Engine!'
+      'Descended to Level 3: The Utopia Engine Core! A 19-hex flower machine awaits. Flip tiles (-1⚡) by stepping in or peeking.'
     );
+  };
+
+  // Level 3 Handlers
+  const handleLevel3StepIn = (targetTile: FlowerTile) => {
+    if (currentLevel !== 3 || isWon || isLost) return;
+    if (energy <= 0) {
+      sounds.playHazard();
+      setIsLost(true);
+      setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+      return;
+    }
+
+    const check = canTraverseToTile(level3State, level3State.playerCoord, {
+      q: targetTile.q,
+      r: targetTile.r,
+    });
+    if (!check.allowed) {
+      sounds.playHazard();
+      setStatusMessage(check.reason || 'Cannot traverse to that hex.');
+      return;
+    }
+
+    const nextEnergy = Math.max(0, energy - 1);
+    setEnergy(nextEnergy);
+    sounds.playStep();
+    setLevel3Steps((prev) => prev + 1);
+
+    const targetKey = `${targetTile.q},${targetTile.r}`;
+    const updatedTiles = new Map(level3State.tiles);
+    const cur = updatedTiles.get(targetKey);
+    if (cur) {
+      cur.revealed = true;
+      cur.visited = true;
+      cur.status = 'visited';
+    }
+
+    setLevel3State((prev) => ({
+      ...prev,
+      tiles: updatedTiles,
+      playerCoord: { q: targetTile.q, r: targetTile.r },
+    }));
+
+    // Trigger encounter modals
+    if (targetTile.type === 'safe') {
+      setStatusMessage('Entered a safe sanctuary room (-1⚡). No threats detected.');
+      if (nextEnergy <= 0) {
+        sounds.playHazard();
+        setIsLost(true);
+        setStatusMessage('Energy exhausted! Delve is lost.');
+      }
+    } else if (targetTile.type === 'outer_door') {
+      if (!targetTile.doorTested && !level3State.outerDoorsUnlocked) {
+        setActiveLevel3Tile(targetTile);
+        setStatusMessage('Reached an Outer Portal Door! Test yourself with the Utopia Engine dice.');
+      } else {
+        setStatusMessage(
+          level3State.outerDoorsUnlocked
+            ? 'Passed through unlocked outer portal (-1⚡).'
+            : 'Outer portal already tested.'
+        );
+      }
+    } else if (targetTile.type === 'inner_door') {
+      if (!targetTile.doorTested && !level3State.innerDoorsUnlocked) {
+        setActiveLevel3Tile(targetTile);
+        setStatusMessage('Reached an Inner Core Gate! Test yourself with the Utopia Engine dice.');
+      } else {
+        setStatusMessage(
+          level3State.innerDoorsUnlocked
+            ? 'Passed through unlocked core gate (-1⚡).'
+            : 'Core gate already tested.'
+        );
+      }
+    } else if (targetTile.type === 'trap') {
+      if (!targetTile.disarmed) {
+        setActiveLevel3Tile(targetTile);
+        setStatusMessage('Trap chamber entered! Align the gears to disarm the mechanism.');
+      } else {
+        setStatusMessage('Passed through previously disarmed trap corridor (-1⚡).');
+      }
+    } else if (targetTile.type === 'treasure') {
+      if (!targetTile.looted) {
+        setActiveLevel3Tile(targetTile);
+        setStatusMessage('Ancient Mana Vault discovered! Align the core to extract mana.');
+      } else {
+        setStatusMessage('Retracing steps through empty mana vault (-1⚡).');
+      }
+    } else if (targetTile.type === 'center_boss') {
+      if (!level3State.bossDefeated) {
+        setActiveLevel3Tile(targetTile);
+        setStatusMessage('ENTERED THE CORE! The Level 5 Utopia Engine Core Construct awakens!');
+      } else {
+        setStatusMessage('The Core Construct lies defeated.');
+      }
+    }
+  };
+
+  const handleLevel3Peek = (targetTile: FlowerTile) => {
+    if (currentLevel !== 3 || isWon || isLost) return;
+    if (energy <= 0) {
+      sounds.playHazard();
+      setIsLost(true);
+      setStatusMessage('Energy exhausted! Cannot peek.');
+      return;
+    }
+    if (!areAxialAdjacent(level3State.playerCoord, { q: targetTile.q, r: targetTile.r })) return;
+
+    const nextEnergy = Math.max(0, energy - 1);
+    setEnergy(nextEnergy);
+    sounds.playBonus();
+
+    const targetKey = `${targetTile.q},${targetTile.r}`;
+    const updatedTiles = new Map(level3State.tiles);
+    const cur = updatedTiles.get(targetKey);
+    if (cur) {
+      cur.revealed = true;
+      cur.status = 'peeked';
+    }
+
+    setLevel3State((prev) => ({
+      ...prev,
+      tiles: updatedTiles,
+    }));
+
+    setStatusMessage(`Peeked into adjacent hex: Revealed ${targetTile.title} (-1⚡).`);
+    if (nextEnergy <= 0) {
+      sounds.playHazard();
+      setIsLost(true);
+      setStatusMessage('Energy exhausted while peeking! Delve is lost.');
+    }
+  };
+
+  const handleLevel3OuterDoorResult = (result: 'master' | 'code' | 'fail') => {
+    setLevel3State((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      if (activeLevel3Tile) {
+        const cur = updatedTiles.get(activeLevel3Tile.id);
+        if (cur) {
+          cur.doorTested = true;
+          cur.doorPassed = result !== 'fail';
+        }
+      }
+
+      let nextUnlocked = prev.outerDoorsUnlocked;
+      let nextFrags = prev.outerCodeFragments;
+      let nextFails = prev.outerDoorFails;
+
+      if (result === 'master') {
+        nextUnlocked = true;
+        sounds.playVictory();
+        setStatusMessage('MASTER UNLOCK (Score 0)! All 4 Outer Portal Doors unlocked! The Inner Ring is now accessible.');
+      } else if (result === 'code') {
+        nextFrags += 1;
+        if (nextFrags >= 3) {
+          nextUnlocked = true;
+          sounds.playVictory();
+          setStatusMessage('Acquired Code Fragment 3/3! All 4 Outer Portal Doors unlocked! The Inner Ring is accessible.');
+        } else {
+          const testedCount = nextFrags + nextFails;
+          if (nextFails >= 2) {
+            // Already failed twice: cannot reach 3 fragments, must get a 0 on remaining doors!
+            if (testedCount >= 4 && !nextUnlocked) {
+              sounds.playHazard();
+              setIsLost(true);
+              setStatusMessage('All 4 outer portal doors tested without unlocking. Outer ring permanently sealed. Game over.');
+            } else {
+              setStatusMessage(`Acquired code fragment (${nextFrags}/3), but with 2 fails you need a Master Score of 0 on remaining doors!`);
+            }
+          } else {
+            setStatusMessage(`Acquired Outer Code Fragment (${nextFrags}/3)! Find and test other doors.`);
+          }
+        }
+      } else {
+        nextFails += 1;
+        const testedCount = nextFrags + nextFails;
+        if (testedCount >= 4 && !nextUnlocked) {
+          sounds.playHazard();
+          setIsLost(true);
+          setStatusMessage('All 4 outer portal doors failed without unlocking. Outer ring permanently sealed. Game over.');
+        } else if (nextFails === 2 && !nextUnlocked) {
+          sounds.playHazard();
+          setStatusMessage('Door failed (2 fails)! You can no longer get 3 code fragments — you must roll a Master Score of 0 on doors three or four!');
+        } else if (nextFails === 3 && !nextUnlocked) {
+          sounds.playHazard();
+          setStatusMessage('Door failed (3 fails)! Only one door remains — you must roll a Master Score of 0 to unlock!');
+        } else {
+          sounds.playHazard();
+          setStatusMessage('Door test failed. Seek another outer portal door.');
+        }
+      }
+
+      return {
+        ...prev,
+        tiles: updatedTiles,
+        outerDoorsUnlocked: nextUnlocked,
+        outerCodeFragments: nextFrags,
+        outerDoorFails: nextFails,
+      };
+    });
+  };
+
+  const handleLevel3InnerDoorResult = (result: 'master' | 'code' | 'fail') => {
+    setLevel3State((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      if (activeLevel3Tile) {
+        const cur = updatedTiles.get(activeLevel3Tile.id);
+        if (cur) {
+          cur.doorTested = true;
+          cur.doorPassed = result !== 'fail';
+        }
+      }
+
+      let nextUnlocked = prev.innerDoorsUnlocked;
+      let nextFrags = prev.innerCodeFragments;
+      let nextFails = prev.innerDoorFails;
+
+      if (result === 'master') {
+        nextUnlocked = true;
+        sounds.playVictory();
+        setStatusMessage('MASTER UNLOCK (Score 0)! The Core Gate to the Utopia Engine opened!');
+      } else if (result === 'code') {
+        nextFrags += 1;
+        if (nextFrags >= 2) {
+          nextUnlocked = true;
+          sounds.playVictory();
+          setStatusMessage('Acquired Inner Code (2/2)! The Core Gate to the Utopia Engine opened!');
+        } else {
+          if (nextFails >= 1) {
+            // First door failed, second door gave code (not 0): both tested, cannot reach 2 codes, so failed!
+            sounds.playHazard();
+            setIsLost(true);
+            setStatusMessage('Both inner gates tested without obtaining both codes or a master 0. The Core cannot be reached. Game over.');
+          } else {
+            setStatusMessage('Acquired Inner Code (1/2)! Test the other inner gate to reach the Core.');
+          }
+        }
+      } else {
+        nextFails += 1;
+        const testedCount = nextFrags + nextFails;
+        if (testedCount >= 2 && !nextUnlocked) {
+          sounds.playHazard();
+          setIsLost(true);
+          setStatusMessage('Failed inner gates without unlocking. The Core cannot be reached. Game over.');
+        } else {
+          sounds.playHazard();
+          setStatusMessage('Inner gate failed! You cannot get 2 codes — you must roll a Master Score of 0 on the second gate to open the Core!');
+        }
+      }
+
+      return {
+        ...prev,
+        tiles: updatedTiles,
+        innerDoorsUnlocked: nextUnlocked,
+        innerCodeFragments: nextFrags,
+        innerDoorFails: nextFails,
+      };
+    });
+  };
+
+  const handleLevel3TrapDisarmed = (permanent: boolean) => {
+    setLevel3State((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      if (activeLevel3Tile) {
+        const cur = updatedTiles.get(activeLevel3Tile.id);
+        if (cur) {
+          cur.disarmed = permanent;
+          cur.disarmedOnce = !permanent;
+        }
+      }
+      return { ...prev, tiles: updatedTiles };
+    });
+    if (permanent) {
+      setStatusMessage('Score 0: Trap permanently dismantled! Room converted to safe corridor.');
+    } else {
+      setStatusMessage('Trap disarmed for this traversal! Safe to pass.');
+    }
+  };
+
+  const handleLevel3TreasureClaimed = () => {
+    setLevel3State((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      if (activeLevel3Tile) {
+        const cur = updatedTiles.get(activeLevel3Tile.id);
+        if (cur) cur.looted = true;
+      }
+      return { ...prev, tiles: updatedTiles };
+    });
+    setStatusMessage('Mana Vault harvested and claimed!');
+  };
+
+  const handleLevel3BossDefeated = () => {
+    setLevel3State((prev) => ({ ...prev, bossDefeated: true }));
+    sounds.playVictory();
+    setIsWon(true);
+    setStatusMessage('GRAND VICTORY! The Utopia Engine Core Construct is vanquished and Utopia is saved!');
   };
 
   // Derived stats
@@ -1984,13 +2292,28 @@ export default function App() {
 
   const totalHexes = GRID_COLS * GRID_ROWS;
 
+  const handleChangeLevel = (targetLvl: GameLevel) => {
+    sounds.playClick();
+    setCurrentLevel(targetLvl);
+    setIsWon(false);
+    setIsLost(false);
+    setActiveLevel3Tile(null);
+    if (targetLvl === 1) {
+      setStatusMessage('Switched to Level 1: Hex Crawl wilderness exploration.');
+    } else if (targetLvl === 2) {
+      setStatusMessage('Switched to Level 2: Subterranean Tunnels delve.');
+    } else {
+      setStatusMessage('Switched to Level 3: The 19-Hex Flower Engine Core.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-dvh w-full max-w-lg mx-auto bg-[#ded4bf] text-[#2b261f] select-none overflow-hidden font-mono border-x-2 border-[#2b261f] shadow-2xl relative">
       {/* 1. Fixed Header (Scorecard stats bar) */}
       <Header
         energy={energy}
         maxEnergy={MAX_ENERGY}
-        turn={currentLevel === 2 ? level2Steps : turn}
+        turn={currentLevel === 3 ? level3Steps : currentLevel === 2 ? level2Steps : turn}
         revealedCount={revealedCount}
         totalHexes={totalHexes}
         goalFound={goalFound}
@@ -2003,6 +2326,7 @@ export default function App() {
         onOpenRules={() => setShowRules(true)}
         onNewGame={handleNewGame}
         level={currentLevel}
+        onChangeLevel={handleChangeLevel}
         level2CardsRemaining={tunnelMap.deck.length}
         level2TargetFound={level2TargetFound}
         level2Streak={explorationStreak}
@@ -2035,10 +2359,15 @@ export default function App() {
             energy={energy}
           />
         ) : (
-          <div className="h-full overflow-y-auto p-2 flex items-center justify-center">
+          <div className="h-full overflow-hidden p-1 flex items-center justify-center">
             <FlowerHexGrid
-              currentFloor={level3Floor}
-              onAdvanceFloor={() => setLevel3Floor((prev) => Math.min(3, prev + 1))}
+              tiles={level3State.tiles}
+              playerCoord={level3State.playerCoord}
+              outerDoorsUnlocked={level3State.outerDoorsUnlocked}
+              innerDoorsUnlocked={level3State.innerDoorsUnlocked}
+              energy={energy}
+              onStepIn={handleLevel3StepIn}
+              onPeek={handleLevel3Peek}
             />
           </div>
         )}
@@ -2189,16 +2518,64 @@ export default function App() {
         </footer>
       ) : (
         /* Level 3 Footer */
-        <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] p-3 text-center select-none shadow-lg z-30">
+        <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none flex flex-col shadow-lg z-30 p-2 gap-1.5">
           <div className="flex items-center justify-between font-mono text-xs text-[#2b261f]">
-            <span className="font-bold flex items-center gap-1.5">
-              <span>⚙️</span> Level 3 Floor {level3Floor} Active
-            </span>
-            <span className="bg-[#dcfce7] text-[#15803d] px-2 py-0.5 rounded font-black border border-[#86efac]">
-              {energy} ⚡ Energy
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-black border ${
+                  level3State.outerDoorsUnlocked
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                    : 'bg-amber-100 text-amber-900 border-amber-400'
+                }`}
+              >
+                {level3State.outerDoorsUnlocked
+                  ? 'Outer Portals: UNLOCKED'
+                  : `Outer Codes: ${level3State.outerCodeFragments}/3`}
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-black border ${
+                  level3State.innerDoorsUnlocked
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                    : 'bg-amber-100 text-amber-900 border-amber-400'
+                }`}
+              >
+                {level3State.innerDoorsUnlocked
+                  ? 'Core Gate: UNLOCKED'
+                  : `Inner Codes: ${level3State.innerCodeFragments}/2`}
+              </span>
+            </div>
+            <span className="text-[10px] font-black bg-[#ede4d3] px-2 py-0.5 rounded border border-[#2b261f]/30">
+              {energy}⚡ Energy
             </span>
           </div>
+          <div className="text-[11px] text-[#5c5346] leading-tight px-1 font-mono truncate">
+            {statusMessage}
+          </div>
         </footer>
+      )}
+
+      {/* Level 3 Encounter Modal (Utopia Engine Tests & Combat) */}
+      {activeLevel3Tile && (
+        <Level3EncounterModal
+          tile={activeLevel3Tile}
+          energy={energy}
+          maxEnergy={MAX_ENERGY}
+          outerCodeFragments={level3State.outerCodeFragments}
+          innerCodeFragments={level3State.innerCodeFragments}
+          onModifyEnergy={(delta) => setEnergy((prev) => Math.min(MAX_ENERGY, Math.max(0, prev + delta)))}
+          onOuterDoorResult={handleLevel3OuterDoorResult}
+          onInnerDoorResult={handleLevel3InnerDoorResult}
+          onTrapDisarmed={handleLevel3TrapDisarmed}
+          onTreasureClaimed={handleLevel3TreasureClaimed}
+          onBossDefeated={handleLevel3BossDefeated}
+          onGameOver={(reason) => {
+            sounds.playHazard();
+            setIsLost(true);
+            setStatusMessage(reason);
+            setActiveLevel3Tile(null);
+          }}
+          onClose={() => setActiveLevel3Tile(null)}
+        />
       )}
 
       {/* Level 2 Chamber Exploration Modal (Higher / Lower on chamber entry) */}

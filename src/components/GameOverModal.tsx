@@ -43,7 +43,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         >
           {won ? <Trophy className="w-5 h-5 text-yellow-300" /> : <Skull className="w-5 h-5" />}
           <span>
-            {level === 2
+            {level === 3
+              ? won
+                ? 'UTOPIA ENGINE SAVED!'
+                : 'FALLEN AT THE CORE'
+              : level === 2
               ? won
                 ? 'SUBTERRANEAN ESCAPE!'
                 : 'LOST IN THE TUNNELS'
@@ -56,7 +60,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {/* Details */}
         <div className="p-5 space-y-4 font-mono text-xs text-[#2b261f]">
           <p className="text-xs leading-relaxed">
-            {level === 2
+            {level === 3
+              ? won
+                ? 'Tremendous feat! You breached the Outer Portals, unlocked the Inner Core Gates, and dismantled the supreme Level 5 Core Construct! Utopia has been saved!'
+                : 'Your expedition fell before the perils of the 19-Hex Flower Engine. The ancient core remains shrouded in mystery.'
+              : level === 2
               ? won
                 ? 'Astounding subterranean navigation! You uncovered the Ace of Hearts, found the ancient escape stair, and returned safely to the world above!'
                 : 'Your energy was completely exhausted in the pitch-black tunnels. The subterranean labyrinth claims another intrepid delve.'
@@ -68,7 +76,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           {/* Expedition Scorecard */}
           <div className="bg-[#ede4d3] p-3 rounded-lg border border-[#2b261f]/30 space-y-2 text-left">
             <div className="text-[11px] font-bold uppercase text-[#786e5e] border-b border-[#2b261f]/20 pb-1">
-              {level === 2 ? 'Subterranean Delve Ledger' : 'Expedition Ledger'}
+              {level === 3 ? 'Utopia Engine Core Ledger' : level === 2 ? 'Subterranean Delve Ledger' : 'Expedition Ledger'}
             </div>
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5">
@@ -83,7 +91,16 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               <span className="font-bold">{energyLeft}</span>
             </div>
 
-            {level === 2 ? (
+            {level === 3 ? (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1.5 text-emerald-800">
+                    ⚙️ Machine Core:
+                  </span>
+                  <span className="font-bold">{won ? 'Vanquished (Victory!)' : 'Unconquered'}</span>
+                </div>
+              </>
+            ) : level === 2 ? (
               <>
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-1.5 text-rose-700">
