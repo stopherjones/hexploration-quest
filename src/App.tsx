@@ -2977,6 +2977,8 @@ export default function App() {
         drawnCard={drawnExplorationCard}
         deckCount={explorationDeck.length}
         streak={explorationStreak}
+        energy={energy}
+        maxEnergy={MAX_ENERGY}
         activePrediction={activePrediction}
         pendingChoice={pendingExplorationChoice}
         resultMessage={explorationResultText}

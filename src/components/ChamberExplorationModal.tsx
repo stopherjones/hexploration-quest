@@ -9,6 +9,8 @@ interface ChamberExplorationModalProps {
   drawnCard: ExplorationCard | null;
   deckCount: number;
   streak: number; // positive = win streak, negative = loss streak, 0 = neutral
+  energy?: number;
+  maxEnergy?: number;
   activePrediction?: 'higher' | 'lower' | null;
   pendingChoice: 'higher_lower' | 'face_gamble' | null;
   resultMessage: string | null;
@@ -25,6 +27,8 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
   drawnCard,
   deckCount,
   streak,
+  energy = 30,
+  maxEnergy = 30,
   activePrediction,
   pendingChoice,
   resultMessage,
@@ -54,17 +58,12 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/65 backdrop-blur-xs select-none">
       <div className="w-full max-w-sm bg-[#f4edd9] border-2 border-[#2b261f] rounded-xl shadow-2xl overflow-hidden text-center animate-in fade-in zoom-in-95 duration-150 text-[#2b261f]">
         
-        {/* Header Bar matching EventModal / LevelTransitionModal with Close X button */}
-        <div className="py-2 px-3 border-b-2 border-[#2b261f] font-mono font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between bg-[#ede4d3]">
+        {/* Header Bar with Close X button (Chamber Survey and coords removed) */}
+        <div className="py-2.5 px-3 border-b-2 border-[#2b261f] font-mono font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between bg-[#ede4d3]">
           <div className="flex items-center gap-1.5 text-left">
             <span className="text-sm">♠</span>
-            <div>
-              <div className="text-[10px] text-[#786e5e] font-normal leading-none">
-                Chamber Survey {chamberCoord ? `(${chamberCoord.col}, ${chamberCoord.row})` : ''}
-              </div>
-              <div className="text-xs font-black text-[#2b261f] mt-0.5">
-                Chamber Exploration
-              </div>
+            <div className="text-xs sm:text-sm font-black text-[#2b261f]">
+              Chamber Exploration
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -75,7 +74,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
               type="button"
               onClick={onDismiss}
               className="p-1 rounded hover:bg-[#d6c8b0] text-[#5c5244] border border-[#2b261f]/20 cursor-pointer transition-colors"
-              title="Close Survey Modal"
+              title="Close Exploration Modal"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -85,9 +84,14 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
         {/* Content Body */}
         <div className="p-3.5 space-y-3 font-mono text-xs">
           
-          {/* Streak indicator badge */}
+          {/* Energy & Streak impact summary badge (with x/30 energy level) */}
           <div className="flex items-center justify-between bg-[#fbf8ee] px-2.5 py-1.5 rounded-lg border border-[#d6c4a5] text-[11px]">
-            <span className="text-[#5c5244] font-semibold">Current Streak:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono font-black text-[#2b261f] bg-[#ede4d3] px-1.5 py-0.5 rounded border border-[#2b261f]/30">
+                {energy}/{maxEnergy}⚡
+              </span>
+              <span className="text-[#5c5244] font-semibold">Streak:</span>
+            </div>
             {streak > 0 ? (
               <span className="px-2 py-0.5 bg-[#dcfce7] text-[#15803d] font-black rounded border border-[#86efac] flex items-center gap-1">
                 <span>▲</span> +{streak} (next: +{streak + 1}⚡)
@@ -142,7 +146,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
             {/* Drawn Card or Exploration Deck Stack */}
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-[#7a6d59] uppercase tracking-wider mb-1 flex items-center gap-1">
-                <span>{drawnCard ? 'Drawn Card' : 'Survey Deck'}</span>
+                <span>{drawnCard ? 'Drawn Card' : 'Exploration Deck'}</span>
                 {drawnCard && !drawnCard.isHonor && !drawnCard.isAceOfSpades && (
                   <span className="text-[9px] font-mono font-normal text-[#5c5244] bg-[#e8deca] px-1 rounded">
                     val: {drawnCard.value}
