@@ -45,6 +45,7 @@ import {
 import {
   createExplorationDeck,
   drawInitialComparisonCard,
+  createLevel3TestHand,
   ExplorationCard,
   CardRank,
   getRankNumericValue,
@@ -994,7 +995,7 @@ export default function App() {
     // 3. Energy Cache Reached
     if (destTile.type === 'energy_cache') {
       sounds.playBonus();
-      const bonus = destTile.value || 1;
+      const bonus = destTile.value || 2;
       const newE = Math.min(remainingEnergy + bonus, MAX_ENERGY);
       setEnergy(newE);
       destTile.type = 'blank';
@@ -1007,11 +1008,11 @@ export default function App() {
         title: 'Energy Cache Uncovered!',
         category: 'Discovery',
         description:
-          bonus >= 3
-            ? 'An abundant subterranean cache overflowing with pure spring water and dried rations! Your expedition recovers +3 Energy.'
-            : bonus === 2
-            ? 'A supply depot tucked into the hollow of an ancient tree. Fresh spring water and rations restore +2 Energy.'
-            : 'You discovered a secluded freshwater spring and rations. Your expedition draws fresh strength (+1 Energy).',
+          bonus >= 5
+            ? 'An abundant subterranean cache overflowing with pure spring water and dried rations! Your expedition recovers +5 Energy.'
+            : bonus === 3
+            ? 'A supply depot tucked into the hollow of an ancient tree. Fresh spring water and rations restore +3 Energy.'
+            : 'You discovered a secluded freshwater spring and rations. Your expedition draws fresh strength (+2 Energy).',
         type: 'cache',
         coord: destination,
         statBadge: `+${bonus} Energy Restored!`,
@@ -1337,10 +1338,10 @@ export default function App() {
         setEventPrompt({
           title: 'Energy Cache',
           category: 'Tile Inspection',
-          description: `A hidden natural spring and emergency food rations. Landing directly on this hex restores +${tile.value || 1} Energy to your expedition reserves.`,
+          description: `A hidden natural spring and emergency food rations. Landing directly on this hex restores +${tile.value || 2} Energy to your expedition reserves.`,
           type: 'cache',
           coord,
-          statBadge: `Restores +${tile.value || 1} Energy on Landing`,
+          statBadge: `Restores +${tile.value || 2} Energy on Landing`,
         });
         break;
 
@@ -2615,8 +2616,25 @@ export default function App() {
 
   const totalHexes = GRID_COLS * GRID_ROWS;
 
+  const handleStartLevel3Test = () => {
+    sounds.playVictory();
+    setCurrentLevel(3);
+    setEnergy(15);
+    setPlayerHand(createLevel3TestHand());
+    setLevel3State(generateLevel3Map());
+    setActiveLevel3Tile(null);
+    setLevel3Steps(0);
+    setIsWon(false);
+    setIsLost(false);
+    setStatusMessage('Started Level 3 Test: 15⚡ Energy and 5 Cards in Hand (10♦, 8♠, 6♣, 4♦, 2♠).');
+  };
+
   const handleChangeLevel = (targetLvl: GameLevel) => {
     sounds.playClick();
+    if (targetLvl === 3) {
+      handleStartLevel3Test();
+      return;
+    }
     setCurrentLevel(targetLvl);
     setIsWon(false);
     setIsLost(false);
@@ -2625,8 +2643,6 @@ export default function App() {
       setStatusMessage('Switched to Level 1: Hex Crawl wilderness exploration.');
     } else if (targetLvl === 2) {
       setStatusMessage('Switched to Level 2: Subterranean Tunnels delve.');
-    } else {
-      setStatusMessage('Switched to Level 3: The 19-Hex Flower Engine Core.');
     }
   };
 
@@ -2650,6 +2666,7 @@ export default function App() {
         onNewGame={handleNewGame}
         level={currentLevel}
         onChangeLevel={handleChangeLevel}
+        onTestLevel3={handleStartLevel3Test}
         level2CardsRemaining={tunnelMap.deck.length}
         level2TargetFound={level2TargetFound}
         level2Streak={explorationStreak}
@@ -2919,6 +2936,15 @@ export default function App() {
                   🎒 Hand: {playerHand.length} cards (-{playerHand.reduce((s, c) => s + c.value, 0)} pts)
                 </span>
               )}
+              <button
+                type="button"
+                id="btn-restart-l3-test"
+                onClick={handleStartLevel3Test}
+                className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-[#e2d5bd] hover:bg-[#d4c3a7] text-[#2b261f] border border-[#2b261f]/40 cursor-pointer shadow-2xs active:translate-y-px"
+                title="Restart Level 3 test fresh with 15 Energy and 5 Cards in Hand"
+              >
+                🔄 Restart Test (15⚡ + 5🃏)
+              </button>
             </div>
             <span className="text-[10px] font-black bg-[#ede4d3] px-2 py-0.5 rounded border border-[#2b261f]/30">
               {energy}⚡ Energy

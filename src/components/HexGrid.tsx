@@ -422,7 +422,7 @@ export const HexGrid: React.FC<HexGridProps> = ({
                         textAnchor="middle"
                         className="text-[9px] font-mono font-black fill-white"
                       >
-                        +{tile.value || 1}
+                        +{tile.value || 2}
                       </text>
                       <text
                         y="16"

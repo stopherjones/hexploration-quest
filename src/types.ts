@@ -9,7 +9,7 @@ export type HexType =
   | 'start'
   | 'goal'
   | 'tower'
-  | 'energy_cache' // +1 or +2 energy
+  | 'energy_cache' // +2, +3, or +5 energy
   | 'luck_shrine'  // Roll odd/even for 0 or +2 energy
   | 'bog_hazard'   // -1 energy
   | 'rift_hazard'  // Roll odd/even for 0 or -2 energy

@@ -28,6 +28,7 @@ interface HeaderProps {
   isReExploring?: boolean;
   onOpenReExplorePrompt?: () => void;
   playerHand?: ExplorationCard[];
+  onTestLevel3?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -56,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   isReExploring = false,
   onOpenReExplorePrompt,
   playerHand = [],
+  onTestLevel3,
 }) => {
   const exploredPct = Math.round((revealedCount / totalHexes) * 100);
   const isLowEnergy = energy <= 5;
@@ -158,12 +160,26 @@ export const Header: React.FC<HeaderProps> = ({
                         ? 'bg-[#2b261f] text-white shadow-2xs'
                         : 'text-[#5c5346] hover:bg-[#ece2d0]'
                     }`}
-                    title={`Jump to Level ${lvl}`}
+                    title={lvl === 3 ? 'Jump to Level 3 (15⚡ + 5 Cards)' : `Jump to Level ${lvl}`}
                   >
                     L{lvl}
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* Dedicated Test Level 3 Button (15⚡ + 5 Cards in hand) */}
+            {onTestLevel3 && (
+              <button
+                type="button"
+                id="btn-test-level3"
+                onClick={onTestLevel3}
+                className="flex items-center gap-1 ml-1 px-1.5 py-0.5 text-[9.5px] font-mono font-black uppercase tracking-wider bg-[#1b4332] hover:bg-[#14532d] active:bg-[#0f3d24] text-white border border-[#2b261f] rounded shadow-2xs active:translate-y-px cursor-pointer"
+                title="Directly test Level 3: Starts on 15⚡ Energy with 5 tactical cards in Hand"
+              >
+                <span>⚙️ Test L3</span>
+                <span className="text-[8.5px] text-[#86efac] font-bold bg-[#14532d] px-1 rounded">15⚡+5🃏</span>
+              </button>
             )}
 
             {/* Banked Hand Badge */}

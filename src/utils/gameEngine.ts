@@ -52,7 +52,7 @@ export function generateMap(): { tiles: Map<string, HexTile>; goalCoord: HexCoor
     }
   }
 
-  // Energy caches: ~10 of +1 energy, ~5 of +2 energy, 3 of +3 energy (18 total)
+  // Energy caches: ~10 of +2 energy, ~5 of +3 energy, 3 of +5 energy (18 total)
   const cache1Coords: HexCoord[] = [];
   for (let i = 0; i < 10; i++) {
     const c = getRandomAvailable();
@@ -111,16 +111,16 @@ export function generateMap(): { tiles: Map<string, HexTile>; goalCoord: HexCoor
       flavorText = 'Ancient Watchtower: Reveals adjacent lands, 6 directional sightlines & all towers';
     } else if (cache1Coords.some((x) => x.col === c.col && x.row === c.row)) {
       type = 'energy_cache';
-      value = 1;
-      flavorText = 'Spring Rations (+1 Energy)';
+      value = 2;
+      flavorText = 'Spring Rations (+2 Energy)';
     } else if (cache2Coords.some((x) => x.col === c.col && x.row === c.row)) {
       type = 'energy_cache';
-      value = 2;
-      flavorText = 'Supply Depot (+2 Energy)';
+      value = 3;
+      flavorText = 'Supply Depot (+3 Energy)';
     } else if (cache3Coords.some((x) => x.col === c.col && x.row === c.row)) {
       type = 'energy_cache';
-      value = 3;
-      flavorText = 'Abundant Cache (+3 Energy)';
+      value = 5;
+      flavorText = 'Abundant Cache (+5 Energy)';
     } else if (shrineCoords.some((x) => x.col === c.col && x.row === c.row)) {
       type = 'luck_shrine';
       flavorText = 'Fortune Shrine: Roll D6 for Free Move, Telescope, or Energy';

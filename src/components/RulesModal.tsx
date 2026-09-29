@@ -84,7 +84,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <strong>Ancient Watchtowers:</strong> Reveals all adjacent hexes, plus 6 hexes along NW, N, NE, SE, S, SW lines of sight (or all hexes in those 6 directions with Telescope), and charts all watchtowers!
               </div>
               <div className="p-1.5 bg-[#bce3cb]/40 rounded border border-[#2b261f]/20">
-                <strong>Supply Caches:</strong> Abundant food & water caches (+1, +2, or +3 Energy) scattered through the wilderness.
+                <strong>Supply Caches:</strong> Abundant food & water caches (+2, +3, or +5 Energy) scattered through the wilderness.
               </div>
               <div className="p-1.5 bg-[#dbc5ea]/40 rounded border border-[#2b261f]/20 sm:col-span-2">
                 <strong>Fortune Shrines:</strong> Roll Fate D6: 1 Pip = Free Move 1 Hex (step into any adjacent hex for 0 ⚡), 2 Pips = Brass Telescope (Towers reveal all 6 rays), 3 Pips = Dice Modifier (±1 to either die each turn), 4 = Free Move 1 Hex & +2 Energy, 5 = Telescope & +2 Energy, 6 = Dice Modifier & +2 Energy.

@@ -123,3 +123,54 @@ export function drawInitialComparisonCard(deck: ExplorationCard[]): {
   };
   return { card: fallback, remainingDeck: remaining, discarded };
 }
+
+/**
+ * Creates 5 distinct cards for testing Level 3:
+ * 10♦ (val: 10), 8♠ (val: 8), 6♣ (val: 6), 4♦ (val: 4), 2♠ (val: 2).
+ * These give 30 total reduction points and tactical coverage across values.
+ */
+export function createLevel3TestHand(): ExplorationCard[] {
+  const seed = Date.now();
+  return [
+    {
+      id: `test-10d-${seed}-1`,
+      suit: '♦',
+      rank: '10',
+      value: 10,
+      isHonor: false,
+      isAceOfSpades: false,
+    },
+    {
+      id: `test-8s-${seed}-2`,
+      suit: '♠',
+      rank: '8',
+      value: 8,
+      isHonor: false,
+      isAceOfSpades: false,
+    },
+    {
+      id: `test-6c-${seed}-3`,
+      suit: '♣',
+      rank: '6',
+      value: 6,
+      isHonor: false,
+      isAceOfSpades: false,
+    },
+    {
+      id: `test-4d-${seed}-4`,
+      suit: '♦',
+      rank: '4',
+      value: 4,
+      isHonor: false,
+      isAceOfSpades: false,
+    },
+    {
+      id: `test-2s-${seed}-5`,
+      suit: '♠',
+      rank: '2',
+      value: 2,
+      isHonor: false,
+      isAceOfSpades: false,
+    },
+  ];
+}
