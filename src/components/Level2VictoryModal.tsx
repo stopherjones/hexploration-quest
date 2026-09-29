@@ -1,17 +1,22 @@
 import React from 'react';
 import { Sparkles, ArrowDown, Footprints, Zap } from 'lucide-react';
+import { ExplorationCard } from '../utils/explorationDeck';
 
 interface Level2VictoryModalProps {
   remainingEnergy: number;
   stepsTaken: number;
+  playerHand?: ExplorationCard[];
   onDescendLevel3: () => void;
 }
 
 export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
   remainingEnergy,
   stepsTaken,
+  playerHand = [],
   onDescendLevel3,
 }) => {
+  const totalPower = playerHand.reduce((sum, c) => sum + c.value, 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs select-none">
       <div className="w-full max-w-sm bg-[#f4edd9] border-2 border-[#2b261f] rounded-xl shadow-2xl overflow-hidden text-center text-[#2b261f]">
@@ -54,6 +59,35 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
                 {remainingEnergy} ⚡
               </span>
             </div>
+
+            {/* Banked Hand Carried Forward */}
+            <div className="border-t border-[#2b261f]/20 pt-1.5">
+              <div className="flex justify-between items-center text-xs mb-1">
+                <span className="flex items-center gap-1 font-bold text-[#2b261f]">
+                  <span>🎒</span> Banked Hand Carried:
+                </span>
+                <span className="font-black text-[#15803d] bg-[#dcfce7] px-2 py-0.5 rounded border border-[#16a34a] text-[11px]">
+                  {playerHand.length} cards (-{totalPower} pts)
+                </span>
+              </div>
+              {playerHand.length > 0 ? (
+                <div className="flex items-center gap-1 flex-wrap mt-1">
+                  {playerHand.map((c, i) => (
+                    <span
+                      key={`${c.id}-${i}`}
+                      className="px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-mono font-bold shadow-2xs"
+                    >
+                      <span className={c.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
+                        {c.rank}{c.suit}
+                      </span>
+                      <span className="text-[9px] text-[#786e5e]">(-{c.value})</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-[#786e5e] italic">No cards banked in hand.</p>
+              )}
+            </div>
           </div>
 
           {/* Level 3 Teaser */}
@@ -62,7 +96,7 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
               <span>⚙️</span> Level 3: The 19-Hex Flower Engine Core
             </span>
             <p className="text-[#5c5346]">
-              Descend into a single-floor 19-hex concentric flower: 12-hex Outer Ring, 6-hex Inner Ring, and the Core Guardian. Flip tiles, test doors with Utopia Engine dice, and confront the Level 5 Boss!
+              Use your banked hand cards to reduce your Utopia Engine dice score towards 0 (unlocking doors and disarming traps without monsters)!
             </p>
           </div>
 

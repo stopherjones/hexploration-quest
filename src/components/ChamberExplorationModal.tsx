@@ -13,8 +13,9 @@ interface ChamberExplorationModalProps {
   pendingChoice: 'higher_lower' | 'face_gamble' | null;
   resultMessage: string | null;
   chamberCoord?: HexCoord;
+  playerHand?: ExplorationCard[];
   onPredict: (prediction: 'higher' | 'lower') => void;
-  onFaceChoice: (choice: 'discard_redraw' | 'gamble_ace') => void;
+  onFaceChoice: (choice: 'bank_base' | 'draw_new_to_hand' | 'bank_drawn') => void;
   onDismiss: () => void;
 }
 
@@ -28,6 +29,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
   pendingChoice,
   resultMessage,
   chamberCoord,
+  playerHand = [],
   onPredict,
   onFaceChoice,
   onDismiss,
@@ -35,7 +37,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
   if (!isOpen) return null;
 
   const getSuitColor = (suit?: string) => {
-    return suit === '♦' ? 'text-red-700' : 'text-slate-900';
+    return suit === '♦' || suit === '♥' ? 'text-red-700' : 'text-slate-900';
   };
 
   const getSuitName = (suit?: string) => {
@@ -43,6 +45,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
       case '♠': return 'Spades';
       case '♦': return 'Diamonds';
       case '♣': return 'Clubs';
+      case '♥': return 'Hearts';
       default: return '';
     }
   };
@@ -233,7 +236,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
                 </button>
               </div>
               <div className="text-[10px] text-[#5c5244] leading-snug text-center pt-0.5">
-                Drawing J, Q, K, A allows you to discard the current card or gamble for A♠
+                Drawing J, Q, K, A lets you bank cards into your hand for Level 3 dice reduction!
               </div>
             </div>
           )}
@@ -243,34 +246,85 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
               <div className="text-xs font-bold text-[#9a3412] flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <span>👑</span>
-                  <span>Honor Card: {drawnCard.rank} of {getSuitName(drawnCard.suit)}!</span>
+                  <span>Honor Card Drawn: {drawnCard.rank} of {getSuitName(drawnCard.suit)}!</span>
                 </span>
-                {activePrediction && (
-                  <span className="text-[10px] bg-[#ffedd5] text-[#9a3412] px-1.5 py-0.5 rounded border border-[#fdba74] font-black uppercase">
-                    Call: {activePrediction}
-                  </span>
-                )}
+                <span className="text-[10px] bg-[#ffedd5] text-[#9a3412] px-1.5 py-0.5 rounded border border-[#fdba74] font-black uppercase">
+                  Streak Preserved
+                </span>
               </div>
               <p className="text-[10.5px] text-[#7c2d12] leading-tight">
-                Drawing J, Q, K, A does <strong>not</strong> affect your streak or guess. You can discard your base card ({baseCard?.rank}{baseCard?.suit}) for a fresh comparison card, OR draw again keeping your <strong>{activePrediction?.toUpperCase() || 'HIGHER/LOWER'}</strong> guess and streak against {baseCard?.rank}{baseCard?.suit} (and seeking A♠)!
+                Instead of replacing or drawing, bank a card into your <strong>Hand for Level 3</strong>! Card values reduce your Utopia Engine dice score towards 0:
               </p>
-              <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+              <div className="flex flex-col gap-1.5 pt-1">
+                {/* Option 1: Bank current base card */}
                 <button
                   type="button"
-                  onClick={() => onFaceChoice('discard_redraw')}
-                  className="w-full py-2 px-2 bg-[#d97706] hover:bg-[#b45309] text-white font-mono font-bold text-xs rounded border border-[#92400e] shadow flex items-center justify-center gap-1 cursor-pointer"
+                  onClick={() => onFaceChoice('bank_base')}
+                  className="w-full py-2 px-2.5 bg-[#d97706] hover:bg-[#b45309] text-white font-mono font-bold text-xs rounded border border-[#92400e] shadow flex items-center justify-between cursor-pointer transition-transform active:translate-y-0.5"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Discard Base for New Card</span>
+                  <span className="flex items-center gap-1.5">
+                    <span>📥</span>
+                    <span>Bank Current Base ({baseCard?.rank}{baseCard?.suit})</span>
+                  </span>
+                  <span className="text-[10px] bg-[#92400e] px-1.5 py-0.5 rounded font-mono font-black">
+                    Val: {baseCard?.value} → Hand
+                  </span>
                 </button>
 
+                {/* Option 2: Draw new card into hand */}
                 <button
                   type="button"
-                  onClick={() => onFaceChoice('gamble_ace')}
-                  className="w-full py-2 px-2 bg-[#2d6a4f] hover:bg-[#1b4332] text-white font-mono font-bold text-xs rounded border border-[#1b4332] shadow flex items-center justify-center gap-1 cursor-pointer"
+                  onClick={() => onFaceChoice('draw_new_to_hand')}
+                  className="w-full py-2 px-2.5 bg-[#2d6a4f] hover:bg-[#1b4332] text-white font-mono font-bold text-xs rounded border border-[#1b4332] shadow flex items-center justify-between cursor-pointer transition-transform active:translate-y-0.5"
                 >
-                  <span>♠ Draw Again (Keep {activePrediction?.toUpperCase() || 'Guess'})</span>
+                  <span className="flex items-center gap-1.5">
+                    <span>🃏</span>
+                    <span>Draw New Card into Hand</span>
+                  </span>
+                  <span className="text-[10px] bg-[#1b4332] px-1.5 py-0.5 rounded font-mono font-black">
+                    Keep {baseCard?.rank}{baseCard?.suit} Base
+                  </span>
                 </button>
+
+                {/* Option 3: Bank drawn honor card */}
+                <button
+                  type="button"
+                  onClick={() => onFaceChoice('bank_drawn')}
+                  className="w-full py-1 px-2 bg-[#7c2d12] hover:bg-[#5e1f0b] text-white font-mono font-medium text-[10.5px] rounded border border-[#431407] shadow-xs flex items-center justify-between cursor-pointer"
+                >
+                  <span className="flex items-center gap-1">
+                    <span>👑</span>
+                    <span>Or Bank Drawn {drawnCard.rank}{drawnCard.suit} (Val: {drawnCard.value})</span>
+                  </span>
+                  <span className="text-[9px] bg-[#431407] px-1.5 py-0.2 rounded font-mono font-bold">
+                    To Hand
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Current Banked Hand Preview */}
+          {playerHand && playerHand.length > 0 && (
+            <div className="bg-[#ede4d3] p-2 rounded-lg border border-[#2b261f]/20 text-left">
+              <div className="flex items-center justify-between text-[10px] font-bold text-[#5c5244] uppercase mb-1">
+                <span>🎒 Hand for Level 3 ({playerHand.length} cards)</span>
+                <span className="text-[9px] text-[#786e5e]">
+                  Total Power: -{playerHand.reduce((s, c) => s + c.value, 0)} pts
+                </span>
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                {playerHand.map((card, idx) => (
+                  <span
+                    key={`${card.id}-${idx}`}
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-mono font-bold shadow-2xs"
+                  >
+                    <span className={card.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
+                      {card.rank}{card.suit}
+                    </span>
+                    <span className="text-[9px] text-[#786e5e]">(-{card.value})</span>
+                  </span>
+                ))}
               </div>
             </div>
           )}

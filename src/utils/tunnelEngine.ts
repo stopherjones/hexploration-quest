@@ -99,7 +99,7 @@ export function getUnexploredExits(tiles: Map<string, TunnelTile>): UnexploredEx
       !tile.isHallway &&
       !tile.visited &&
       !tile.isDeadEnd &&
-      !tile.isStart
+      !tile.isTarget
     ) {
       const incomingDirs = [...tile.connections];
       const incomingCount = incomingDirs.length;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Volume2, VolumeX, BookOpen, RotateCcw, Compass } from 'lucide-react';
+import { ExplorationCard } from '../utils/explorationDeck';
 
 interface HeaderProps {
   energy: number;
@@ -26,6 +27,7 @@ interface HeaderProps {
   overlappingCount?: number;
   isReExploring?: boolean;
   onOpenReExplorePrompt?: () => void;
+  playerHand?: ExplorationCard[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -53,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   overlappingCount = 0,
   isReExploring = false,
   onOpenReExplorePrompt,
+  playerHand = [],
 }) => {
   const exploredPct = Math.round((revealedCount / totalHexes) * 100);
   const isLowEnergy = energy <= 5;
@@ -102,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Unexplored Exits & Overlaps Tracker */}
                 <div
-                  className="hidden sm:flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-[#dfd3bc] rounded text-[10px] font-bold border border-[#2b261f]/25 text-[#4a3f33]"
+                  className="flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-[#dfd3bc] rounded text-[10px] font-bold border border-[#2b261f]/25 text-[#4a3f33]"
                   title={`${unexploredCount} unexplored exit chambers (${overlappingCount} with overlapping corridors)`}
                 >
                   <span>🔍 {unexploredCount}</span>
@@ -160,6 +163,19 @@ export const Header: React.FC<HeaderProps> = ({
                     L{lvl}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Banked Hand Badge */}
+            {playerHand && playerHand.length > 0 && (
+              <div
+                className="flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-[#dbece2] text-[#166534] border border-[#86efac] rounded text-[10px] font-bold shadow-2xs"
+                title={`Banked Hand: ${playerHand.length} card(s) carried. Total reduction power: -${playerHand.reduce((s, c) => s + c.value, 0)} pts in Level 3`}
+              >
+                <span>🎒 Hand: {playerHand.length}</span>
+                <span className="text-[9px] text-[#15803d]">
+                  (-{playerHand.reduce((s, c) => s + c.value, 0)})
+                </span>
               </div>
             )}
           </div>

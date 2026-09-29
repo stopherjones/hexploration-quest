@@ -56,19 +56,29 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
               <RefreshCw className="w-6 h-6 text-amber-700 animate-spin-slow" />
             </div>
             <h3 className="text-sm font-black text-[#2b261f] uppercase tracking-wide">
-              Re-Explore the Labyrinth!
+              {unexploredCount === 0 ? 'All Chambers Explored!' : 'Re-Explore the Labyrinth!'}
             </h3>
             <p className="text-[11px] text-[#695d4d] leading-snug mt-1">
-              All 13 Hearts delve cards have been drawn and the entire subterranean map is charted on your parchment.
-              However, the gateway <strong className="text-slate-900 font-black">Ace of Spades (A♠)</strong> remains undiscovered in the deep chambers!
+              {unexploredCount === 0 ? (
+                <>
+                  You have surveyed all available chambers in this delve cycle, but the gateway{' '}
+                  <strong className="text-slate-900 font-black">Ace of Spades (A♠)</strong> is still
+                  hidden in the subterranean labyrinth!
+                </>
+              ) : (
+                <>
+                  All 13 Hearts delve cards have been drawn and the entire subterranean map is charted on your parchment.
+                  However, the gateway <strong className="text-slate-900 font-black">Ace of Spades (A♠)</strong> remains undiscovered!
+                </>
+              )}
             </p>
           </div>
 
-          {/* Unexplored Exits summary if any remain */}
-          {unexploredCount > 0 && (
+          {/* Unexplored Exits summary or Reset Notice */}
+          {unexploredCount > 0 ? (
             <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-lg p-2 flex items-center justify-between text-[11px] text-[#065f46]">
               <span className="font-bold flex items-center gap-1">
-                <span>🔍</span> {unexploredCount} unexplored exit{unexploredCount !== 1 ? 's' : ''} on map
+                <span>🔍</span> {unexploredCount} unexplored chamber{unexploredCount !== 1 ? 's' : ''} on map
               </span>
               {overlappingCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded bg-[#d1fae5] border border-[#6ee7b7] font-black text-[10px]">
@@ -76,12 +86,21 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
                 </span>
               )}
             </div>
+          ) : (
+            <div className="bg-[#fef3c7] border border-[#f59e0b] rounded-lg p-2.5 text-[11px] text-[#78350f] space-y-1">
+              <div className="font-black flex items-center gap-1.5 text-xs text-[#92400e]">
+                <span>✨</span> All Non-Dead Ends Will Be Marked Unexplored
+              </div>
+              <p className="text-[10.5px] leading-tight text-[#854d0e]">
+                Continuing marks all non-dead-end rooms as unexplored again so you can survey each chamber anew for energy &amp; A♠ (preventing toggling between two visited rooms).
+              </p>
+            </div>
           )}
 
           {/* Second Descent Rules */}
           <div className="bg-[#ede4d3] rounded-lg border border-[#cfbe9f] p-2.5 space-y-2 text-[11px]">
             <div className="font-black text-[#2b261f] uppercase text-[10px] tracking-wider border-b border-[#2b261f]/15 pb-1">
-              Phase 2 Expedition Rules:
+              Re-Exploration Rules:
             </div>
 
             <div className="flex items-start gap-2">
@@ -91,7 +110,7 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
               <div>
                 <strong className="text-[#2b261f]">Movement Cost: 2 Energy</strong>
                 <p className="text-[#695d4d] leading-tight text-[10.5px]">
-                  Trekking through the carved passages with expedition fatigue now costs 2 ⚡ Energy per chamber.
+                  Navigating the extensive labyrinth passages now costs 2 ⚡ Energy per move.
                 </p>
               </div>
             </div>
@@ -101,9 +120,9 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
                 ♠
               </span>
               <div>
-                <strong className="text-[#2b261f]">Survey Every Chamber</strong>
+                <strong className="text-[#2b261f]">Higher / Lower Chamber Survey</strong>
                 <p className="text-[#695d4d] leading-tight text-[10.5px]">
-                  Entering any chamber prompts the Higher / Lower survey again. Winning streaks restore bonus energy (+1⚡, +2⚡, +3⚡...) to keep you alive!
+                  Each unexplored chamber triggers the Higher / Lower survey. Streaks restore bonus energy (+1⚡, +2⚡, +3⚡...) to sustain your journey!
                 </p>
               </div>
             </div>
@@ -115,7 +134,7 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
               <div>
                 <strong className="text-[#2b261f]">Hunt for the Ace of Spades (A♠)</strong>
                 <p className="text-[#695d4d] leading-tight text-[10.5px]">
-                  Finding A♠ unlocks the Gateway descending to Level 3: The Utopia Engine Core!
+                  Revealing A♠ unlocks the Gateway descending to Level 3: The Utopia Engine Core!
                 </p>
               </div>
             </div>
@@ -129,7 +148,7 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
               className="w-full py-2.5 px-3 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>START RE-EXPLORATION (-2⚡)</span>
+              <span>{unexploredCount === 0 ? 'EXPLORE MAP AGAIN (-2⚡)' : 'START RE-EXPLORATION (-2⚡)'}</span>
             </button>
 
             <button

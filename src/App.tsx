@@ -46,6 +46,8 @@ import {
   createExplorationDeck,
   drawInitialComparisonCard,
   ExplorationCard,
+  CardRank,
+  getRankNumericValue,
 } from './utils/explorationDeck';
 import { ChamberExplorationModal } from './components/ChamberExplorationModal';
 import { Level2VictoryModal } from './components/Level2VictoryModal';
@@ -68,10 +70,17 @@ import { RulesModal } from './components/RulesModal';
 import { EventModal } from './components/EventModal';
 import { GameOverModal } from './components/GameOverModal';
 import { LevelTransitionModal } from './components/LevelTransitionModal';
+import {
+  saveGameStateLocally,
+  loadGameStateLocally,
+  clearGameStateLocally,
+} from './utils/storage';
 
 const MAX_ENERGY = 30;
 
 export default function App() {
+  const [initialSave] = useState(() => loadGameStateLocally());
+
   // Delve Card Drawing Sequence State (Stage 1: Draw Card -> Stage 2: Ink on Map one by one)
   const [delveStage, setDelveStage] = useState<'draw' | 'ink' | null>(null);
   const [delveExitInfo, setDelveExitInfo] = useState<DelveExitInfo | null>(null);
@@ -82,108 +91,209 @@ export default function App() {
   };
 
   // Level State
-  const [currentLevel, setCurrentLevel] = useState<GameLevel>(1);
+  const [currentLevel, setCurrentLevel] = useState<GameLevel>(() =>
+    initialSave ? initialSave.currentLevel : 1
+  );
   const [showLevelTransitionModal, setShowLevelTransitionModal] = useState<boolean>(false);
-  const [level1Turns, setLevel1Turns] = useState<number>(1);
+  const [level1Turns, setLevel1Turns] = useState<number>(() =>
+    initialSave ? initialSave.level1.level1Turns : 1
+  );
 
   // Level 2 Subterranean Tunnel State
   const [tunnelMap, setTunnelMap] = useState<TunnelMap>(() =>
-    createTunnelMap(createShuffledHeartsDeck())
+    initialSave
+      ? {
+          tiles: new Map(initialSave.level2.tiles),
+          startCoord: initialSave.level2.startCoord,
+          playerCoord: initialSave.level2.playerCoord,
+          deck: initialSave.level2.deck,
+          discard: initialSave.level2.discard,
+          activeCard: initialSave.level2.activeCard,
+          cardsDrawnCount: initialSave.level2.cardsDrawnCount,
+        }
+      : createTunnelMap(createShuffledHeartsDeck())
   );
-  const [currentTunnelHeading, setCurrentTunnelHeading] = useState<DirectionIndex>(2);
-  const [level2Steps, setLevel2Steps] = useState<number>(0);
-  const [level2CardsDrawn, setLevel2CardsDrawn] = useState<number>(0);
-  const [level2TargetFound, setLevel2TargetFound] = useState<boolean>(false);
+  const [currentTunnelHeading, setCurrentTunnelHeading] = useState<DirectionIndex>(() =>
+    initialSave ? initialSave.level2.currentTunnelHeading : 2
+  );
+  const [level2Steps, setLevel2Steps] = useState<number>(() =>
+    initialSave ? initialSave.level2.level2Steps : 0
+  );
+  const [level2CardsDrawn, setLevel2CardsDrawn] = useState<number>(() =>
+    initialSave ? initialSave.level2.level2CardsDrawn : 0
+  );
+  const [level2TargetFound, setLevel2TargetFound] = useState<boolean>(() =>
+    initialSave ? initialSave.level2.level2TargetFound : false
+  );
   const [showLevel2VictoryModal, setShowLevel2VictoryModal] = useState<boolean>(false);
-  const [level2ReExploring, setLevel2ReExploring] = useState<boolean>(false);
+  const [level2ReExploring, setLevel2ReExploring] = useState<boolean>(() =>
+    initialSave ? initialSave.level2.level2ReExploring : false
+  );
   const [showReExploreModal, setShowReExploreModal] = useState<boolean>(false);
+  const [reExploreDismissedForCurrentState, setReExploreDismissedForCurrentState] = useState<boolean>(false);
 
   // Level 2 Exploration Deck (♠, ♣, ♦ Higher/Lower and Ace of Spades hunt)
   const [explorationDeck, setExplorationDeck] = useState<ExplorationCard[]>(() =>
-    createExplorationDeck()
+    initialSave ? initialSave.level2.explorationDeck : createExplorationDeck()
   );
-  const [comparisonCard, setComparisonCard] = useState<ExplorationCard | null>(null);
-  const [drawnExplorationCard, setDrawnExplorationCard] = useState<ExplorationCard | null>(null);
-  const [explorationStreak, setExplorationStreak] = useState<number>(0);
-  const [activePrediction, setActivePrediction] = useState<'higher' | 'lower' | null>(null);
+  const [comparisonCard, setComparisonCard] = useState<ExplorationCard | null>(() =>
+    initialSave ? initialSave.level2.comparisonCard : null
+  );
+  const [drawnExplorationCard, setDrawnExplorationCard] = useState<ExplorationCard | null>(() =>
+    initialSave ? initialSave.level2.drawnExplorationCard : null
+  );
+  const [explorationStreak, setExplorationStreak] = useState<number>(() =>
+    initialSave ? initialSave.level2.explorationStreak : 0
+  );
+  const [activePrediction, setActivePrediction] = useState<'higher' | 'lower' | null>(() =>
+    initialSave ? initialSave.level2.activePrediction : null
+  );
   const [pendingExplorationChoice, setPendingExplorationChoice] = useState<
     'higher_lower' | 'face_gamble' | null
-  >(null);
-  const [explorationResultText, setExplorationResultText] = useState<string | null>(null);
+  >(() => (initialSave ? initialSave.level2.pendingExplorationChoice : null));
+  const [explorationResultText, setExplorationResultText] = useState<string | null>(() =>
+    initialSave ? initialSave.level2.explorationResultText : null
+  );
+  const [playerHand, setPlayerHand] = useState<ExplorationCard[]>(() =>
+    initialSave && (initialSave as any).playerHand ? (initialSave as any).playerHand : []
+  );
   const [showChamberExplorationModal, setShowChamberExplorationModal] = useState<boolean>(false);
 
   // Level 3 State (19-hex Flower Machine)
-  const [level3State, setLevel3State] = useState<Level3State>(() => generateLevel3Map());
+  const [level3State, setLevel3State] = useState<Level3State>(() =>
+    initialSave
+      ? {
+          tiles: new Map(initialSave.level3.tiles),
+          playerCoord: initialSave.level3.playerCoord,
+          outerDoorsUnlocked: initialSave.level3.outerDoorsUnlocked,
+          innerDoorsUnlocked: initialSave.level3.innerDoorsUnlocked,
+          outerCodeFragments: initialSave.level3.outerCodeFragments,
+          outerDoorFails: initialSave.level3.outerDoorFails,
+          innerCodeFragments: initialSave.level3.innerCodeFragments,
+          innerDoorFails: initialSave.level3.innerDoorFails,
+          bossDefeated: initialSave.level3.bossDefeated,
+        }
+      : generateLevel3Map()
+  );
   const [activeLevel3Tile, setActiveLevel3Tile] = useState<FlowerTile | null>(null);
-  const [level3Steps, setLevel3Steps] = useState<number>(0);
+  const [level3Steps, setLevel3Steps] = useState<number>(() =>
+    initialSave ? initialSave.level3.level3Steps : 0
+  );
 
   // Game Map State (Level 1)
-  const [mapData, setMapData] = useState(() => generateMap());
-  const [playerCoord, setPlayerCoord] = useState<HexCoord>(START_COORD);
-  const [knownTowers, setKnownTowers] = useState<HexCoord[]>([]);
-  const [visitedTowerCount, setVisitedTowerCount] = useState<number>(0);
+  const [mapData, setMapData] = useState(() =>
+    initialSave
+      ? {
+          tiles: new Map(initialSave.level1.tiles),
+          startCoord: initialSave.level1.startCoord,
+          goalCoord: initialSave.level1.goalCoord,
+          towerCoords: initialSave.level1.towerCoords,
+        }
+      : generateMap()
+  );
+  const [playerCoord, setPlayerCoord] = useState<HexCoord>(() =>
+    initialSave ? initialSave.level1.playerCoord : START_COORD
+  );
+  const [knownTowers, setKnownTowers] = useState<HexCoord[]>(() =>
+    initialSave ? initialSave.level1.knownTowers : []
+  );
+  const [visitedTowerCount, setVisitedTowerCount] = useState<number>(() =>
+    initialSave ? initialSave.level1.visitedTowerCount : 0
+  );
 
   // Stats
-  const [energy, setEnergy] = useState<number>(MAX_ENERGY);
-  const [turn, setTurn] = useState<number>(1);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [isWon, setIsWon] = useState<boolean>(false);
-  const [isLost, setIsLost] = useState<boolean>(false);
+  const [energy, setEnergy] = useState<number>(() =>
+    initialSave ? initialSave.energy : MAX_ENERGY
+  );
+  const [turn, setTurn] = useState<number>(() =>
+    initialSave ? initialSave.turn : 1
+  );
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() =>
+    initialSave ? initialSave.soundEnabled : true
+  );
+  const [isWon, setIsWon] = useState<boolean>(() =>
+    initialSave ? initialSave.isWon : false
+  );
+  const [isLost, setIsLost] = useState<boolean>(() =>
+    initialSave ? initialSave.isLost : false
+  );
   const [reviewingMap, setReviewingMap] = useState<boolean>(false);
 
   const gameOverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPendingExhaustionRef = useRef<boolean>(false);
 
   // 2D6 Dice State
-  const [diceState, setDiceState] = useState<DiceState>({
-    die1: 2,
-    die2: 6,
-    baseDie1: 2,
-    baseDie2: 6,
-    chosenDirectionDie: 1, // die1 is direction, die2 is distance
-    assignedDistance: 6,
-    assignedDirection: 2, // 2 = N ↑
-    rolled: false,
-    isRolling: false,
-    modifiedDie: null,
-    modifierDelta: 0,
-  });
+  const [diceState, setDiceState] = useState<DiceState>(() =>
+    initialSave
+      ? initialSave.level1.diceState
+      : {
+          die1: 2,
+          die2: 6,
+          baseDie1: 2,
+          baseDie2: 6,
+          chosenDirectionDie: 1, // die1 is direction, die2 is distance
+          assignedDistance: 6,
+          assignedDirection: 2, // 2 = N ↑
+          rolled: false,
+          isRolling: false,
+          modifiedDie: null,
+          modifierDelta: 0,
+        }
+  );
 
   // Selected Direction override (active direction)
-  const [selectedDirection, setSelectedDirection] = useState<DirectionIndex>(2);
+  const [selectedDirection, setSelectedDirection] = useState<DirectionIndex>(() =>
+    initialSave ? initialSave.level1.selectedDirection : 2
+  );
 
   // Tactical Deviation State
-  const [deviationState, setDeviationState] = useState<DeviationState>({
-    active: false,
-    usedThisTurn: false,
-    type: 'none',
-    pivotIndex: null,
-    overrideDirection: 2,
-    step1Distance: 2,
-    step1Direction: 2,
-    step2Distance: 4,
-    step2Direction: 3,
-  });
+  const [deviationState, setDeviationState] = useState<DeviationState>(() =>
+    initialSave
+      ? initialSave.level1.deviationState
+      : {
+          active: false,
+          usedThisTurn: false,
+          type: 'none',
+          pivotIndex: null,
+          overrideDirection: 2,
+          step1Distance: 2,
+          step1Direction: 2,
+          step2Distance: 4,
+          step2Direction: 3,
+        }
+  );
 
   // Move 1 Mode State (replaces Scout - allows stepping 1 space into any adjacent hex)
-  const [isMoveOne, setIsMoveOne] = useState<boolean>(false);
+  const [isMoveOne, setIsMoveOne] = useState<boolean>(() =>
+    initialSave ? initialSave.level1.isMoveOne : false
+  );
 
   // Status message ticker
-  const [statusMessage, setStatusMessage] = useState<string>(
-    'Expedition Base: Roll 2D6 to determine movement distance & direction.'
+  const [statusMessage, setStatusMessage] = useState<string>(() =>
+    initialSave
+      ? initialSave.statusMessage
+      : 'Expedition Base: Roll 2D6 to determine movement distance & direction.'
   );
 
   // Compass clue to goal discovered from Cairns
-  const [goalClue, setGoalClue] = useState<string | null>(null);
+  const [goalClue, setGoalClue] = useState<string | null>(() =>
+    initialSave ? initialSave.level1.goalClue : null
+  );
 
   // Free move 1-hex charges acquired from Fortune Shrines
-  const [freeMoves, setFreeMoves] = useState<number>(0);
+  const [freeMoves, setFreeMoves] = useState<number>(() =>
+    initialSave ? initialSave.level1.freeMoves : 0
+  );
 
   // Brass Telescope (from Shrines): reveals all tiles in all 6 directions on future towers visited
-  const [hasTelescope, setHasTelescope] = useState<boolean>(false);
+  const [hasTelescope, setHasTelescope] = useState<boolean>(() =>
+    initialSave ? initialSave.level1.hasTelescope : false
+  );
 
   // Dice Modifier (from Shrines): allows +/- 1 adjustment to either movement die each turn
-  const [hasDiceModifier, setHasDiceModifier] = useState<boolean>(false);
+  const [hasDiceModifier, setHasDiceModifier] = useState<boolean>(() =>
+    initialSave ? initialSave.level1.hasDiceModifier : false
+  );
 
   // Check if goal has been revealed
   const goalTile = mapData.tiles.get(`${mapData.goalCoord.col},${mapData.goalCoord.row}`);
@@ -293,6 +403,7 @@ export default function App() {
     setLevel3State(generateLevel3Map());
     setActiveLevel3Tile(null);
     setLevel3Steps(0);
+    setPlayerHand([]);
 
     const newMap = generateMap();
     setMapData(newMap);
@@ -333,8 +444,116 @@ export default function App() {
       step2Direction: 3,
     });
     setIsMoveOne(false);
+    setLevel2ReExploring(false);
+    setShowReExploreModal(false);
+    setReExploreDismissedForCurrentState(false);
+    clearGameStateLocally();
     setStatusMessage('New Expedition started! Roll 2D6 to explore the wilderness.');
   }, []);
+
+  // Save game state locally whenever game state changes
+  useEffect(() => {
+    saveGameStateLocally({
+      version: 1,
+      timestamp: Date.now(),
+      currentLevel,
+      energy,
+      turn,
+      statusMessage,
+      soundEnabled,
+      isWon,
+      isLost,
+      playerHand,
+      level1: {
+        tiles: Array.from(mapData.tiles.entries()),
+        startCoord: START_COORD,
+        goalCoord: mapData.goalCoord,
+        towerCoords: mapData.towerCoords,
+        playerCoord,
+        knownTowers,
+        visitedTowerCount,
+        goalClue,
+        freeMoves,
+        hasTelescope,
+        hasDiceModifier,
+        level1Turns,
+        diceState,
+        deviationState,
+        selectedDirection,
+        isMoveOne,
+      },
+      level2: {
+        tiles: Array.from(tunnelMap.tiles.entries()),
+        startCoord: tunnelMap.startCoord,
+        playerCoord: tunnelMap.playerCoord,
+        deck: tunnelMap.deck,
+        discard: tunnelMap.discard,
+        activeCard: tunnelMap.activeCard,
+        cardsDrawnCount: tunnelMap.cardsDrawnCount,
+        currentTunnelHeading,
+        level2Steps,
+        level2CardsDrawn,
+        level2TargetFound,
+        level2ReExploring,
+        explorationDeck,
+        comparisonCard,
+        drawnExplorationCard,
+        explorationStreak,
+        activePrediction,
+        pendingExplorationChoice,
+        explorationResultText,
+      },
+      level3: {
+        tiles: Array.from(level3State.tiles.entries()),
+        playerCoord: level3State.playerCoord,
+        outerDoorsUnlocked: level3State.outerDoorsUnlocked,
+        innerDoorsUnlocked: level3State.innerDoorsUnlocked,
+        outerCodeFragments: level3State.outerCodeFragments,
+        outerDoorFails: level3State.outerDoorFails,
+        innerCodeFragments: level3State.innerCodeFragments,
+        innerDoorFails: level3State.innerDoorFails,
+        bossDefeated: level3State.bossDefeated,
+        level3Steps,
+      },
+    });
+  }, [
+    currentLevel,
+    energy,
+    turn,
+    statusMessage,
+    soundEnabled,
+    isWon,
+    isLost,
+    mapData,
+    playerCoord,
+    knownTowers,
+    visitedTowerCount,
+    goalClue,
+    freeMoves,
+    hasTelescope,
+    hasDiceModifier,
+    level1Turns,
+    diceState,
+    deviationState,
+    selectedDirection,
+    isMoveOne,
+    tunnelMap,
+    currentTunnelHeading,
+    level2Steps,
+    level2CardsDrawn,
+    level2TargetFound,
+    level2ReExploring,
+    explorationDeck,
+    comparisonCard,
+    drawnExplorationCard,
+    explorationStreak,
+    activePrediction,
+    pendingExplorationChoice,
+    explorationResultText,
+    playerHand,
+    level3State,
+    level3Steps,
+  ]);
 
   // Sync sounds state
   const handleToggleSound = () => {
@@ -1359,6 +1578,45 @@ export default function App() {
     return tunnelMap.deck.length === 0 && getLiveExits(tunnelMap.tiles).length === 0;
   }, [currentLevel, level2TargetFound, tunnelMap.deck.length, tunnelMap.tiles]);
 
+  // Automatically open the Re-Explore modal when there are no unexplored rooms left.
+  // "The modal should appear automatically when there are no unexplored rooms left.
+  // When the player chooses to continue, mark all non dead ends as unexplored again,
+  // otherwise you can just toggle between two rooms"
+  useEffect(() => {
+    if (currentLevel !== 2) return;
+    if (level2TargetFound || isWon || isLost) return;
+    if (delveStage !== null || showChamberExplorationModal || showReExploreModal) return;
+    if (reExploreDismissedForCurrentState) return;
+
+    // Triggers once delve cards are drawn (map is fully drawn) and there are no unexplored rooms left
+    if (tunnelMap.deck.length === 0 && unexploredExits.length === 0) {
+      let nonDeadEndChambersCount = 0;
+      for (const t of tunnelMap.tiles.values()) {
+        if (t.status === 'lit' && !t.isHallway && !t.isDeadEnd && !t.isTarget) {
+          nonDeadEndChambersCount++;
+        }
+      }
+      if (nonDeadEndChambersCount > 1) {
+        const timer = setTimeout(() => {
+          setShowReExploreModal(true);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [
+    currentLevel,
+    level2TargetFound,
+    isWon,
+    isLost,
+    delveStage,
+    showChamberExplorationModal,
+    showReExploreModal,
+    reExploreDismissedForCurrentState,
+    tunnelMap.deck.length,
+    unexploredExits.length,
+    tunnelMap.tiles,
+  ]);
+
   // Click on a tile in Level 2 (step into lit exit or dead-end retrace)
   const handleTunnelTileClick = (targetCoord: HexCoord) => {
     if (currentLevel !== 2 || isWon || isLost) return;
@@ -1433,12 +1691,16 @@ export default function App() {
     const targetTile = updatedTiles.get(targetKey);
     if (!targetTile) return;
 
-    targetTile.visited = true;
+    const wasVisited = targetTile.visited;
     sounds.playStep();
     setLevel2Steps((prev) => prev + 1);
 
+    // Reset dismissed state on user move so modal can re-trigger when all rooms are visited
+    setReExploreDismissedForCurrentState(false);
+
     // Check if target tile is the grand exit (Ace of Hearts)
     if (targetTile.isTarget) {
+      targetTile.visited = true;
       sounds.playVictory();
       setIsWon(true);
       setStatusMessage(
@@ -1453,21 +1715,40 @@ export default function App() {
       return;
     }
 
-    // In Re-Exploration Phase: Moving into ANY chamber prompts the Higher / Lower chamber survey again!
+    // In Re-Exploration Phase:
+    // Only prompt Higher / Lower survey if the chamber was NOT yet visited in this cycle!
+    // Prevents endless toggling between two visited rooms.
     if (level2ReExploring) {
-      setDrawnExplorationCard(null);
-      setPendingExplorationChoice('higher_lower');
-      setExplorationResultText('Re-Exploration: Predict if the next exploration card is HIGHER or LOWER than your base card!');
-      setShowChamberExplorationModal(true);
+      targetTile.visited = true;
 
-      if (nextEnergy <= 0) {
-        setStatusMessage(
-          `⚠️ Re-Exploration (-2⚡): Chamber entered on your last breath (0⚡)! Predict Higher/Lower on base ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} to gain energy!`
+      if (!wasVisited) {
+        // First time entering this chamber during this re-exploration cycle: Prompt Survey!
+        setDrawnExplorationCard(null);
+        setPendingExplorationChoice('higher_lower');
+        setExplorationResultText(
+          'Re-Exploration: Predict if the next exploration card is HIGHER or LOWER than your base card!'
         );
+        setShowChamberExplorationModal(true);
+
+        if (nextEnergy <= 0) {
+          setStatusMessage(
+            `⚠️ Re-Exploration (-2⚡): Chamber entered on your last breath (0⚡)! Predict Higher/Lower on base ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} to gain energy!`
+          );
+        } else {
+          setStatusMessage(
+            `Re-Exploration (-2⚡): Entered unexplored chamber (${resolvedTarget.col}, ${resolvedTarget.row}). Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} in the chamber survey popup!`
+          );
+        }
       } else {
+        // Chamber was already surveyed in this re-exploration cycle
         setStatusMessage(
-          `Re-Exploration (-2⚡): Entered chamber (${resolvedTarget.col}, ${resolvedTarget.row}). Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} to gain energy and hunt for A♠!`
+          `Traversing previously surveyed chamber (${resolvedTarget.col}, ${resolvedTarget.row}) (-2⚡). Head towards unexplored chambers to survey!`
         );
+        if (nextEnergy <= 0) {
+          sounds.playHazard();
+          setIsLost(true);
+          setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
+        }
       }
 
       setTunnelMap((prev) => ({
@@ -1478,6 +1759,8 @@ export default function App() {
       }));
       return;
     }
+
+    targetTile.visited = true;
 
     // Check if target tile already has carved exits or is a dead end (revisiting / retracing steps in Phase 1)
     if (targetTile.exitsCarved || targetTile.isDeadEnd) {
@@ -1644,7 +1927,7 @@ export default function App() {
       return;
     }
 
-    if (nextCard.effect === 'trap' || nextCard.effect === 'treasure') {
+    if (nextCard.effect === 'trap' || nextCard.effect === 'treasure' || nextCard.rank === 'J' || nextCard.rank === 'Q' || nextCard.rank === 'K' || nextCard.rank === 'A') {
       const t = setTimeout(() => {
         setDelveStage('ink');
         setDelveExitInfo(null);
@@ -1662,35 +1945,36 @@ export default function App() {
 
         const tEvent = setTimeout(() => {
           setDelveStage(null);
-          if (nextCard.effect === 'trap') {
-            sounds.playHazard();
-            setEventPrompt({
-              title: 'Subterranean Trap Chamber! (J♥)',
-              category: 'Hazard',
-              description:
-                'A pressure plate clicks! Spring-loaded scythe blades slice from the dark walls. Roll the Fate Die: Odd = -2 Energy, Even = Safe dodge! After resolving, tap Draw Delve Card to continue.',
-              type: 'tunnel_trap',
-              coord: tunnelMap.playerCoord,
-              statBadge: 'J♥ Trap: Odd = -2 ⚡, Even = Safe',
-            });
-            setStatusMessage(
-              'Drawn Jack of Hearts — Trap Chamber! Dodge the blades, then Draw Delve Card!'
-            );
-          } else {
-            sounds.playBonus();
-            setEventPrompt({
-              title: `Ancient Treasure Vault! (${nextCard.rank}♥)`,
-              category: 'Discovery',
-              description:
-                'You uncover an ancient stone strongbox glowing with subterranean mana! Roll the Fate Die to restore 1 to 6 Energy. After resolving, tap Draw Delve Card to continue.',
-              type: 'tunnel_treasure',
-              coord: tunnelMap.playerCoord,
-              statBadge: `${nextCard.rank}♥ Vault: Roll D6 for +1 to +6 ⚡`,
-            });
-            setStatusMessage(
-              `Drawn ${nextCard.name} — Treasure Vault discovered! Collect reward, then Draw Delve Card!`
-            );
+          sounds.playBonus();
+
+          // Ensure base comparison card exists so the player can bank it or keep it
+          let base = comparisonCard;
+          if (!base) {
+            const currentExpDeck = [...explorationDeck];
+            const { card: freshBase, remainingDeck } = drawInitialComparisonCard(currentExpDeck);
+            setExplorationDeck(remainingDeck);
+            setComparisonCard(freshBase);
+            base = freshBase;
           }
+
+          const honorCard: ExplorationCard = {
+            id: `delve-${nextCard.rank}♥-${Date.now()}`,
+            suit: '♥',
+            rank: nextCard.rank as CardRank,
+            value: getRankNumericValue(nextCard.rank as CardRank),
+            isHonor: true,
+            isAceOfSpades: false,
+          };
+
+          setDrawnExplorationCard(honorCard);
+          setPendingExplorationChoice('face_gamble');
+          setExplorationResultText(
+            `Honor Card Drawn: ${nextCard.name}! Instead of a trap/vault modal, choose which card to bank into your Hand for Level 3 dice reduction:`
+          );
+          setShowChamberExplorationModal(true);
+          setStatusMessage(
+            `Drawn ${nextCard.name}! Choose: Bank base card or draw a new card into hand for Level 3.`
+          );
         }, 650);
         delveTimeoutsRef.current.push(tEvent);
       }, DRAW_STAGE_DELAY);
@@ -1897,11 +2181,16 @@ export default function App() {
     }, 1200);
   };
 
-  // Honor Card Choice: Discard & Redraw Base vs. Draw Again (keeping guess & streak)
-  const handleFaceChoice = (choice: 'discard_redraw' | 'gamble_ace') => {
+  // Honor Card Choice: Bank Base to Hand vs. Draw New Card into Hand (or Bank Drawn)
+  const handleFaceChoice = (choice: 'bank_base' | 'draw_new_to_hand' | 'bank_drawn') => {
     sounds.playCardFlip();
-    if (choice === 'discard_redraw') {
-      // Discard current base card and draw a fresh base comparison card from the exploration deck
+    if (choice === 'bank_base') {
+      if (!comparisonCard) return;
+      sounds.playBonus();
+      const bankedCard = comparisonCard;
+      setPlayerHand((prev) => [...prev, bankedCard]);
+
+      // Draw a fresh comparison base card from explorationDeck to replace the banked base card
       const currentDeck = [...explorationDeck];
       const { card: freshBase, remainingDeck } = drawInitialComparisonCard(currentDeck);
       setExplorationDeck(remainingDeck);
@@ -1909,124 +2198,101 @@ export default function App() {
       setDrawnExplorationCard(null);
       setPendingExplorationChoice(null);
       setActivePrediction(null);
-      setTimeout(() => {
-        sounds.playBonus();
-      }, 320);
+
       setExplorationResultText(
-        `Discarded previous base. Fresh base card established: ${freshBase.rank} of ${freshBase.suit}. Streak remains unchanged (${explorationStreak >= 0 ? `+${explorationStreak}` : explorationStreak}).`
+        `📥 Banked base card ${bankedCard.rank}${bankedCard.suit} (Value: ${bankedCard.value}) into your Hand! Drew fresh base card ${freshBase.rank}${freshBase.suit} for future surveys. Hand has ${playerHand.length + 1} card(s) saved for Level 3.`
       );
       setStatusMessage(
-        `Discarded base! New base card: ${freshBase.rank} of ${freshBase.suit}. Streak preserved.`
+        `Banked ${bankedCard.rank}${bankedCard.suit} to Hand! New base: ${freshBase.rank}${freshBase.suit}. Streak preserved.`
       );
-    } else {
-      // Draw Again: keeping guess and streak status against current base card!
+    } else if (choice === 'draw_new_to_hand') {
+      sounds.playBonus();
       const currentDeck = [...explorationDeck];
       if (currentDeck.length === 0) {
-        setExplorationDeck(createExplorationDeck());
+        currentDeck.push(...createExplorationDeck());
       }
-      const gambleCard = currentDeck.shift()!;
+      const newCard = currentDeck.shift()!;
       setExplorationDeck(currentDeck);
-      setDrawnExplorationCard(gambleCard);
+      setPlayerHand((prev) => [...prev, newCard]);
 
-      // Check for Ace of Spades (Instant Level 3 Discovery!)
-      if (gambleCard.isAceOfSpades) {
+      // If newly drawn card happens to be the Ace of Spades!
+      if (newCard.isAceOfSpades) {
         setTimeout(() => {
           sounds.playVictory();
           setLevel2TargetFound(true);
           setShowChamberExplorationModal(false);
           setShowLevel2VictoryModal(true);
-        }, 420);
+        }, 500);
         setPendingExplorationChoice(null);
         setActivePrediction(null);
-        setExplorationResultText('♠ ACE OF SPADES DRAWN! Instant Victory and Gateway to Level 3!');
-        setStatusMessage('JACKPOT! Ace of Spades drawn on the gamble! Gateway to Level 3 is open!');
+        setExplorationResultText('♠ ACE OF SPADES DRAWN INTO HAND! Gateway to Level 3 is open!');
+        setStatusMessage('JACKPOT! Ace of Spades drawn into hand! Gateway to Level 3 is open!');
         return;
       }
 
-      // If ANOTHER honor card is drawn (e.g. Jack then King or Queen):
-      if (gambleCard.isHonor) {
-        const guessLabel = (activePrediction || 'higher').toUpperCase();
-        setTimeout(() => {
-          sounds.playBonus();
-          setPendingExplorationChoice('face_gamble');
-          setExplorationResultText(
-            `Another honor card drawn: ${gambleCard.rank} of ${gambleCard.suit}! Your "${guessLabel}" call and streak remain intact. Discard base (${comparisonCard?.rank}${comparisonCard?.suit}) or draw again for A♠!`
-          );
-        }, 600);
-        setStatusMessage(
-          `Drew ${gambleCard.rank}${gambleCard.suit}! "${guessLabel}" guess & streak still active.`
-        );
-        return;
-      }
+      setPendingExplorationChoice(null);
+      setActivePrediction(null);
+      setExplorationResultText(
+        `🃏 Drew ${newCard.rank}${newCard.suit} (Value: ${newCard.value}) directly into your Hand! Kept base card ${comparisonCard?.rank}${comparisonCard?.suit}. Hand has ${playerHand.length + 1} card(s) saved for Level 3.`
+      );
+      setStatusMessage(
+        `Drew ${newCard.rank}${newCard.suit} into Hand! Kept base ${comparisonCard?.rank}${comparisonCard?.suit}. Hand has ${playerHand.length + 1} cards.`
+      );
+    } else {
+      // 'bank_drawn'
+      if (!drawnExplorationCard) return;
+      sounds.playBonus();
+      const bankedDrawn = drawnExplorationCard;
+      setPlayerHand((prev) => [...prev, bankedDrawn]);
+      setPendingExplorationChoice(null);
+      setActivePrediction(null);
+      setExplorationResultText(
+        `👑 Banked drawn honor ${bankedDrawn.rank}${bankedDrawn.suit} (Value: ${bankedDrawn.value}) into your Hand! Base card ${comparisonCard?.rank}${comparisonCard?.suit} remains active. Hand has ${playerHand.length + 1} card(s) saved for Level 3.`
+      );
+      setStatusMessage(
+        `Banked ${bankedDrawn.rank}${bankedDrawn.suit} into Hand! Base ${comparisonCard?.rank}${comparisonCard?.suit} kept. Hand has ${playerHand.length + 1} cards.`
+      );
+    }
+  };
 
-      // Numbered card drawn: resolve against the base card using the existing active prediction!
-      const prediction = activePrediction || 'higher';
-      const baseVal = comparisonCard ? comparisonCard.value : 7;
-      const drawnVal = gambleCard.value;
+  // Consume cards spent from hand during Level 3 Utopia Engine tests
+  const handleConsumeHandCards = (consumedCardIds: string[]) => {
+    setPlayerHand((prev) => prev.filter((c) => !consumedCardIds.includes(c.id)));
+  };
 
-      if (drawnVal === baseVal) {
-        setTimeout(() => {
-          sounds.playClick();
-        }, 320);
-        setExplorationStreak(0);
-        // Note: Keep comparisonCard visible side by side with gambleCard
-        setPendingExplorationChoice(null);
-        setActivePrediction(null);
-        setExplorationResultText(
-          `Drew ${gambleCard.rank}${gambleCard.suit} matching base ${baseVal}! Pair push — no energy change. Streak reset to 0.`
-        );
-        setStatusMessage(`Draw again resulted in a pair (${gambleCard.rank}${gambleCard.suit})! Push.`);
-      } else {
-        const isHigher = drawnVal > baseVal;
-        const isCorrect =
-          (prediction === 'higher' && isHigher) || (prediction === 'lower' && !isHigher);
+  // Re-Exploration: Player chooses to continue exploring the fully drawn map
+  // "When the player chooses to continue, mark all non dead ends as unexplored again, otherwise you can just toggle between two rooms"
+  const handleConfirmReExplore = () => {
+    sounds.playBonus();
+    setLevel2ReExploring(true);
+    setShowReExploreModal(false);
+    setReExploreDismissedForCurrentState(false);
 
-        if (isCorrect) {
-          setTimeout(() => {
-            sounds.playBonus();
-          }, 320);
-          const nextStreak = explorationStreak >= 0 ? explorationStreak + 1 : 1;
-          setExplorationStreak(nextStreak);
-          const energyReward = nextStreak;
-          setEnergy((prev) => Math.min(prev + energyReward, MAX_ENERGY));
-          // Keep comparisonCard as the previous base card so both cards remain side-by-side
-          setPendingExplorationChoice(null);
-          setActivePrediction(null);
-          setExplorationResultText(
-            `Correct "${prediction.toUpperCase()}" call! Drew ${gambleCard.rank}${gambleCard.suit} vs base ${baseVal}. Streak: +${nextStreak} (+${energyReward} ⚡).`
-          );
-          setStatusMessage(
-            `Drew ${gambleCard.rank}${gambleCard.suit} — correct "${prediction}"! Streak +${nextStreak} (+${energyReward}⚡).`
-          );
+    // Mark all non dead ends as unexplored again, EXCEPT the current chamber where the player is standing
+    const updatedTiles = new Map(tunnelMap.tiles);
+    let resetCount = 0;
+
+    for (const [key, tile] of updatedTiles.entries()) {
+      if (tile.status === 'lit' && !tile.isHallway && !tile.isDeadEnd && !tile.isTarget) {
+        const isCurrentChamber =
+          tile.col === tunnelMap.playerCoord.col && tile.row === tunnelMap.playerCoord.row;
+        if (isCurrentChamber) {
+          tile.visited = true;
         } else {
-          setTimeout(() => {
-            sounds.playHazard();
-          }, 320);
-          const nextStreak = explorationStreak <= 0 ? explorationStreak - 1 : -1;
-          setExplorationStreak(nextStreak);
-          const energyPenalty = Math.abs(nextStreak);
-          const remainingE = Math.max(0, energy - energyPenalty);
-          setEnergy(remainingE);
-          // Keep comparisonCard as the previous base card so both cards remain side-by-side
-          setPendingExplorationChoice(null);
-          setActivePrediction(null);
-          setExplorationResultText(
-            `Wrong call! Drew ${gambleCard.rank}${gambleCard.suit} vs base ${baseVal} (called ${prediction.toUpperCase()}). Streak: ${nextStreak} (-${energyPenalty} ⚡).`
-          );
-          setStatusMessage(
-            `Drew ${gambleCard.rank}${gambleCard.suit} — wrong call! Streak ${nextStreak} (-${energyPenalty}⚡).`
-          );
-
-          if (remainingE <= 0) {
-            setTimeout(() => {
-              sounds.playHazard();
-              setIsLost(true);
-              setStatusMessage('Energy exhausted in the subterranean dark! The delve is lost.');
-            }, 420);
-          }
+          tile.visited = false;
+          resetCount++;
         }
       }
     }
+
+    setTunnelMap((prev) => ({
+      ...prev,
+      tiles: updatedTiles,
+    }));
+
+    setStatusMessage(
+      `Re-Exploration active! ${resetCount} chambers marked unexplored again. Movement costs 2⚡. Survey each chamber with Higher/Lower seeking the Ace of Spades!`
+    );
   };
 
   // Transition from Level 2 to Level 3 (Flower Hex Grid Level 3)
@@ -2391,7 +2657,11 @@ export default function App() {
         unexploredCount={unexploredExits.length}
         overlappingCount={overlappingExitsCount}
         isReExploring={level2ReExploring}
-        onOpenReExplorePrompt={() => setShowReExploreModal(true)}
+        onOpenReExplorePrompt={() => {
+          setReExploreDismissedForCurrentState(false);
+          setShowReExploreModal(true);
+        }}
+        playerHand={playerHand}
       />
 
       {/* 2. Interactive SVG Hex Grid (Middle Map Area) */}
@@ -2474,8 +2744,14 @@ export default function App() {
                 )?.carvedExitDirs
               }
               isReExploring={level2ReExploring}
-              canReExplore={isLevel2MapFullyDrawn && !level2ReExploring}
-              onOpenReExplorePrompt={() => setShowReExploreModal(true)}
+              canReExplore={
+                (isLevel2MapFullyDrawn && !level2ReExploring) ||
+                (tunnelMap.deck.length === 0 && unexploredExits.length === 0)
+              }
+              onOpenReExplorePrompt={() => {
+                setReExploreDismissedForCurrentState(false);
+                setShowReExploreModal(true);
+              }}
             />
 
             {/* Primary Action Buttons Area: Consistent with Level 1 bottom CTA */}
@@ -2595,6 +2871,17 @@ export default function App() {
                 No exits available.
               </div>
             )}
+            {/* Level 2 Hand Tracker */}
+            {playerHand.length > 0 && (
+              <div className="bg-[#ede4d3] px-2 py-1 rounded border border-[#2b261f]/20 flex items-center justify-between text-[10.5px] font-mono">
+                <span className="font-bold text-[#5c5244] flex items-center gap-1.5">
+                  <span>🎒</span>
+                  <span>Banked Hand ({playerHand.length} cards):</span>
+                  <span className="text-[#166534] font-black">-{playerHand.reduce((s, c) => s + c.value, 0)} pts</span>
+                </span>
+                <span className="text-[#786e5e] text-[9.5px]">Reduces Level 3 Utopia dice score</span>
+              </div>
+            )}
           </div>
         </footer>
       ) : (
@@ -2624,11 +2911,33 @@ export default function App() {
                   ? 'Core Gate: UNLOCKED'
                   : `Inner Codes: ${level3State.innerCodeFragments}/2`}
               </span>
+              {playerHand.length > 0 && (
+                <span
+                  className="px-2 py-0.5 rounded text-[10px] font-black border bg-[#dbece2] text-[#166534] border-[#86efac]"
+                  title="Hand cards brought from Level 2. Click them inside encounter tests to reduce Utopia Engine dice scores towards 0!"
+                >
+                  🎒 Hand: {playerHand.length} cards (-{playerHand.reduce((s, c) => s + c.value, 0)} pts)
+                </span>
+              )}
             </div>
             <span className="text-[10px] font-black bg-[#ede4d3] px-2 py-0.5 rounded border border-[#2b261f]/30">
               {energy}⚡ Energy
             </span>
           </div>
+          {playerHand.length > 0 && (
+            <div className="flex items-center gap-1 px-1 overflow-x-auto text-[10px] font-mono">
+              <span className="text-[#5c5244] font-bold shrink-0">Hand Reserve:</span>
+              {playerHand.map((c, idx) => (
+                <span
+                  key={`${c.id}-${idx}`}
+                  className="px-1.5 py-0.2 bg-white border border-[#2b261f]/30 rounded text-[9.5px] font-bold shadow-2xs shrink-0"
+                >
+                  <span className={c.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>{c.rank}{c.suit}</span>
+                  <span className="text-[#786e5e] ml-0.5">(-{c.value})</span>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="text-[11px] text-[#5c5346] leading-tight px-1 font-mono truncate">
             {statusMessage}
           </div>
@@ -2643,6 +2952,8 @@ export default function App() {
           maxEnergy={MAX_ENERGY}
           outerCodeFragments={level3State.outerCodeFragments}
           innerCodeFragments={level3State.innerCodeFragments}
+          playerHand={playerHand}
+          onConsumeHandCards={handleConsumeHandCards}
           onModifyEnergy={(delta) => setEnergy((prev) => Math.min(MAX_ENERGY, Math.max(0, prev + delta)))}
           onOuterDoorResult={handleLevel3OuterDoorResult}
           onInnerDoorResult={handleLevel3InnerDoorResult}
@@ -2670,6 +2981,7 @@ export default function App() {
         pendingChoice={pendingExplorationChoice}
         resultMessage={explorationResultText}
         chamberCoord={tunnelMap.playerCoord}
+        playerHand={playerHand}
         onPredict={handleExplorationPredict}
         onFaceChoice={handleFaceChoice}
         onDismiss={() => {
@@ -2687,15 +2999,11 @@ export default function App() {
         energy={energy}
         unexploredCount={unexploredExits.length}
         overlappingCount={overlappingExitsCount}
-        onConfirmReExplore={() => {
-          setLevel2ReExploring(true);
+        onConfirmReExplore={handleConfirmReExplore}
+        onDismiss={() => {
           setShowReExploreModal(false);
-          sounds.playBonus();
-          setStatusMessage(
-            'Re-Exploration started! Movement now costs 2⚡ per chamber. Survey every chamber with Higher/Lower to discover the Ace of Spades!'
-          );
+          setReExploreDismissedForCurrentState(true);
         }}
-        onDismiss={() => setShowReExploreModal(false)}
       />
 
       {/* Rules Modal */}
@@ -2709,6 +3017,7 @@ export default function App() {
         <Level2VictoryModal
           remainingEnergy={energy}
           stepsTaken={level2Steps}
+          playerHand={playerHand}
           onDescendLevel3={handleDescendToLevel3}
         />
       )}

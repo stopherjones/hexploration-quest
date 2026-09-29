@@ -5,6 +5,7 @@ import {
   LEVEL3_MONSTERS,
   getSpawnedMonsterLevel,
 } from '../utils/level3Engine';
+import { ExplorationCard } from '../utils/explorationDeck';
 import { sounds } from '../utils/sound';
 import { DiePipFace } from './UtopiaEncounterModal';
 import { ShieldAlert, Sparkles, Swords, Skull, Trophy, KeyRound, AlertTriangle } from 'lucide-react';
@@ -15,6 +16,8 @@ interface Level3EncounterModalProps {
   maxEnergy: number;
   outerCodeFragments: number;
   innerCodeFragments: number;
+  playerHand?: ExplorationCard[];
+  onConsumeHandCards?: (consumedCardIds: string[]) => void;
   onModifyEnergy: (delta: number) => void;
   onOuterDoorResult: (success: 'master' | 'code' | 'fail') => void;
   onInnerDoorResult: (success: 'master' | 'code' | 'fail') => void;
@@ -31,6 +34,8 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   maxEnergy,
   outerCodeFragments,
   innerCodeFragments,
+  playerHand = [],
+  onConsumeHandCards,
   onModifyEnergy,
   onOuterDoorResult,
   onInnerDoorResult,
@@ -59,6 +64,28 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const [topNumber, setTopNumber] = useState<number | null>(null);
   const [bottomNumber, setBottomNumber] = useState<number | null>(null);
   const [difference, setDifference] = useState<number | null>(null);
+
+  // Hand card reduction selection
+  const [selectedHandCardIds, setSelectedHandCardIds] = useState<string[]>([]);
+
+  // Calculate card reductions
+  const selectedCards = playerHand.filter((c) => selectedHandCardIds.includes(c.id));
+  const totalCardReduction = selectedCards.reduce((sum, c) => sum + c.value, 0);
+
+  const baseDiff = difference ?? 0;
+  let effectiveDifference = baseDiff;
+  if (baseDiff > 0) {
+    effectiveDifference = Math.max(0, baseDiff - totalCardReduction);
+  } else if (baseDiff < 0) {
+    effectiveDifference = Math.min(0, baseDiff + totalCardReduction);
+  }
+
+  const toggleSelectCard = (id: string) => {
+    sounds.playClick();
+    setSelectedHandCardIds((prev) =>
+      prev.includes(id) ? prev.filter((cId) => cId !== id) : [...prev, id]
+    );
+  };
 
   // Combat State
   const [monster, setMonster] = useState<MonsterDef | null>(() => {
@@ -181,12 +208,20 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const handleResolveOutcome = () => {
     if (difference === null) return;
 
+    // Consume spent hand cards
+    if (selectedHandCardIds.length > 0 && onConsumeHandCards) {
+      onConsumeHandCards(selectedHandCardIds);
+      setSelectedHandCardIds([]);
+    }
+
+    const finalScore = effectiveDifference;
+
     if (tile.type === 'outer_door') {
-      if (difference === 0) {
+      if (finalScore === 0) {
         sounds.playVictory();
         onOuterDoorResult('master');
         setPhase('cleared');
-      } else if (difference >= 1 && difference <= 10) {
+      } else if (finalScore >= 1 && finalScore <= 10) {
         sounds.playBonus();
         onOuterDoorResult('code');
         setPhase('cleared');
@@ -199,11 +234,11 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     }
 
     if (tile.type === 'inner_door') {
-      if (difference === 0) {
+      if (finalScore === 0) {
         sounds.playVictory();
         onInnerDoorResult('master');
         setPhase('cleared');
-      } else if (difference >= 1 && difference <= 10) {
+      } else if (finalScore >= 1 && finalScore <= 10) {
         sounds.playBonus();
         onInnerDoorResult('code');
         setPhase('cleared');
@@ -216,29 +251,27 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     }
 
     if (tile.type === 'trap') {
-      if (difference === 0) {
+      if (finalScore === 0) {
         sounds.playVictory();
         onTrapDisarmed(true); // permanently disarmed
         setPhase('cleared');
-      } else if (difference >= 1 && difference <= 10) {
+      } else if (finalScore >= 1 && finalScore <= 10) {
         sounds.playBonus();
         onTrapDisarmed(false); // disarmed once
         setPhase('cleared');
-      } else if (difference >= 11 && difference <= 99) {
+      } else if (finalScore >= 11 && finalScore <= 99) {
         sounds.playBonus();
         onModifyEnergy(1); // refund 1 energy cost back
         setPhase('cleared');
       } else {
         // Monster spawned!
-        // Outer: 100-250 and -1 to -250 -> L1, 251-400 and -251 to -400 -> L2, 401-555 and -401 to -555 -> L3
-        // Inner: same differences spawn monsters of levels 2, 3 and 4!
         sounds.playHazard();
-        const monsterLevel = getSpawnedMonsterLevel(difference, tile.ring);
+        const monsterLevel = getSpawnedMonsterLevel(finalScore, tile.ring);
         const spawned = LEVEL3_MONSTERS[monsterLevel];
         setMonster(spawned);
         setMonsterHp(spawned.maxHp);
         setCombatLogs([
-          `Trap triggered! Difference ${difference} awakened ${spawned.name}! (HP: ${spawned.maxHp}, ${spawned.description})`,
+          `Trap triggered! Score ${finalScore}${totalCardReduction > 0 ? ` (reduced by -${totalCardReduction} from ${baseDiff} via cards)` : ''} awakened ${spawned.name}! (HP: ${spawned.maxHp}, ${spawned.description})`,
         ]);
         setPhase('combat');
       }
@@ -246,17 +279,17 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     }
 
     if (tile.type === 'treasure') {
-      if (difference === 0) {
+      if (finalScore === 0) {
         sounds.playVictory();
         onModifyEnergy(maxEnergy - energy); // Full restore to 30!
         onTreasureClaimed();
         setPhase('cleared');
-      } else if (difference >= 1 && difference <= 10) {
+      } else if (finalScore >= 1 && finalScore <= 10) {
         sounds.playBonus();
         onModifyEnergy(10);
         onTreasureClaimed();
         setPhase('cleared');
-      } else if (difference >= 11 && difference <= 99) {
+      } else if (finalScore >= 11 && finalScore <= 99) {
         sounds.playBonus();
         onModifyEnergy(5);
         onTreasureClaimed();
@@ -264,12 +297,12 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
       } else {
         // Monster ambushed!
         sounds.playHazard();
-        const monsterLevel = getSpawnedMonsterLevel(difference, tile.ring);
+        const monsterLevel = getSpawnedMonsterLevel(finalScore, tile.ring);
         const spawned = LEVEL3_MONSTERS[monsterLevel];
         setMonster(spawned);
         setMonsterHp(spawned.maxHp);
         setCombatLogs([
-          `Ambush! Difference ${difference} awakened ${spawned.name}! (HP: ${spawned.maxHp}, ${spawned.description})`,
+          `Ambush! Score ${finalScore}${totalCardReduction > 0 ? ` (reduced by -${totalCardReduction} from ${baseDiff} via cards)` : ''} awakened ${spawned.name}! (HP: ${spawned.maxHp}, ${spawned.description})`,
         ]);
         setPhase('combat');
       }
@@ -449,7 +482,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
               {/* Math Result Row */}
               {phase === 'calculated' && difference !== null && (
-                <div className="w-full mt-2 pt-2 border-t-2 border-[#2b261f]/20 flex flex-col items-center gap-1.5">
+                <div className="w-full mt-2 pt-2 border-t-2 border-[#2b261f]/20 flex flex-col items-center gap-2">
                   <div className="flex items-center justify-center gap-3 text-sm font-black">
                     <span>{topNumber}</span>
                     <span>-</span>
@@ -459,17 +492,103 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                       {difference}
                     </span>
                   </div>
+
+                  {/* Banked Hand Cards Score Reduction Section */}
+                  <div className="w-full bg-[#fdfbf7] p-2.5 rounded-lg border border-[#2b261f]/25 flex flex-col gap-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase text-[#2b261f] flex items-center gap-1.5">
+                        <span>🎒</span>
+                        <span>Banked Hand from Level 2</span>
+                        {playerHand.length > 0 && (
+                          <span className="text-[10px] bg-[#e8deca] text-[#5c5244] px-1.5 py-0.2 rounded font-mono font-bold">
+                            {playerHand.length} card{playerHand.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </span>
+                      {selectedHandCardIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedHandCardIds([])}
+                          className="text-[10px] text-amber-900 underline hover:text-amber-700 cursor-pointer font-bold"
+                        >
+                          Clear Selection
+                        </button>
+                      )}
+                    </div>
+
+                    {playerHand.length === 0 ? (
+                      <p className="text-[10px] text-[#786e5e] italic text-center py-1">
+                        No banked cards in hand. (Bank cards in Level 2 during J, Q, K, A draws to reduce dice scores here!)
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-[10px] text-[#5c5346] leading-tight">
+                          Click individual card(s) to spend their values and reduce your Utopia Engine dice score towards 0:
+                        </p>
+
+                        <div className="flex flex-wrap gap-1.5 justify-center py-1">
+                          {playerHand.map((card) => {
+                            const isSelected = selectedHandCardIds.includes(card.id);
+                            const isRed = card.suit === '♦';
+
+                            return (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => toggleSelectCard(card.id)}
+                                className={`px-2 py-1.5 rounded-lg border-2 font-mono flex flex-col items-center gap-0.5 cursor-pointer transition-all select-none shadow-xs ${
+                                  isSelected
+                                    ? 'bg-[#dcfce7] border-[#16a34a] ring-2 ring-[#16a34a] scale-105'
+                                    : 'bg-white hover:bg-[#fff9ed] border-[#2b261f]/30'
+                                }`}
+                              >
+                                <div className={`text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
+                                  {card.rank}{card.suit}
+                                </div>
+                                <div className="text-[9px] font-bold text-[#5c5244]">
+                                  -{card.value}
+                                </div>
+                                {isSelected && (
+                                  <span className="text-[8px] font-black bg-[#16a34a] text-white px-1 rounded leading-tight">
+                                    SPEND
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {selectedHandCardIds.length > 0 && (
+                          <div className="bg-[#ede4d3] p-1.5 rounded text-[11px] font-mono flex items-center justify-between border border-[#2b261f]/20">
+                            <span className="text-[#5c5244]">
+                              Cards Selected ({selectedHandCardIds.length}):
+                            </span>
+                            <span className="font-black text-[#15803d]">
+                              -{totalCardReduction} pts (Score: {baseDiff} → {effectiveDifference})
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
                   {/* Outcome Preview Badge */}
                   {(() => {
-                    const preview = getOutcomePreview(difference);
+                    const preview = getOutcomePreview(effectiveDifference);
                     let badgeClass = 'bg-amber-100 text-amber-900 border-amber-300';
                     if (preview.type === 'success') badgeClass = 'bg-emerald-100 text-emerald-900 border-emerald-400 font-bold';
                     else if (preview.type === 'code' || preview.type === 'refund') badgeClass = 'bg-blue-100 text-blue-900 border-blue-300';
                     else if (preview.type === 'fail' || preview.type === 'monster') badgeClass = 'bg-red-100 text-red-900 border-red-400 font-bold';
 
                     return (
-                      <div className={`w-full text-center text-[10.5px] p-1.5 rounded border ${badgeClass} leading-tight`}>
-                        {preview.label}
+                      <div className={`w-full text-center text-[10.5px] p-2 rounded border ${badgeClass} leading-tight`}>
+                        <div className="font-mono text-xs mb-0.5">
+                          Effective Score: <span className="font-black text-sm">{effectiveDifference}</span>
+                          {totalCardReduction > 0 && (
+                            <span className="ml-1 text-[10px] opacity-80">(Original: {baseDiff}, -{totalCardReduction} cards)</span>
+                          )}
+                        </div>
+                        <div>{preview.label}</div>
                       </div>
                     );
                   })()}
@@ -529,7 +648,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                 onClick={handleResolveOutcome}
                 className="w-full py-2.5 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-0.5"
               >
-                Resolve Chamber Event (Score: {difference})
+                {selectedHandCardIds.length > 0
+                  ? `Spend ${selectedHandCardIds.length} Card${selectedHandCardIds.length > 1 ? 's' : ''} & Resolve (Score: ${effectiveDifference})`
+                  : `Resolve Chamber Event (Score: ${effectiveDifference})`}
               </button>
             )}
 

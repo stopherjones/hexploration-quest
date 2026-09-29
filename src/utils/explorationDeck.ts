@@ -1,4 +1,4 @@
-export type ExplorationSuit = '♠' | '♣' | '♦';
+export type ExplorationSuit = '♠' | '♣' | '♦' | '♥';
 
 export type CardRank =
   | '2'
