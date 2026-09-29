@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, BookOpen, RotateCcw, Compass } from 'lucide-react';
+import { Volume2, VolumeX, BookOpen, RotateCcw } from 'lucide-react';
 import { ExplorationCard } from '../utils/explorationDeck';
 
 interface HeaderProps {
@@ -75,18 +75,11 @@ export const Header: React.FC<HeaderProps> = ({
           <span>New Game</span>
         </button>
 
-        {/* Center Title + Active Boons Badges + Level Selector */}
+        {/* Center Active Boons Badges + Level Selector */}
         <div className="flex items-center gap-1.5 font-bold text-xs text-[#2b261f] uppercase font-mono tracking-tight">
           <div className="flex items-center gap-1">
-            {level === 3 ? (
+            {level === 2 && (
               <>
-                <span className="text-emerald-700 text-sm leading-none">⚙️</span>
-                <span>Level 3: Flower Core</span>
-              </>
-            ) : level === 2 ? (
-              <>
-                <span className="text-slate-900 text-sm leading-none">♠</span>
-                <span>Level 2: Tunnels</span>
                 <button
                   type="button"
                   onClick={onOpenExplorationModal}
@@ -141,11 +134,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 ) : null}
               </>
-            ) : (
-              <>
-                <Compass className="w-3.5 h-3.5 text-[#2d6a4f]" />
-                <span>Level 1: Hex Crawl</span>
-              </>
             )}
 
             {/* Quick Level Switcher Pills for convenience */}
@@ -177,7 +165,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex items-center gap-1 ml-1 px-1.5 py-0.5 text-[9.5px] font-mono font-black uppercase tracking-wider bg-[#1b4332] hover:bg-[#14532d] active:bg-[#0f3d24] text-white border border-[#2b261f] rounded shadow-2xs active:translate-y-px cursor-pointer"
                 title="Directly test Level 3: Starts on 15⚡ Energy with 5 tactical cards in Hand"
               >
-                <span>⚙️ Test L3</span>
+                <span>Test L3</span>
                 <span className="text-[8.5px] text-[#86efac] font-bold bg-[#14532d] px-1 rounded">15⚡+5🃏</span>
               </button>
             )}
