@@ -1,6 +1,12 @@
-import React from 'react';
-import { FlowerTile, FlowerHexCoord, getHexDistance, areAxialAdjacent } from '../utils/level3Engine';
-import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  FlowerTile,
+  FlowerHexCoord,
+  getHexDistance,
+  areAxialAdjacent,
+  getAxialNeighbors,
+} from '../utils/level3Engine';
+import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent } from 'lucide-react';
 
 interface FlowerHexGridProps {
   tiles: Map<string, FlowerTile>;
@@ -13,6 +19,15 @@ interface FlowerHexGridProps {
   onSelectTile?: (tile: FlowerTile) => void;
 }
 
+interface BoundaryEdge {
+  id: string;
+  p1: { x: number; y: number };
+  p2: { x: number; y: number };
+  isDoor: boolean;
+  doorType?: 'outer_door' | 'inner_door';
+  isUnlocked: boolean;
+}
+
 export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   tiles,
   playerCoord,
@@ -23,7 +38,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   onPeek,
   onSelectTile,
 }) => {
-  const [selectedCoord, setSelectedCoord] = React.useState<FlowerHexCoord | null>(null);
+  const [selectedCoord, setSelectedCoord] = useState<FlowerHexCoord | null>(null);
 
   // SVG Geometry parameters
   const hexSize = 44;
@@ -52,6 +67,66 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   const isSelectedAdjacent = selectedCoord ? areAxialAdjacent(playerCoord, selectedCoord) : false;
 
   const playerPixel = hexToPixel(playerCoord.q, playerCoord.r);
+
+  // Compute all visible walls and doors along shared edges between rings (Outer <-> Middle, Middle <-> Center)
+  const boundaryEdges = useMemo(() => {
+    const edges: BoundaryEdge[] = [];
+    const processedPairs = new Set<string>();
+
+    for (const h1 of tiles.values()) {
+      const d1 = getHexDistance(h1.q, h1.r);
+      const neighbors = getAxialNeighbors(h1.q, h1.r);
+
+      for (const nCoord of neighbors) {
+        const h2 = tiles.get(`${nCoord.q},${nCoord.r}`);
+        if (!h2) continue;
+        const d2 = getHexDistance(h2.q, h2.r);
+
+        // Check if this pair crosses a ring boundary (2 <-> 1 or 1 <-> 0)
+        const isOuterToMiddle = (d1 === 2 && d2 === 1) || (d1 === 1 && d2 === 2);
+        const isMiddleToCenter = (d1 === 1 && d2 === 0) || (d1 === 0 && d2 === 1);
+
+        if (!isOuterToMiddle && !isMiddleToCenter) continue;
+
+        const pairKey = [h1.id, h2.id].sort().join('--');
+        if (processedPairs.has(pairKey)) continue;
+        processedPairs.add(pairKey);
+
+        // The outer hex of the boundary pair
+        const outerHex = d1 > d2 ? h1 : h2;
+        const isDoor = outerHex.type === 'outer_door' || outerHex.type === 'inner_door';
+        const doorType = isDoor ? (outerHex.type as 'outer_door' | 'inner_door') : undefined;
+        const isUnlocked = isDoor
+          ? doorType === 'outer_door'
+            ? outerDoorsUnlocked || outerHex.doorPassed || false
+            : innerDoorsUnlocked || outerHex.doorPassed || false
+          : false;
+
+        // Calculate exact shared edge endpoints
+        const pix1 = hexToPixel(h1.q, h1.r);
+        const pix2 = hexToPixel(h2.q, h2.r);
+        const dx = pix2.x - pix1.x;
+        const dy = pix2.y - pix1.y;
+        const dist = Math.hypot(dx, dy);
+        const mx = (pix1.x + pix2.x) / 2;
+        const my = (pix1.y + pix2.y) / 2;
+        const tx = -dy / dist;
+        const ty = dx / dist;
+        const halfEdge = (hexSize - 2) / 2;
+
+        edges.push({
+          id: pairKey,
+          p1: { x: mx + tx * halfEdge, y: my + ty * halfEdge },
+          p2: { x: mx - tx * halfEdge, y: my - ty * halfEdge },
+          isDoor,
+          doorType,
+          isUnlocked,
+        });
+      }
+    }
+
+    return edges;
+  }, [tiles, hexSize, outerDoorsUnlocked, innerDoorsUnlocked]);
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-2 select-none font-mono">
@@ -85,26 +160,26 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
             cy={centerY}
             r={hexSize * Math.sqrt(3) * 2}
             fill="none"
-            stroke="#2b261f"
-            strokeWidth="2"
+            stroke="#ca8a04"
+            strokeWidth="1.5"
             strokeDasharray="4 4"
-            opacity="0.3"
+            opacity="0.25"
           />
           <circle
             cx={centerX}
             cy={centerY}
             r={hexSize * Math.sqrt(3)}
             fill="none"
-            stroke="#b45309"
-            strokeWidth="2.5"
+            stroke="#ea580c"
+            strokeWidth="2"
             strokeDasharray="6 4"
-            opacity="0.45"
+            opacity="0.35"
           />
 
-          {/* Render All 19 Hex Tiles */}
+          {/* Render All 19 Hex Tiles with Ring Colors (Yellow outer, Orange middle, Red inner) */}
           {Array.from(tiles.values()).map((tile) => {
             const { x, y } = hexToPixel(tile.q, tile.r);
-            const isPlayer = tile.q === playerCoord.q && tile.r === playerCoord.r;
+            const dist = getHexDistance(tile.q, tile.r);
             const isSelected = selectedCoord?.q === tile.q && selectedCoord?.r === tile.r;
             const isAdj = areAxialAdjacent(playerCoord, { q: tile.q, r: tile.r });
 
@@ -115,30 +190,87 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
               (fromDist === 2 && toDist === 1 && !outerDoorsUnlocked) ||
               (fromDist === 1 && toDist === 0 && !innerDoorsUnlocked);
 
-            // Tile Background Styling
-            let fillColor = '#ede4d3';
-            let strokeColor = '#2b261f';
-            let strokeWidth = '2';
+            // Ring-Specific Color Palettes (Yellow outer, Orange middle, Red inner/center)
+            let fillColor = '#fef3c7';
+            let strokeColor = '#b45309';
+            let strokeWidth = '1.8';
 
             if (!tile.revealed) {
-              fillColor = '#3b342a'; // Face down dark stone slab
-              strokeColor = '#1f1a15';
-            } else if (tile.ring === 'center') {
-              fillColor = '#fee2e2'; // Center Boss Chamber
+              if (dist === 2) {
+                // Outer ring unrevealed: dark bronze yellow stone
+                fillColor = '#3f3524';
+                strokeColor = '#6b542c';
+              } else if (dist === 1) {
+                // Middle ring unrevealed: dark terracotta orange stone
+                fillColor = '#422413';
+                strokeColor = '#8c3514';
+              } else {
+                // Inner ring / boss unrevealed: dark crimson stone
+                fillColor = '#450a0a';
+                strokeColor = '#991b1b';
+              }
+            } else if (dist === 0) {
+              // Inner Ring / Boss: Red shades
+              fillColor = '#fee2e2';
               strokeColor = '#991b1b';
               strokeWidth = '3';
-            } else if (tile.type === 'outer_door' || tile.type === 'inner_door') {
-              fillColor = tile.doorPassed ? '#dcfce7' : '#fef3c7';
-              strokeColor = '#b45309';
-            } else if (tile.type === 'trap') {
-              fillColor = tile.disarmed ? '#e2e8f0' : '#fee2e2';
-              strokeColor = '#b91c1c';
-            } else if (tile.type === 'treasure') {
-              fillColor = tile.looted ? '#f3f4f6' : '#fef9c3';
-              strokeColor = '#ca8a04';
-            } else if (tile.type === 'safe') {
-              fillColor = '#e0f2fe';
-              strokeColor = '#0284c7';
+            } else if (dist === 1) {
+              // Middle Ring: Orange shades
+              if (tile.type === 'inner_door') {
+                // Single door colour for door hex!
+                if (tile.doorTested && !tile.doorPassed) {
+                  fillColor = '#fee2e2'; // sealed locked
+                  strokeColor = '#991b1b';
+                } else {
+                  fillColor = tile.doorPassed || innerDoorsUnlocked ? '#dcfce7' : '#fed7aa';
+                  strokeColor = tile.doorPassed || innerDoorsUnlocked ? '#16a34a' : '#ea580c';
+                }
+                strokeWidth = '2.5';
+              } else if (tile.type === 'trap') {
+                fillColor = tile.disarmed ? '#f3f4f6' : '#fed7aa';
+                strokeColor = tile.disarmed ? '#9ca3af' : '#c2410c';
+              } else if (tile.type === 'monster') {
+                const cleared = tile.monsterBypassed || tile.monsterDefeated;
+                fillColor = cleared ? '#f3f4f6' : '#ffedd5';
+                strokeColor = cleared ? '#9ca3af' : '#ea580c';
+              } else if (tile.type === 'treasure') {
+                fillColor = tile.looted ? '#fff7ed' : '#ffedd5';
+                strokeColor = '#ea580c';
+              } else {
+                fillColor = '#ffedd5';
+                strokeColor = '#ea580c';
+              }
+            } else {
+              // Outer Ring: Yellow shades
+              if (tile.type === 'safe') {
+                // Safe Entry Zone!
+                fillColor = '#dcfce7';
+                strokeColor = '#16a34a';
+                strokeWidth = '2.5';
+              } else if (tile.type === 'outer_door') {
+                // Single door colour for door hex!
+                if (tile.doorTested && !tile.doorPassed) {
+                  fillColor = '#fee2e2'; // sealed locked
+                  strokeColor = '#991b1b';
+                } else {
+                  fillColor = tile.doorPassed || outerDoorsUnlocked ? '#dcfce7' : '#fde68a';
+                  strokeColor = tile.doorPassed || outerDoorsUnlocked ? '#16a34a' : '#d97706';
+                }
+                strokeWidth = '2.5';
+              } else if (tile.type === 'trap') {
+                fillColor = tile.disarmed ? '#f3f4f6' : '#fef08a';
+                strokeColor = tile.disarmed ? '#9ca3af' : '#b45309';
+              } else if (tile.type === 'monster') {
+                const cleared = tile.monsterBypassed || tile.monsterDefeated;
+                fillColor = cleared ? '#f3f4f6' : '#fef9c3';
+                strokeColor = cleared ? '#9ca3af' : '#ca8a04';
+              } else if (tile.type === 'treasure') {
+                fillColor = tile.looted ? '#fefce8' : '#fef9c3';
+                strokeColor = '#ca8a04';
+              } else {
+                fillColor = '#fef3c7';
+                strokeColor = '#ca8a04';
+              }
             }
 
             if (isSelected) {
@@ -175,7 +307,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                       x={x}
                       y={y + 5}
                       textAnchor="middle"
-                      fill="#a89d8d"
+                      fill={dist === 2 ? '#d4af37' : dist === 1 ? '#fb923c' : '#f87171'}
                       fontSize="14"
                       fontWeight="bold"
                     >
@@ -233,13 +365,6 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                         </text>
                       </g>
                     )}
-                    {tile.type === 'safe' && (
-                      <g transform={`translate(${x - 8}, ${y - 10})`}>
-                        <text x={8} y={12} textAnchor="middle" fill="#0369a1" fontSize="8" fontWeight="bold">
-                          SAFE
-                        </text>
-                      </g>
-                    )}
                   </g>
                 )}
 
@@ -255,6 +380,95 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
               </g>
             );
           })}
+
+          {/* ============================================================== */}
+          {/* VISIBLE WALLS & SINGLE-COLOUR DOORS BETWEEN RINGS              */}
+          {/* ============================================================== */}
+          <g id="ring-boundary-walls" pointerEvents="none">
+            {boundaryEdges.map((edge) => {
+              if (edge.isDoor) {
+                // Single door colour instead of wall!
+                const doorColor = edge.isUnlocked
+                  ? '#10b981' // glowing emerald when open
+                  : edge.doorType === 'inner_door'
+                  ? '#ea580c' // rich fiery orange door color
+                  : '#f59e0b'; // rich brass yellow door color
+
+                return (
+                  <g key={`door-edge-${edge.id}`}>
+                    {/* Subtle outer glow */}
+                    <line
+                      x1={edge.p1.x}
+                      y1={edge.p1.y}
+                      x2={edge.p2.x}
+                      y2={edge.p2.y}
+                      stroke={doorColor}
+                      strokeWidth="8"
+                      opacity="0.35"
+                      strokeLinecap="round"
+                    />
+                    {/* Single Door Colour Line */}
+                    <line
+                      x1={edge.p1.x}
+                      y1={edge.p1.y}
+                      x2={edge.p2.x}
+                      y2={edge.p2.y}
+                      stroke={doorColor}
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                    />
+                    {/* Door Portal Pip */}
+                    <circle
+                      cx={(edge.p1.x + edge.p2.x) / 2}
+                      cy={(edge.p1.y + edge.p2.y) / 2}
+                      r="4.5"
+                      fill={doorColor}
+                      stroke="#1c1917"
+                      strokeWidth="1.2"
+                    />
+                  </g>
+                );
+              }
+
+              // Heavy stone fortress wall along edge between rings
+              return (
+                <g key={`wall-edge-${edge.id}`}>
+                  {/* Shadow base */}
+                  <line
+                    x1={edge.p1.x}
+                    y1={edge.p1.y}
+                    x2={edge.p2.x}
+                    y2={edge.p2.y}
+                    stroke="#000000"
+                    strokeWidth="7"
+                    opacity="0.5"
+                    strokeLinecap="round"
+                  />
+                  {/* Heavy Dark Stone Wall */}
+                  <line
+                    x1={edge.p1.x}
+                    y1={edge.p1.y}
+                    x2={edge.p2.x}
+                    y2={edge.p2.y}
+                    stroke="#1c1917"
+                    strokeWidth="5.5"
+                    strokeLinecap="round"
+                  />
+                  {/* Masonry highlight */}
+                  <line
+                    x1={edge.p1.x}
+                    y1={edge.p1.y}
+                    x2={edge.p2.x}
+                    y2={edge.p2.y}
+                    stroke="#78716c"
+                    strokeWidth="2"
+                    strokeDasharray="6 3"
+                    strokeLinecap="round"
+                  />
+                </g>
+              );
+            })}
+          </g>
 
           {/* Player Adventurer Token with Torchlight Aura */}
           <g transform={`translate(${playerPixel.x}, ${playerPixel.y})`} pointerEvents="none">

@@ -5,6 +5,7 @@ interface LevelTransitionModalProps {
   remainingEnergy: number;
   turnsTaken: number;
   onDescend: () => void;
+  onAscendPyramid?: () => void;
   onReviewMap: () => void;
 }
 
@@ -12,6 +13,7 @@ export const LevelTransitionModal: React.FC<LevelTransitionModalProps> = ({
   remainingEnergy,
   turnsTaken,
   onDescend,
+  onAscendPyramid,
   onReviewMap,
 }) => {
   return (
@@ -70,12 +72,22 @@ export const LevelTransitionModal: React.FC<LevelTransitionModalProps> = ({
 
           {/* Actions */}
           <div className="space-y-2 pt-1">
+            {onAscendPyramid && (
+              <button
+                type="button"
+                onClick={onAscendPyramid}
+                className="w-full py-2.5 px-4 bg-[#b45309] hover:bg-[#92400e] active:bg-[#78350f] text-white font-mono font-black text-xs sm:text-sm uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
+              >
+                <span>🔺 Ascend Level 1.5 (Hex Pyramid)</span>
+              </button>
+            )}
+
             <button
               onClick={onDescend}
               className="w-full py-2.5 px-4 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white font-mono font-black text-xs sm:text-sm uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
             >
               <ArrowDown className="w-4 h-4" />
-              <span>Descend into Underground Tunnels</span>
+              <span>Descend into Underground Tunnels (Level 2)</span>
             </button>
 
             <button

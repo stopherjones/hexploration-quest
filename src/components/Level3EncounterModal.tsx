@@ -8,21 +8,26 @@ import {
 import { ExplorationCard } from '../utils/explorationDeck';
 import { sounds } from '../utils/sound';
 import { DiePipFace } from './UtopiaEncounterModal';
-import { ShieldAlert, Sparkles, Swords, Skull, Trophy, KeyRound, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Sparkles, Swords, Skull, Trophy, KeyRound, AlertTriangle, RotateCcw } from 'lucide-react';
 
 interface Level3EncounterModalProps {
   tile: FlowerTile;
   energy: number;
   maxEnergy: number;
-  outerCodeFragments: number;
-  innerCodeFragments: number;
+  outerDoorsUnlocked?: boolean;
+  innerDoorsUnlocked?: boolean;
+  outerCodeFragments?: number;
+  innerCodeFragments?: number;
   playerHand?: ExplorationCard[];
   onConsumeHandCards?: (consumedCardIds: string[]) => void;
   onModifyEnergy: (delta: number) => void;
-  onOuterDoorResult: (success: 'master' | 'code' | 'fail') => void;
-  onInnerDoorResult: (success: 'master' | 'code' | 'fail') => void;
+  onOuterDoorResult: (success: 'unlocked' | 'fail') => void;
+  onInnerDoorResult: (success: 'unlocked' | 'fail') => void;
   onTrapDisarmed: (permanent: boolean) => void;
-  onTreasureClaimed: () => void;
+  onTrapFailed?: () => void;
+  onMonsterSneaked?: () => void;
+  onMonsterDefeated?: () => void;
+  onTreasureClaimed?: () => void;
   onBossDefeated: () => void;
   onGameOver: (reason: string) => void;
   onClose: () => void;
@@ -32,14 +37,19 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   tile,
   energy,
   maxEnergy,
-  outerCodeFragments,
-  innerCodeFragments,
+  outerDoorsUnlocked = false,
+  innerDoorsUnlocked = false,
+  outerCodeFragments = 0,
+  innerCodeFragments = 0,
   playerHand = [],
   onConsumeHandCards,
   onModifyEnergy,
   onOuterDoorResult,
   onInnerDoorResult,
   onTrapDisarmed,
+  onTrapFailed,
+  onMonsterSneaked,
+  onMonsterDefeated,
   onTreasureClaimed,
   onBossDefeated,
   onGameOver,
@@ -48,9 +58,10 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   // If center boss, start directly in combat phase!
   const isDirectBoss = tile.type === 'center_boss';
 
-  const [phase, setPhase] = useState<'grid' | 'calculated' | 'reward' | 'combat' | 'cleared'>(
+  const [phase, setPhase] = useState<'grid' | 'calculated' | 'reward' | 'combat' | 'cleared' | 'trap_failed'>(
     isDirectBoss ? 'combat' : 'grid'
   );
+  const [clearedMessage, setClearedMessage] = useState<string>('');
 
   // Utopia Engine Grid (Slots 0,1,2 = Top Row, Slots 3,4,5 = Bottom Row)
   const [cells, setCells] = useState<(number | null)[]>([null, null, null, null, null, null]);
@@ -75,9 +86,10 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const baseDiff = difference ?? 0;
   let effectiveDifference = baseDiff;
   if (baseDiff > 0) {
-    effectiveDifference = Math.max(0, baseDiff - totalCardReduction);
+    // DO NOT clamp to 0: overshooting into negative fails 0-unlock doors
+    effectiveDifference = baseDiff - totalCardReduction;
   } else if (baseDiff < 0) {
-    effectiveDifference = Math.min(0, baseDiff + totalCardReduction);
+    effectiveDifference = baseDiff + totalCardReduction;
   }
 
   const toggleSelectCard = (id: string) => {
@@ -85,6 +97,34 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     setSelectedHandCardIds((prev) =>
       prev.includes(id) ? prev.filter((cId) => cId !== id) : [...prev, id]
     );
+  };
+
+  // Reset currently placed dice back to unplaced pair
+  const handleResetCurrentPlacement = () => {
+    if (!currentPair) return;
+    sounds.playClick();
+    const nextCells = [...cells];
+    if (placedSlots[0] !== -1) nextCells[placedSlots[0]] = null;
+    if (placedSlots[1] !== -1) nextCells[placedSlots[1]] = null;
+    setCells(nextCells);
+    setPlacedSlots([-1, -1]);
+    setSelectedDieIdx(0);
+  };
+
+  // Reset entire challenge dice placement from Round 1
+  const handleResetAllRounds = () => {
+    sounds.playClick();
+    setCells([null, null, null, null, null, null]);
+    setCellLocked([false, false, false, false, false, false]);
+    setRound(1);
+    setCurrentPair(null);
+    setPlacedSlots([-1, -1]);
+    setSelectedDieIdx(0);
+    setTopNumber(null);
+    setBottomNumber(null);
+    setDifference(null);
+    setSelectedHandCardIds([]);
+    setPhase('grid');
   };
 
   // Combat State
@@ -104,6 +144,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   });
   const [combatRound, setCombatRound] = useState<number>(0);
   const [monsterDefeated, setMonsterDefeated] = useState<boolean>(false);
+
+  // Collapsible Help & Rules Concertina State
+  const [showHelp, setShowHelp] = useState<boolean>(false);
 
   // Roll the dice pair for the current round
   const handleRollRoundDice = () => {
@@ -176,30 +219,54 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   // Helper to preview what difference yields for the current tile
   const getOutcomePreview = (diff: number): { label: string; type: 'success' | 'code' | 'refund' | 'fail' | 'monster'; monsterLevel?: number } => {
     if (tile.type === 'outer_door') {
-      if (diff === 0) return { label: 'Master Unlock (Score 0): Opens all 4 outer portal doors!', type: 'success' };
-      if (diff >= 1 && diff <= 10) return { label: `Code Fragment (${diff}): 1 part of 3 acquired!`, type: 'code' };
-      return { label: `Test Failed (${diff}): Must seek remaining portal doors.`, type: 'fail' };
+      if (diff >= 0 && diff <= 10) {
+        return { label: `Portal Unlocked (Score ${diff}): Unlocks passage into the Inner Ring!`, type: 'success' };
+      }
+      return { label: `Unlock Failed (Score ${diff}): Must score 0–10! Door will be permanently locked.`, type: 'fail' };
     }
     if (tile.type === 'inner_door') {
-      if (diff === 0) return { label: 'Master Unlock (Score 0): Opens the Core Gate to the Boss!', type: 'success' };
-      if (diff >= 1 && diff <= 10) return { label: `Inner Code (${diff}): 1 of 2 required inner codes acquired!`, type: 'code' };
-      return { label: `Decryption Failed (${diff}): Must test remaining gate or roll 0.`, type: 'fail' };
+      if (diff === 0) {
+        return { label: 'Core Gate Decrypted (Score 0): Opens access to the Utopia Engine Core!', type: 'success' };
+      }
+      return { label: `Decryption Failed (Score ${diff}): Requires EXACTLY 0! Gate will be permanently locked.`, type: 'fail' };
     }
     if (tile.type === 'trap') {
-      if (diff === 0) return { label: 'Permanently Dismantled (Score 0): Converts room to safe corridor!', type: 'success' };
-      if (diff >= 1 && diff <= 10) return { label: `Disarmed Once (${diff}): Safe for current traversal!`, type: 'code' };
-      if (diff >= 11 && diff <= 99) return { label: `Mechanisms Dampened (${diff}): Energy cost refunded (+1⚡)!`, type: 'refund' };
-      const mLvl = getSpawnedMonsterLevel(diff, tile.ring);
-      const mDef = LEVEL3_MONSTERS[mLvl];
-      return { label: `Trap Sprung (${diff})! Awakens ${mDef.name} (${mDef.maxHp} HP)!`, type: 'monster', monsterLevel: mLvl };
+      if (tile.ring === 'outer') {
+        if (diff >= 0 && diff <= 10) {
+          return { label: `Permanently Deactivated (Score ${diff}): Trap safely neutralized for the delve!`, type: 'success' };
+        }
+        if (diff >= 11 && diff <= 99) {
+          return { label: `Temporarily Deactivated (Score ${diff}): Safe to pass now (reactivates if you return)!`, type: 'code' };
+        }
+        return { label: `Trap Sprung (Score ${diff}): Lose 5⚡ Energy and retreat to previous hex!`, type: 'fail' };
+      } else {
+        // Inner ring trap
+        if (diff === 0) {
+          return { label: 'Permanently Disabled (Score 0): Inner trap neutralized for the delve!', type: 'success' };
+        }
+        if (diff >= 1 && diff <= 10) {
+          return { label: `Temporarily Deactivated (Score ${diff}): Safe to pass once (reactivates if you return)!`, type: 'code' };
+        }
+        return { label: `Trap Sprung (Score ${diff}): Lose 5⚡ Energy and retreat to previous hex!`, type: 'fail' };
+      }
     }
-    if (tile.type === 'treasure') {
-      if (diff === 0) return { label: 'Full Resonation (Score 0): Restores Energy completely to 30⚡!', type: 'success' };
-      if (diff >= 1 && diff <= 10) return { label: `Major Mana Extraction (${diff}): Grants +10⚡ Energy!`, type: 'success' };
-      if (diff >= 11 && diff <= 99) return { label: `Minor Mana Extraction (${diff}): Grants +5⚡ Energy!`, type: 'refund' };
-      const mLvl = getSpawnedMonsterLevel(diff, tile.ring);
-      const mDef = LEVEL3_MONSTERS[mLvl];
-      return { label: `Ambush (${diff})! Awakens ${mDef.name} (${mDef.maxHp} HP)!`, type: 'monster', monsterLevel: mLvl };
+    if (tile.type === 'monster') {
+      if (tile.ring === 'outer') {
+        if (diff >= 0 && diff <= 10) {
+          return { label: `Stealth Success (Score ${diff}): Sneak past the monster unnoticed!`, type: 'success' };
+        }
+        const mLvl = getSpawnedMonsterLevel(diff, 'outer');
+        const mDef = LEVEL3_MONSTERS[mLvl];
+        return { label: `Detected (Score ${diff})! Awakens ${mDef.name} (${mDef.maxHp} HP)!`, type: 'monster', monsterLevel: mLvl };
+      } else {
+        // Inner ring monster
+        if (diff === 0) {
+          return { label: 'Perfect Stealth (Score 0): Slip past the elite beast completely undetected!', type: 'success' };
+        }
+        const mLvl = getSpawnedMonsterLevel(diff, 'inner');
+        const mDef = LEVEL3_MONSTERS[mLvl];
+        return { label: `Detected (Score ${diff})! Awakens ${mDef.name} (${mDef.maxHp} HP)!`, type: 'monster', monsterLevel: mLvl };
+      }
     }
     return { label: `Difference: ${diff}`, type: 'code' };
   };
@@ -217,17 +284,15 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     const finalScore = effectiveDifference;
 
     if (tile.type === 'outer_door') {
-      if (finalScore === 0) {
+      if (finalScore >= 0 && finalScore <= 10) {
         sounds.playVictory();
-        onOuterDoorResult('master');
-        setPhase('cleared');
-      } else if (finalScore >= 1 && finalScore <= 10) {
-        sounds.playBonus();
-        onOuterDoorResult('code');
+        onOuterDoorResult('unlocked');
+        setClearedMessage(`Portal Door Unlocked (Score: ${finalScore})! Inner Ring passage is now open.`);
         setPhase('cleared');
       } else {
         sounds.playHazard();
         onOuterDoorResult('fail');
+        setClearedMessage(`Door test failed (Score: ${finalScore}). This portal door is permanently locked.`);
         setPhase('cleared');
       }
       return;
@@ -236,73 +301,57 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     if (tile.type === 'inner_door') {
       if (finalScore === 0) {
         sounds.playVictory();
-        onInnerDoorResult('master');
-        setPhase('cleared');
-      } else if (finalScore >= 1 && finalScore <= 10) {
-        sounds.playBonus();
-        onInnerDoorResult('code');
+        onInnerDoorResult('unlocked');
+        setClearedMessage('Core Gate Unlocked (Score: 0)! Access to the Utopia Engine Core is now open.');
         setPhase('cleared');
       } else {
         sounds.playHazard();
         onInnerDoorResult('fail');
+        setClearedMessage(`Core gate decryption failed (Score: ${finalScore}). This gate is permanently locked.`);
         setPhase('cleared');
       }
       return;
     }
 
     if (tile.type === 'trap') {
-      if (finalScore === 0) {
+      const isOuter = tile.ring === 'outer';
+      const isPermanent = isOuter ? (finalScore >= 0 && finalScore <= 10) : (finalScore === 0);
+      const isTemporary = isOuter ? (finalScore >= 11 && finalScore <= 99) : (finalScore >= 1 && finalScore <= 10);
+
+      if (isPermanent) {
         sounds.playVictory();
-        onTrapDisarmed(true); // permanently disarmed
+        onTrapDisarmed(true);
+        setClearedMessage(`Trap permanently deactivated (Score: ${finalScore})! Safe for the rest of the delve.`);
         setPhase('cleared');
-      } else if (finalScore >= 1 && finalScore <= 10) {
+      } else if (isTemporary) {
         sounds.playBonus();
-        onTrapDisarmed(false); // disarmed once
-        setPhase('cleared');
-      } else if (finalScore >= 11 && finalScore <= 99) {
-        sounds.playBonus();
-        onModifyEnergy(1); // refund 1 energy cost back
+        onTrapDisarmed(false);
+        setClearedMessage(`Trap temporarily deactivated (Score: ${finalScore})! Safe to continue, but will reactivate if you return.`);
         setPhase('cleared');
       } else {
-        // Monster spawned!
         sounds.playHazard();
-        const monsterLevel = getSpawnedMonsterLevel(finalScore, tile.ring);
-        const spawned = LEVEL3_MONSTERS[monsterLevel];
-        setMonster(spawned);
-        setMonsterHp(spawned.maxHp);
-        setCombatLogs([
-          `Trap triggered! Score ${finalScore}${totalCardReduction > 0 ? ` (reduced by -${totalCardReduction} from ${baseDiff} via cards)` : ''} awakened ${spawned.name}! (HP: ${spawned.maxHp}, ${spawned.description})`,
-        ]);
-        setPhase('combat');
+        setPhase('trap_failed');
       }
       return;
     }
 
-    if (tile.type === 'treasure') {
-      if (finalScore === 0) {
+    if (tile.type === 'monster') {
+      const isOuter = tile.ring === 'outer';
+      const sneaked = isOuter ? (finalScore >= 0 && finalScore <= 10) : (finalScore === 0);
+
+      if (sneaked) {
         sounds.playVictory();
-        onModifyEnergy(maxEnergy - energy); // Full restore to 30!
-        onTreasureClaimed();
-        setPhase('cleared');
-      } else if (finalScore >= 1 && finalScore <= 10) {
-        sounds.playBonus();
-        onModifyEnergy(10);
-        onTreasureClaimed();
-        setPhase('cleared');
-      } else if (finalScore >= 11 && finalScore <= 99) {
-        sounds.playBonus();
-        onModifyEnergy(5);
-        onTreasureClaimed();
+        if (onMonsterSneaked) onMonsterSneaked();
+        setClearedMessage(`Stealth success (Score: ${finalScore})! You sneaked past the beast without fighting.`);
         setPhase('cleared');
       } else {
-        // Monster ambushed!
         sounds.playHazard();
         const monsterLevel = getSpawnedMonsterLevel(finalScore, tile.ring);
         const spawned = LEVEL3_MONSTERS[monsterLevel];
         setMonster(spawned);
         setMonsterHp(spawned.maxHp);
         setCombatLogs([
-          `Ambush! Score ${finalScore}${totalCardReduction > 0 ? ` (reduced by -${totalCardReduction} from ${baseDiff} via cards)` : ''} awakened ${spawned.name}! (HP: ${spawned.maxHp}, ${spawned.description})`,
+          `Detection! Score ${finalScore}${totalCardReduction > 0 ? ` (reduced by -${totalCardReduction} via cards)` : ''} awakened ${spawned.name}! (${spawned.maxHp} HP, ${spawned.description})`,
         ]);
         setPhase('combat');
       }
@@ -365,8 +414,10 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
         roundMsg += `The ${monster.name} is vanquished!`;
         if (monster.level === 5) {
           onBossDefeated();
+        } else if (tile.type === 'monster') {
+          onMonsterDefeated?.();
         } else if (tile.type === 'treasure') {
-          onTreasureClaimed();
+          onTreasureClaimed?.();
         } else if (tile.type === 'trap') {
           onTrapDisarmed(false);
         }
@@ -383,20 +434,21 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const absDiff = difference !== null ? Math.abs(difference) : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs select-none">
-      <div className="w-full max-w-sm bg-[#f4edd9] border-2 border-[#2b261f] rounded-xl shadow-2xl p-4 flex flex-col gap-3 font-mono text-[#2b261f] animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 bg-black/75 backdrop-blur-xs select-none">
+      <div className="w-full max-w-sm max-h-[96dvh] bg-[#f4edd9] border-2 border-[#2b261f] rounded-xl shadow-2xl p-2.5 sm:p-3 flex flex-col gap-2 font-mono text-[#2b261f] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b-2 border-[#2b261f]/20 pb-2">
+        <div className="flex items-center justify-between border-b border-[#2b261f]/20 pb-1.5">
           <div className="flex items-center gap-2">
-            {tile.type === 'outer_door' && <KeyRound className="w-5 h-5 text-amber-700" />}
-            {tile.type === 'inner_door' && <KeyRound className="w-5 h-5 text-amber-900" />}
-            {tile.type === 'trap' && <ShieldAlert className="w-5 h-5 text-red-700" />}
-            {tile.type === 'treasure' && <Sparkles className="w-5 h-5 text-amber-600" />}
-            {tile.type === 'center_boss' && <Skull className="w-5 h-5 text-red-800" />}
+            {tile.type === 'outer_door' && <KeyRound className="w-4 h-4 text-amber-700" />}
+            {tile.type === 'inner_door' && <KeyRound className="w-4 h-4 text-amber-900" />}
+            {tile.type === 'trap' && <ShieldAlert className="w-4 h-4 text-red-700" />}
+            {tile.type === 'monster' && <Swords className="w-4 h-4 text-red-700" />}
+            {tile.type === 'treasure' && <Sparkles className="w-4 h-4 text-amber-600" />}
+            {tile.type === 'center_boss' && <Skull className="w-4 h-4 text-red-800" />}
             <div>
-              <h3 className="font-black text-sm text-[#2b261f] leading-tight">{tile.title}</h3>
-              <span className="text-[10px] text-[#786e5e] uppercase tracking-wider font-bold">
+              <h3 className="font-black text-xs sm:text-sm text-[#2b261f] leading-tight">{tile.title}</h3>
+              <span className="text-[9px] text-[#786e5e] uppercase tracking-wider font-bold">
                 {tile.ring.toUpperCase()} RING — {tile.type.replace('_', ' ').toUpperCase()}
               </span>
             </div>
@@ -408,49 +460,81 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
         {/* Phase 1 & 2: Utopia Engine Dice Grid & Calculation */}
         {phase !== 'combat' && (
-          <div className="flex flex-col gap-3">
-            <p className="text-[11px] text-[#5c5346] leading-tight bg-[#ede4d3] p-2 rounded border border-[#2b261f]/20">
-              {tile.type === 'outer_door' && (
-                <>
-                  <span className="font-bold block text-[#2b261f] mb-0.5">Outer Portal Test:</span>
-                  Roll 3 pairs of dice. Place into Top & Bottom rows. Difference determines code fragment (1–10) or instant Master Unlock (0)! Need 3 fragments to unlock inner ring.
-                </>
+          <div className="flex flex-col gap-2">
+            {/* Help & Rules Concertina (Collapsible behind little triangle icon) */}
+            <div className="w-full">
+              <button
+                type="button"
+                onClick={() => setShowHelp((prev) => !prev)}
+                className="w-full flex items-center justify-between px-2.5 py-1 bg-[#ede4d3] hover:bg-[#e2d6c1] text-[#2b261f] border border-[#2b261f]/20 rounded text-[10.5px] font-mono font-bold cursor-pointer transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-[#786e5e] font-sans inline-block">
+                    {showHelp ? '▼' : '▶'}
+                  </span>
+                  <span>
+                    {tile.type === 'outer_door'
+                      ? 'Outer Portal Test'
+                      : tile.type === 'inner_door'
+                      ? 'Inner Gate Decryption'
+                      : tile.type === 'trap'
+                      ? 'Trap Disarm Mechanism'
+                      : tile.type === 'monster'
+                      ? 'Beast Lair Stealth'
+                      : tile.type === 'treasure'
+                      ? 'Mana Vault Alignment'
+                      : 'Core Construct Battle'}
+                  </span>
+                </span>
+                <span className="text-[9px] text-[#786e5e] font-normal underline">
+                  {showHelp ? 'Hide' : 'Rules'}
+                </span>
+              </button>
+              {showHelp && (
+                <div className="text-[10px] text-[#5c5346] leading-snug bg-[#fcfaf5] p-2 rounded-b border-x border-b border-[#2b261f]/20 -mt-px animate-in fade-in duration-150">
+                  {tile.type === 'outer_door' && (
+                    <>
+                      Roll 3 pairs of dice. Outer Portal Door unlocks on score 0–10. Any other score permanently locks it!
+                    </>
+                  )}
+                  {tile.type === 'inner_door' && (
+                    <>
+                      Requires an EXACT score of 0 to decrypt the Inner Core Gate! Any other score permanently locks it.
+                    </>
+                  )}
+                  {tile.type === 'trap' && (
+                    <>
+                      {tile.ring === 'outer'
+                        ? 'Outer Trap: Score 0–10 permanently deactivates. Score 11–99 deactivates temporarily (reactivates if you return). Any other score springs the trap (-5⚡ and forced retreat)!'
+                        : 'Inner Trap: Score 0 permanently disables. Score 1–10 deactivates once (reactivates if you return). Any other score springs the trap (-5⚡ and forced retreat)!'}
+                    </>
+                  )}
+                  {tile.type === 'monster' && (
+                    <>
+                      {tile.ring === 'outer'
+                        ? 'Outer Beast: Sneak past on score 0–10! Any other score awakens the monster (HP equal to monster level: 1–3 HP) for combat.'
+                        : 'Inner Guardian: Sneak past on score 0! Any other score awakens the elite monster (HP equal to monster level: 2–4 HP) for combat.'}
+                    </>
+                  )}
+                </div>
               )}
-              {tile.type === 'inner_door' && (
-                <>
-                  <span className="font-bold block text-[#2b261f] mb-0.5">Inner Gate Decryption:</span>
-                  Difference determines inner code (1–10) or instant Master Unlock (0)! Need 2 codes to open the way to the Core.
-                </>
-              )}
-              {tile.type === 'trap' && (
-                <>
-                  <span className="font-bold block text-[#2b261f] mb-0.5">Trap Disarm Mechanism:</span>
-                  Score 0 = Disarmed permanently. 1–10 = Disarmed once. 11–99 = +1⚡ refund. Higher differences awaken subterranean beasts!
-                </>
-              )}
-              {tile.type === 'treasure' && (
-                <>
-                  <span className="font-bold block text-[#2b261f] mb-0.5">Mana Vault Alignment:</span>
-                  Score 0 = Full 30⚡ restore! 1–10 = +10⚡. 11–99 = +5⚡. Misalignments awaken guardians!
-                </>
-              )}
-            </p>
+            </div>
 
             {/* Dice Placement Grid */}
-            <div className="flex flex-col items-center gap-2 bg-[#ded4bf] p-3 rounded-lg border-2 border-[#2b261f]/30 shadow-inner">
-              <span className="text-[10px] uppercase font-bold text-[#786e5e] tracking-wider">
+            <div className="flex flex-col items-center gap-1.5 bg-[#ded4bf] p-2 rounded-lg border border-[#2b261f]/30 shadow-inner">
+              <span className="text-[9.5px] uppercase font-bold text-[#786e5e] tracking-wider">
                 {phase === 'grid' ? `Round ${round} of 3 — Place Dice` : 'Calculation Complete'}
               </span>
 
               {/* Top Row (Hundreds, Tens, Ones) */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black w-4 text-center text-[#2b261f]">+</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black w-3.5 text-center text-[#2b261f]">+</span>
                 {[0, 1, 2].map((slotIdx) => (
                   <button
                     key={`slot-${slotIdx}`}
                     onClick={() => handleSlotClick(slotIdx)}
                     disabled={phase !== 'grid' || cellLocked[slotIdx]}
-                    className={`w-12 h-12 rounded-lg border-2 border-[#2b261f] flex items-center justify-center font-black text-lg transition-transform ${
+                    className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-md border-2 border-[#2b261f] flex items-center justify-center font-black text-base transition-transform ${
                       cells[slotIdx] !== null
                         ? 'bg-[#fffdf8] text-[#2b261f] shadow-xs'
                         : 'bg-[#ede4d3] border-dashed border-[#2b261f]/50'
@@ -462,14 +546,14 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
               </div>
 
               {/* Bottom Row */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black w-4 text-center text-[#b91c1c]">-</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black w-3.5 text-center text-[#b91c1c]">-</span>
                 {[3, 4, 5].map((slotIdx) => (
                   <button
                     key={`slot-${slotIdx}`}
                     onClick={() => handleSlotClick(slotIdx)}
                     disabled={phase !== 'grid' || cellLocked[slotIdx]}
-                    className={`w-12 h-12 rounded-lg border-2 border-[#2b261f] flex items-center justify-center font-black text-lg transition-transform ${
+                    className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-md border-2 border-[#2b261f] flex items-center justify-center font-black text-base transition-transform ${
                       cells[slotIdx] !== null
                         ? 'bg-[#fffdf8] text-[#2b261f] shadow-xs'
                         : 'bg-[#ede4d3] border-dashed border-[#2b261f]/50'
@@ -480,27 +564,91 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                 ))}
               </div>
 
+              {/* Hand Cards Available (Visible during dice placement so player can plan strategically!) */}
+              {phase === 'grid' && (
+                <div className="w-full mt-1.5 pt-1.5 border-t border-[#2b261f]/20 flex flex-col items-center gap-1">
+                  <div className="w-full flex items-center justify-between text-[9.5px] font-bold text-[#5c5244]">
+                    <span className="flex items-center gap-1">
+                      <span>🎒</span>
+                      <span>Hand Cards Available:</span>
+                    </span>
+                    <span className="bg-[#ede4d3] px-1.5 py-0.2 rounded border border-[#2b261f]/20 font-mono text-[#2b261f]">
+                      {playerHand.length} card{playerHand.length === 1 ? '' : 's'} (-{playerHand.reduce((s, c) => s + c.value, 0)} pts)
+                    </span>
+                  </div>
+
+                  {playerHand.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 justify-center py-0.5">
+                      {playerHand.map((card) => {
+                        const isRed = card.suit === '♥' || card.suit === '♦';
+                        return (
+                          <div
+                            key={`dice-hand-${card.id}`}
+                            className="px-1.5 py-0.5 rounded border border-[#2b261f]/30 bg-white font-mono flex items-center gap-1 text-[10px] shadow-2xs"
+                          >
+                            <span className={`font-black ${isRed ? 'text-red-700' : 'text-slate-900'}`}>
+                              {card.rank}{card.suit}
+                            </span>
+                            <span className="text-[9px] font-bold text-[#15803d] bg-emerald-50 px-1 rounded">
+                              -{card.value}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[9px] text-[#786e5e] italic">
+                      (No hand cards — target difference must be reached with dice only)
+                    </span>
+                  )}
+                  {tile.type === 'outer_door' && (
+                    <div className="text-[8.5px] text-[#b45309] font-bold text-center">
+                      Outer Door unlocks on score 0–10. Any other score permanently locks it!
+                    </div>
+                  )}
+                  {tile.type === 'inner_door' && (
+                    <div className="text-[8.5px] text-[#b45309] font-bold text-center">
+                      Inner Gate unlocks on EXACTLY 0. Any other score permanently locks it!
+                    </div>
+                  )}
+                  {tile.type === 'trap' && (
+                    <div className="text-[8.5px] text-[#b45309] font-bold text-center">
+                      {tile.ring === 'outer'
+                        ? '0–10: Permanent disarm | 11–99: Temporary disarm | Else: Springs trap (-5⚡ & retreat)'
+                        : '0: Permanent disarm | 1–10: Temporary disarm | Else: Springs trap (-5⚡ & retreat)'}
+                    </div>
+                  )}
+                  {tile.type === 'monster' && (
+                    <div className="text-[8.5px] text-[#b45309] font-bold text-center">
+                      {tile.ring === 'outer'
+                        ? '0–10: Sneak past undetected | Other scores: Awakens monster (HP = level)!'
+                        : '0: Sneak past undetected | Other scores: Awakens elite guardian (HP = level)!'}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Math Result Row */}
               {phase === 'calculated' && difference !== null && (
-                <div className="w-full mt-2 pt-2 border-t-2 border-[#2b261f]/20 flex flex-col items-center gap-2">
-                  <div className="flex items-center justify-center gap-3 text-sm font-black">
+                <div className="w-full mt-1 pt-1.5 border-t border-[#2b261f]/20 flex flex-col items-center gap-1.5">
+                  <div className="flex items-center justify-center gap-2.5 text-xs sm:text-sm font-black">
                     <span>{topNumber}</span>
                     <span>-</span>
                     <span>{bottomNumber}</span>
                     <span>=</span>
-                    <span className="text-base text-[#b91c1c] bg-[#fae19c] px-2 py-0.5 rounded border border-[#b45309]">
+                    <span className="text-sm text-[#b91c1c] bg-[#fae19c] px-2 py-0.2 rounded border border-[#b45309]">
                       {difference}
                     </span>
                   </div>
 
                   {/* Banked Hand Cards Score Reduction Section */}
-                  <div className="w-full bg-[#fdfbf7] p-2.5 rounded-lg border border-[#2b261f]/25 flex flex-col gap-2 text-left">
+                  <div className="w-full bg-[#fdfbf7] p-2 rounded-lg border border-[#2b261f]/25 flex flex-col gap-1 text-left">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black uppercase text-[#2b261f] flex items-center gap-1.5">
+                      <span className="text-[10px] font-black uppercase text-[#2b261f] flex items-center gap-1">
                         <span>🎒</span>
                         <span>Banked Hand from Level 2</span>
                         {playerHand.length > 0 && (
-                          <span className="text-[10px] bg-[#e8deca] text-[#5c5244] px-1.5 py-0.2 rounded font-mono font-bold">
+                          <span className="text-[9px] bg-[#e8deca] text-[#5c5244] px-1 py-0.2 rounded font-mono font-bold">
                             {playerHand.length} card{playerHand.length > 1 ? 's' : ''}
                           </span>
                         )}
@@ -509,7 +657,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setSelectedHandCardIds([])}
-                          className="text-[10px] text-amber-900 underline hover:text-amber-700 cursor-pointer font-bold"
+                          className="text-[9.5px] text-amber-900 underline hover:text-amber-700 cursor-pointer font-bold"
                         >
                           Clear Selection
                         </button>
@@ -517,16 +665,16 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                     </div>
 
                     {playerHand.length === 0 ? (
-                      <p className="text-[10px] text-[#786e5e] italic text-center py-1">
-                        No banked cards in hand. (Bank cards in Level 2 during J, Q, K, A draws to reduce dice scores here!)
+                      <p className="text-[9.5px] text-[#786e5e] italic text-center py-0.5">
+                        No banked cards in hand. (Bank cards in Level 2 to reduce dice scores here!)
                       </p>
                     ) : (
                       <>
-                        <p className="text-[10px] text-[#5c5346] leading-tight">
-                          Click individual card(s) to spend their values and reduce your Utopia Engine dice score towards 0:
+                        <p className="text-[9.5px] text-[#5c5346] leading-none">
+                          Click card to spend value towards 0:
                         </p>
 
-                        <div className="flex flex-wrap gap-1.5 justify-center py-1">
+                        <div className="flex flex-wrap gap-1 justify-center py-0.5">
                           {playerHand.map((card) => {
                             const isSelected = selectedHandCardIds.includes(card.id);
                             const isRed = card.suit === '♦';
@@ -536,7 +684,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                                 key={card.id}
                                 type="button"
                                 onClick={() => toggleSelectCard(card.id)}
-                                className={`px-2 py-1.5 rounded-lg border-2 font-mono flex flex-col items-center gap-0.5 cursor-pointer transition-all select-none shadow-xs ${
+                                className={`px-1.5 py-1 rounded-md border font-mono flex flex-col items-center gap-0.2 cursor-pointer transition-all select-none shadow-2xs ${
                                   isSelected
                                     ? 'bg-[#dcfce7] border-[#16a34a] ring-2 ring-[#16a34a] scale-105'
                                     : 'bg-white hover:bg-[#fff9ed] border-[#2b261f]/30'
@@ -545,11 +693,11 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                                 <div className={`text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
                                   {card.rank}{card.suit}
                                 </div>
-                                <div className="text-[9px] font-bold text-[#5c5244]">
+                                <div className="text-[8.5px] font-bold text-[#5c5244] leading-none">
                                   -{card.value}
                                 </div>
                                 {isSelected && (
-                                  <span className="text-[8px] font-black bg-[#16a34a] text-white px-1 rounded leading-tight">
+                                  <span className="text-[7px] font-black bg-[#16a34a] text-white px-0.5 rounded leading-tight">
                                     SPEND
                                   </span>
                                 )}
@@ -559,12 +707,12 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                         </div>
 
                         {selectedHandCardIds.length > 0 && (
-                          <div className="bg-[#ede4d3] p-1.5 rounded text-[11px] font-mono flex items-center justify-between border border-[#2b261f]/20">
+                          <div className="bg-[#ede4d3] px-2 py-0.5 rounded text-[9.5px] font-mono flex items-center justify-between border border-[#2b261f]/20">
                             <span className="text-[#5c5244]">
-                              Cards Selected ({selectedHandCardIds.length}):
+                              Selected ({selectedHandCardIds.length}):
                             </span>
                             <span className="font-black text-[#15803d]">
-                              -{totalCardReduction} pts (Score: {baseDiff} → {effectiveDifference})
+                              -{totalCardReduction} pts ({baseDiff} → {effectiveDifference})
                             </span>
                           </div>
                         )}
@@ -581,11 +729,11 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                     else if (preview.type === 'fail' || preview.type === 'monster') badgeClass = 'bg-red-100 text-red-900 border-red-400 font-bold';
 
                     return (
-                      <div className={`w-full text-center text-[10.5px] p-2 rounded border ${badgeClass} leading-tight`}>
-                        <div className="font-mono text-xs mb-0.5">
-                          Effective Score: <span className="font-black text-sm">{effectiveDifference}</span>
+                      <div className={`w-full text-center text-[10px] p-1.5 rounded border ${badgeClass} leading-tight`}>
+                        <div className="font-mono text-[11px] mb-0.5">
+                          Effective Score: <span className="font-black text-xs">{effectiveDifference}</span>
                           {totalCardReduction > 0 && (
-                            <span className="ml-1 text-[10px] opacity-80">(Original: {baseDiff}, -{totalCardReduction} cards)</span>
+                            <span className="ml-1 text-[9.5px] opacity-80">(Original: {baseDiff}, -{totalCardReduction} cards)</span>
                           )}
                         </div>
                         <div>{preview.label}</div>
@@ -598,20 +746,20 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
             {/* Active Dice Tray (When placing round dice) */}
             {phase === 'grid' && (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-1.5">
                 {!currentPair ? (
                   <button
                     onClick={handleRollRoundDice}
-                    className="w-full py-2.5 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-0.5"
+                    className="w-full py-2 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-0.5"
                   >
                     🎲 Roll Round {round} Dice
                   </button>
                 ) : (
-                  <div className="w-full flex flex-col items-center gap-2">
+                  <div className="w-full flex flex-col items-center gap-1.5">
                     <span className="text-[10px] text-[#786e5e] font-bold">
                       Select die to place into an open slot:
                     </span>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       {currentPair.map((val, idx) => (
                         <div
                           key={`die-${idx}`}
@@ -629,12 +777,38 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                         </div>
                       ))}
                     </div>
-                    {placedSlots[0] !== -1 && placedSlots[1] !== -1 && (
+                    {/* Action buttons: Reset & Lock */}
+                    <div className="flex items-center justify-center gap-2 w-full mt-1">
+                      {(placedSlots[0] !== -1 || placedSlots[1] !== -1) && (
+                        <button
+                          type="button"
+                          onClick={handleResetCurrentPlacement}
+                          className="py-1.5 px-3 bg-[#ede4d3] hover:bg-[#dfd3bc] active:bg-[#d0c2a8] text-[#5c5244] border-2 border-[#2b261f]/40 rounded-lg font-black text-xs uppercase cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-transform active:translate-y-px"
+                          title="Clear placed dice for this round to choose different slots"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-[#786e5e]" />
+                          <span>Reset Placement</span>
+                        </button>
+                      )}
+
+                      {placedSlots[0] !== -1 && placedSlots[1] !== -1 && (
+                        <button
+                          type="button"
+                          onClick={handleConfirmRound}
+                          className="flex-1 py-1.5 bg-[#b45309] hover:bg-[#92400e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-px"
+                        >
+                          ✓ Lock Round {round} Placement
+                        </button>
+                      )}
+                    </div>
+
+                    {round > 1 && (
                       <button
-                        onClick={handleConfirmRound}
-                        className="w-full mt-1 py-2 bg-[#b45309] hover:bg-[#92400e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer"
+                        type="button"
+                        onClick={handleResetAllRounds}
+                        className="text-[9.5px] text-[#786e5e] hover:text-[#2b261f] underline cursor-pointer mt-0.5"
                       >
-                        ✓ Lock Round {round} Placement
+                        Reset & restart from Round 1
                       </button>
                     )}
                   </div>
@@ -646,11 +820,11 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
             {phase === 'calculated' && (
               <button
                 onClick={handleResolveOutcome}
-                className="w-full py-2.5 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-0.5"
+                className="w-full py-2 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-0.5"
               >
                 {selectedHandCardIds.length > 0
-                  ? `Spend ${selectedHandCardIds.length} Card${selectedHandCardIds.length > 1 ? 's' : ''} & Resolve (Score: ${effectiveDifference})`
-                  : `Resolve Chamber Event (Score: ${effectiveDifference})`}
+                  ? `Spend ${selectedHandCardIds.length} Card${selectedHandCardIds.length > 1 ? 's' : ''} & Resolve (${effectiveDifference})`
+                  : `Resolve Chamber Event (${effectiveDifference})`}
               </button>
             )}
 
@@ -658,13 +832,39 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
             {phase === 'cleared' && (
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-bold text-emerald-800 bg-emerald-100 p-2 rounded border border-emerald-300 w-full text-center">
-                  Room event resolved! Proceed deeper into the flower machine.
+                  {clearedMessage || 'Chamber event resolved! Proceed deeper into the flower machine.'}
                 </span>
                 <button
                   onClick={onClose}
-                  className="w-full py-2 bg-[#2b261f] hover:bg-[#3d362d] text-white rounded-lg font-bold text-xs uppercase tracking-wider border-2 border-[#2b261f] cursor-pointer"
+                  className="w-full py-2 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] cursor-pointer shadow-md transition-transform active:translate-y-0.5"
                 >
-                  Continue Exploration
+                  Continue Delve
+                </button>
+              </div>
+            )}
+
+            {/* Trap Failed / Sprung State: lose 5 energy and return to previous hex */}
+            {phase === 'trap_failed' && (
+              <div className="flex flex-col gap-2 p-2.5 bg-[#fef2f2] border-2 border-[#ef4444] rounded-lg text-center animate-in fade-in">
+                <div className="flex items-center justify-center gap-1.5 text-red-700 font-black text-xs sm:text-sm">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <span>Trap Mechanism Sprung!</span>
+                </div>
+                <p className="text-[11px] text-[#7f1d1d] leading-snug">
+                  Lethal blades and crushing rollers snapped shut! You lost <strong>5⚡ Energy</strong> and were forced to retreat back to your previous hex.
+                </p>
+                <p className="text-[10px] text-[#991b1b] italic">
+                  No monster encountered. The trap remains active — if you return to this hex, you must attempt to deactivate it again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onTrapFailed) onTrapFailed();
+                    onClose();
+                  }}
+                  className="w-full py-2 bg-[#991b1b] hover:bg-[#7f1d1d] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] cursor-pointer shadow-md transition-transform active:translate-y-0.5"
+                >
+                  Retreat to Previous Hex (-5⚡)
                 </button>
               </div>
             )}

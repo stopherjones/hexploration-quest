@@ -1,5 +1,6 @@
 import React from 'react';
 import { RotateCcw, Trophy, Skull, Footprints, Eye, Castle, Zap } from 'lucide-react';
+import { GameLevel } from '../types';
 
 interface GameOverModalProps {
   won: boolean;
@@ -11,7 +12,7 @@ interface GameOverModalProps {
   totalTowers: number;
   onRestart: () => void;
   onReviewMap?: () => void;
-  level?: 1 | 2 | 3;
+  level?: GameLevel;
   cardsDrawn?: number;
   tunnelsCarved?: number;
 }
@@ -51,6 +52,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               ? won
                 ? 'SUBTERRANEAN ESCAPE!'
                 : 'LOST IN THE TUNNELS'
+              : level === 1.5
+              ? won
+                ? 'HEX PYRAMID ASCENDED!'
+                : 'FALLEN IN THE PYRAMID'
               : won
               ? 'SECRET TUNNEL FOUND!'
               : 'EXPEDITION EXHAUSTED'}
@@ -68,6 +73,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               ? won
                 ? 'Astounding subterranean navigation! You uncovered the Ace of Hearts, found the ancient escape stair, and returned safely to the world above!'
                 : 'Your energy was completely exhausted in the pitch-black tunnels. The subterranean labyrinth claims another intrepid delve.'
+              : level === 1.5
+              ? won
+                ? 'Astounding foresight! You traversed all 10 columns of the Great Hex Pyramid, survived the Tarot ordeals, and reached the inner sanctuary!'
+                : 'Your energy was depleted or fate caught up with you on the slopes of the 55-hex pyramid.'
               : won
               ? 'Splendid cartography! You reached the Secret Tunnel Entrance and secured your escape before your supplies ran dry.'
               : 'Your energy was completely depleted before locating the Secret Tunnel Entrance. The fog of war claims this voyage.'}
@@ -76,7 +85,13 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           {/* Expedition Scorecard */}
           <div className="bg-[#ede4d3] p-3 rounded-lg border border-[#2b261f]/30 space-y-2 text-left">
             <div className="text-[11px] font-bold uppercase text-[#786e5e] border-b border-[#2b261f]/20 pb-1">
-              {level === 3 ? 'Utopia Engine Core Ledger' : level === 2 ? 'Subterranean Delve Ledger' : 'Expedition Ledger'}
+              {level === 3
+                ? 'Utopia Engine Core Ledger'
+                : level === 2
+                ? 'Subterranean Delve Ledger'
+                : level === 1.5
+                ? 'Pyramid Ascent Ledger'
+                : 'Expedition Ledger'}
             </div>
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5">

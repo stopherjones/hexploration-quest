@@ -72,6 +72,19 @@ import { EventModal } from './components/EventModal';
 import { GameOverModal } from './components/GameOverModal';
 import { LevelTransitionModal } from './components/LevelTransitionModal';
 import {
+  generatePyramidMap,
+  PyramidHex,
+  createFull52Deck,
+  getPyramidForwardMoves,
+  PYRAMID_COLS,
+} from './utils/pyramidEngine';
+import { TarotCard, createShuffledTarotDeck } from './utils/tarotDeck';
+import { PyramidGrid } from './components/PyramidGrid';
+import { PyramidControlPanel } from './components/PyramidControlPanel';
+import { PyramidExplorationModal } from './components/PyramidExplorationModal';
+import { TarotModal } from './components/TarotModal';
+import { PyramidVictoryModal } from './components/PyramidVictoryModal';
+import {
   saveGameStateLocally,
   loadGameStateLocally,
   clearGameStateLocally,
@@ -99,6 +112,25 @@ export default function App() {
   const [level1Turns, setLevel1Turns] = useState<number>(() =>
     initialSave ? initialSave.level1.level1Turns : 1
   );
+
+  // Level 1.5 Hex Pyramid State
+  const [pyramidData, setPyramidData] = useState(() => generatePyramidMap());
+  const [pyramidPlayerPos, setPyramidPlayerPos] = useState<{ col: number; row: number }>({ col: 0, row: 0 });
+  const [pyramidBaseCard, setPyramidBaseCard] = useState<ExplorationCard>(() => pyramidData.baseCard);
+  const [pyramidDrawnCard, setPyramidDrawnCard] = useState<ExplorationCard | null>(null);
+  const [pyramidStreak, setPyramidStreak] = useState<number>(0);
+  const [pyramidBestStreak, setPyramidBestStreak] = useState<number>(0);
+  const [pyramidSteps, setPyramidSteps] = useState<number>(0);
+  const [pyramidVisitedPath, setPyramidVisitedPath] = useState<{ col: number; row: number }[]>([{ col: 0, row: 0 }]);
+  const [pyramidDeck, setPyramidDeck] = useState<ExplorationCard[]>(() => pyramidData.remainingDeck);
+  const [pyramidTarotDeck, setPyramidTarotDeck] = useState<TarotCard[]>(() => pyramidData.tarotDeck);
+  const [activeTarotCard, setActiveTarotCard] = useState<TarotCard | null>(null);
+  const [pyramidPendingHonorChoice, setPyramidPendingHonorChoice] = useState<'face_gamble' | null>(null);
+  const [pyramidResultText, setPyramidResultText] = useState<string | null>(null);
+  const [pyramidIsPredicting, setPyramidIsPredicting] = useState<boolean>(false);
+  const [showPyramidVictoryModal, setShowPyramidVictoryModal] = useState<boolean>(false);
+  const [showPyramidDrawModal, setShowPyramidDrawModal] = useState<boolean>(false);
+  const [activePyramidPrediction, setActivePyramidPrediction] = useState<'higher' | 'lower'>('higher');
 
   // Level 2 Subterranean Tunnel State
   const [tunnelMap, setTunnelMap] = useState<TunnelMap>(() =>
@@ -387,6 +419,24 @@ export default function App() {
     setCurrentLevel(1);
     setShowLevelTransitionModal(false);
     setLevel1Turns(1);
+
+    const newPyr = generatePyramidMap();
+    setPyramidData(newPyr);
+    setPyramidPlayerPos({ col: 0, row: 0 });
+    setPyramidBaseCard(newPyr.baseCard);
+    setPyramidDrawnCard(null);
+    setPyramidStreak(0);
+    setPyramidBestStreak(0);
+    setPyramidSteps(0);
+    setPyramidVisitedPath([{ col: 0, row: 0 }]);
+    setPyramidDeck(newPyr.remainingDeck);
+    setPyramidTarotDeck(newPyr.tarotDeck);
+    setActiveTarotCard(null);
+    setPyramidPendingHonorChoice(null);
+    setPyramidResultText(null);
+    setPyramidIsPredicting(false);
+    setShowPyramidVictoryModal(false);
+
     setTunnelMap(createTunnelMap(createShuffledHeartsDeck()));
     setCurrentTunnelHeading(2);
     setLevel2Steps(0);
@@ -1434,6 +1484,388 @@ export default function App() {
     }
   };
 
+  // --- LEVEL 1.5: HEX PYRAMID ASCENT LOGIC ---
+
+  const handleStartLevel1_5 = (startingEnergy?: number) => {
+    sounds.playBonus();
+    const newPyr = generatePyramidMap();
+    setPyramidData(newPyr);
+    setPyramidPlayerPos({ col: 0, row: 0 });
+    setPyramidBaseCard(newPyr.baseCard);
+    setPyramidDrawnCard(null);
+    setPyramidStreak(0);
+    setPyramidBestStreak(0);
+    setPyramidSteps(0);
+    setPyramidVisitedPath([{ col: 0, row: 0 }]);
+    setPyramidDeck(newPyr.remainingDeck);
+    setPyramidTarotDeck(newPyr.tarotDeck);
+    setActiveTarotCard(null);
+    setPyramidPendingHonorChoice(null);
+    setPyramidResultText(null);
+    setPyramidIsPredicting(false);
+    setShowPyramidVictoryModal(false);
+    setShowPyramidDrawModal(false);
+    setShowLevelTransitionModal(false);
+    setIsWon(false);
+    setIsLost(false);
+    setReviewingMap(false);
+
+    if (startingEnergy !== undefined) {
+      setEnergy(startingEnergy);
+    } else if (energy <= 5) {
+      setEnergy(15);
+    }
+    setCurrentLevel(1.5);
+    setStatusMessage(
+      'Level 1.5: Hex Pyramid Ascent. Select Higher (row above) or Lower (row below) to traverse all 12 columns!'
+    );
+  };
+
+  // Step 1: Move into hex and open Card Draw Modal
+  const handlePyramidPredict = (prediction: 'higher' | 'lower') => {
+    if (currentLevel !== 1.5 || isWon || isLost || pyramidPlayerPos.col >= PYRAMID_COLS - 1) {
+      return;
+    }
+
+    sounds.playClick();
+
+    const nextCol = pyramidPlayerPos.col + 1;
+    const nextRow = prediction === 'higher' ? pyramidPlayerPos.row : pyramidPlayerPos.row + 1;
+    const targetKey = `${nextCol},${nextRow}`;
+
+    // Movement costs 1⚡ energy
+    const moveCostEnergy = Math.max(0, energy - 1);
+    setEnergy(moveCostEnergy);
+
+    // Update pyramid map tile as visited
+    const newTiles = new Map(pyramidData.tiles);
+    const targetTile = newTiles.get(targetKey);
+    if (targetTile) {
+      targetTile.visited = true;
+      targetTile.predictionMade = prediction;
+    }
+    setPyramidData((prev) => ({ ...prev, tiles: newTiles }));
+    setPyramidPlayerPos({ col: nextCol, row: nextRow });
+    setPyramidVisitedPath((prev) => [...prev, { col: nextCol, row: nextRow }]);
+    setPyramidSteps((s) => s + 1);
+
+    setActivePyramidPrediction(prediction);
+    setPyramidDrawnCard(null);
+    setPyramidPendingHonorChoice(null);
+    setPyramidResultText(null);
+    setShowPyramidDrawModal(true);
+
+    setStatusMessage(
+      `Moved to Col ${nextCol + 1} (${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}). Tap Draw Card to reveal outcome!`
+    );
+
+    if (moveCostEnergy <= 0) {
+      setTimeout(() => {
+        sounds.playHazard();
+        setIsLost(true);
+        setStatusMessage('Energy exhausted moving through the pyramid! The delve is lost.');
+      }, 500);
+    }
+  };
+
+  // Step 2: Inside modal, draw card & evaluate Higher / Lower / Pair / Honour
+  const handlePyramidModalDrawCard = () => {
+    if (pyramidDrawnCard) return; // already drawn
+    sounds.playCardFlip();
+
+    let currentDeck = [...pyramidDeck];
+    if (currentDeck.length === 0) {
+      currentDeck = createFull52Deck();
+    }
+    const drawn = currentDeck.shift()!;
+    setPyramidDeck(currentDeck);
+    setPyramidDrawnCard(drawn);
+
+    const targetKey = `${pyramidPlayerPos.col},${pyramidPlayerPos.row}`;
+    setPyramidData((prev) => {
+      const updated = new Map(prev.tiles);
+      const cur = updated.get(targetKey);
+      if (cur) cur.drawnCard = drawn;
+      return { ...prev, tiles: updated };
+    });
+
+    const baseVal = pyramidBaseCard ? pyramidBaseCard.value : 7;
+    const drawnVal = drawn.value;
+
+    // Check Honour card (A, K, Q, J only)
+    const isHonor = drawn.rank === 'A' || drawn.rank === 'K' || drawn.rank === 'Q' || drawn.rank === 'J';
+    drawn.isHonor = isHonor;
+    if (isHonor) {
+      sounds.playBonus();
+      setPyramidPendingHonorChoice('face_gamble');
+      setPyramidResultText(
+        `Honour card drawn: ${drawn.rank}${drawn.suit}! Call and streak are preserved. Choose how to bank for Level 3:`
+      );
+      setStatusMessage(
+        `Honour card ${drawn.rank}${drawn.suit} drawn! Streak preserved. Choose banking option.`
+      );
+      return;
+    }
+
+    // Numbered card outcome:
+    if (drawnVal === baseVal) {
+      // Pair rule: "Drawing a pair should reset your streak but not give you or cost you energy - both in this L1.5 and in the existing L2"
+      sounds.playClick();
+      setPyramidStreak(0);
+      setPyramidResultText(
+        `Pair drawn (${drawn.rank}${drawn.suit} matches base ${pyramidBaseCard?.rank || baseVal})! Push — no energy change. Streak reset to 0.`
+      );
+      setStatusMessage(
+        `Pyramid: Pair drawn (${drawn.rank}${drawn.suit})! Push. No energy penalty or reward. Streak reset to 0.`
+      );
+    } else {
+      const isHigher = drawnVal > baseVal;
+      const isCorrect =
+        (activePyramidPrediction === 'higher' && isHigher) ||
+        (activePyramidPrediction === 'lower' && !isHigher);
+
+      if (isCorrect) {
+        sounds.playBonus();
+        const nextStreak = pyramidStreak >= 0 ? pyramidStreak + 1 : 1;
+        setPyramidStreak(nextStreak);
+        setPyramidBestStreak((b) => Math.max(b, nextStreak));
+        const energyReward = nextStreak;
+        setEnergy((prevE) => Math.min(prevE + energyReward, MAX_ENERGY));
+        setPyramidResultText(
+          `Correct! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${pyramidBaseCard?.rank || baseVal}. Streak: +${nextStreak} (+${energyReward}⚡).`
+        );
+        setStatusMessage(
+          `Correct! Drawn ${drawn.rank}${drawn.suit}. Streak +${nextStreak}: Gained +${energyReward}⚡ Energy!`
+        );
+      } else {
+        sounds.playHazard();
+        const nextStreak = pyramidStreak <= 0 ? pyramidStreak - 1 : -1;
+        setPyramidStreak(nextStreak);
+        const energyPenalty = Math.abs(nextStreak);
+        const finalE = Math.max(0, energy - energyPenalty);
+        setEnergy(finalE);
+        setPyramidResultText(
+          `Wrong call! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${pyramidBaseCard?.rank || baseVal}. Streak: ${nextStreak} (-${energyPenalty}⚡).`
+        );
+        setStatusMessage(
+          `Wrong call! Drawn ${drawn.rank}${drawn.suit}. Streak ${nextStreak}: Lost -${energyPenalty}⚡ Energy.`
+        );
+
+        if (finalE <= 0) {
+          setTimeout(() => {
+            sounds.playHazard();
+            setIsLost(true);
+            setStatusMessage('Energy exhausted ascending the great pyramid! The delve is lost.');
+          }, 500);
+        }
+      }
+    }
+  };
+
+  const handlePyramidTileClick = (col: number, row: number) => {
+    const moves = getPyramidForwardMoves(pyramidPlayerPos);
+    if (moves.higher && moves.higher.col === col && moves.higher.row === row) {
+      handlePyramidPredict('higher');
+    } else if (moves.lower && moves.lower.col === col && moves.lower.row === row) {
+      handlePyramidPredict('lower');
+    }
+  };
+
+  // Step 3: Honour choice (Strictly only 2 options as requested: bank base or draw new to hand)
+  const handlePyramidHonorChoice = (choice: 'bank_base' | 'draw_new_to_hand') => {
+    sounds.playCardFlip();
+    if (choice === 'bank_base') {
+      if (!pyramidBaseCard) return;
+      sounds.playBonus();
+      const bankedCard = pyramidBaseCard;
+      setPlayerHand((prev) => [...prev, bankedCard]);
+
+      // Draw fresh base card
+      let currentDeck = [...pyramidDeck];
+      if (currentDeck.length === 0) currentDeck = createFull52Deck();
+      let freshBaseIdx = currentDeck.findIndex(
+        (c) => !(c.rank === 'A' || c.rank === 'K' || c.rank === 'Q' || c.rank === 'J')
+      );
+      if (freshBaseIdx === -1) freshBaseIdx = 0;
+      const [freshBase] = currentDeck.splice(freshBaseIdx, 1);
+      setPyramidDeck(currentDeck);
+      setPyramidBaseCard(freshBase);
+      setPyramidPendingHonorChoice(null);
+
+      setPyramidResultText(
+        `Banked base card ${bankedCard.rank}${bankedCard.suit} into your Hand! Drew fresh base ${freshBase.rank}${freshBase.suit}.`
+      );
+      setStatusMessage(
+        `Banked ${bankedCard.rank}${bankedCard.suit} to Hand! New base: ${freshBase.rank}${freshBase.suit}. Hand: ${playerHand.length + 1} cards.`
+      );
+    } else {
+      // draw_new_to_hand
+      sounds.playBonus();
+      let currentDeck = [...pyramidDeck];
+      if (currentDeck.length === 0) currentDeck = createFull52Deck();
+      const newCard = currentDeck.shift()!;
+      setPyramidDeck(currentDeck);
+      setPlayerHand((prev) => [...prev, newCard]);
+      setPyramidPendingHonorChoice(null);
+
+      setPyramidResultText(
+        `Drew ${newCard.rank}${newCard.suit} directly into your Hand! Kept base ${pyramidBaseCard?.rank}${pyramidBaseCard?.suit}.`
+      );
+      setStatusMessage(
+        `Drew ${newCard.rank}${newCard.suit} into Hand! Hand has ${playerHand.length + 1} cards saved for Level 3.`
+      );
+    }
+  };
+
+  // Step 4: Return to map after card is resolved
+  const handlePyramidModalContinue = () => {
+    setShowPyramidDrawModal(false);
+
+    // Promote drawn card to base card if it was numbered or pair (not honor A, K, Q, J)
+    const isHonorCard = pyramidDrawnCard
+      ? pyramidDrawnCard.rank === 'A' || pyramidDrawnCard.rank === 'K' || pyramidDrawnCard.rank === 'Q' || pyramidDrawnCard.rank === 'J'
+      : false;
+    if (pyramidDrawnCard && !isHonorCard) {
+      setPyramidBaseCard(pyramidDrawnCard);
+    }
+
+    const currentKey = `${pyramidPlayerPos.col},${pyramidPlayerPos.row}`;
+    const curTile = pyramidData.tiles.get(currentKey);
+
+    // Check if Event Hex -> Trigger Tarot draw!
+    if (curTile?.isEvent) {
+      setTimeout(() => {
+        sounds.playBonus();
+        const currentTarot = [...pyramidTarotDeck];
+        if (currentTarot.length === 0) currentTarot.push(...createShuffledTarotDeck());
+        const drawnTarot = currentTarot.shift()!;
+        setPyramidTarotDeck(currentTarot);
+        curTile.drawnTarot = drawnTarot;
+        setActiveTarotCard(drawnTarot);
+      }, 400);
+      return;
+    }
+
+    // Check if Goal column reached (Column 12, index 11)!
+    if (pyramidPlayerPos.col === PYRAMID_COLS - 1 && !isLost) {
+      setTimeout(() => {
+        sounds.playVictory();
+        setIsWon(true);
+        setShowPyramidVictoryModal(true);
+        setStatusMessage('THE PYRAMID HAS BEEN CONQUERED! Reached Column 12! The Gateway to Level 3 is open!');
+      }, 500);
+    }
+  };
+
+  const handleTarotConfirm = (resolution?: { sacrificeHandCards?: boolean; wheelResult?: 'win' | 'lose' }) => {
+    if (!activeTarotCard) return;
+    const card = activeTarotCard;
+    setActiveTarotCard(null);
+
+    if (card.isDeath) {
+      if (resolution?.sacrificeHandCards) {
+        sounds.playBonus();
+        setPlayerHand((prev) => prev.slice(2)); // sacrifice 2 cards
+        setStatusMessage('Death averted! Sacrificed 2 Hand cards to survive.');
+        setPyramidResultText('Death was banished by sacrificing 2 tactical cards from your Hand!');
+        return;
+      } else {
+        sounds.playHazard();
+        setIsLost(true);
+        setStatusMessage('The Pale Horseman claims your soul. Game Over!');
+        return;
+      }
+    }
+
+    if (card.effectType === 'wheel') {
+      if (resolution?.wheelResult === 'win') {
+        sounds.playBonus();
+        setEnergy((e) => Math.min(e + 5, MAX_ENERGY));
+        setStatusMessage('Wheel of Fortune: Fortune smiles! +5⚡ Energy Restored.');
+        setPyramidResultText('The Wheel of Fortune turned in your favor! Gained +5⚡ Energy.');
+      } else {
+        sounds.playHazard();
+        const newE = Math.max(0, energy - 2);
+        setEnergy(newE);
+        setStatusMessage('Wheel of Fortune: Fate bites! -2⚡ Energy Drained.');
+        setPyramidResultText('The Wheel of Fortune was harsh! Lost -2⚡ Energy.');
+        if (newE <= 0) {
+          setIsLost(true);
+          setStatusMessage('Energy exhausted by the turn of the wheel!');
+        }
+      }
+      return;
+    }
+
+    // Energy change
+    if (card.energyChange) {
+      if (card.energyChange > 0) {
+        sounds.playBonus();
+        setEnergy((e) => Math.min(e + card.energyChange!, MAX_ENERGY));
+      } else {
+        sounds.playHazard();
+        const newE = Math.max(0, energy + card.energyChange!);
+        setEnergy(newE);
+        if (newE <= 0) {
+          setIsLost(true);
+          setStatusMessage('Energy exhausted by Tarot trial!');
+          return;
+        }
+      }
+    }
+
+    // Streak reset or streak change
+    if (card.resetStreak) {
+      setPyramidStreak(0);
+    }
+    if (card.streakChange) {
+      setPyramidStreak((s) => s + card.streakChange!);
+    }
+
+    // Add card
+    if (card.effectType === 'add_card') {
+      sounds.playBonus();
+      let currentDeck = [...pyramidDeck];
+      if (currentDeck.length === 0) currentDeck = createFull52Deck();
+      const bonusCard = currentDeck.shift()!;
+      setPyramidDeck(currentDeck);
+      setPlayerHand((prev) => [...prev, bonusCard]);
+    }
+
+    // Lose card
+    if (card.effectType === 'lose_card') {
+      if (playerHand.length > 0) {
+        sounds.playHazard();
+        setPlayerHand((prev) => prev.slice(1));
+      } else {
+        sounds.playHazard();
+        const newE = Math.max(0, energy - 3);
+        setEnergy(newE);
+        if (newE <= 0) {
+          setIsLost(true);
+          setStatusMessage('Energy drained by The Devil!');
+          return;
+        }
+      }
+    }
+
+    setStatusMessage(`Event Resolved: ${card.name} — ${card.effectDescription}`);
+  };
+
+  const handlePyramidProceedToLevel3 = () => {
+    sounds.playVictory();
+    setShowPyramidVictoryModal(false);
+    setCurrentLevel(3);
+    setLevel3State(generateLevel3Map());
+    setActiveLevel3Tile(null);
+    setLevel3Steps(0);
+    setIsWon(false);
+    setIsLost(false);
+    setStatusMessage(
+      `Descended from the Great Pyramid to Level 3! Carrying ${energy}⚡ Energy and ${playerHand.length} cards in Hand.`
+    );
+  };
+
   // --- LEVEL 2: UNDERGROUND TUNNELS LOGIC ---
 
   // Descend to Level 2
@@ -2352,14 +2784,7 @@ export default function App() {
     }));
 
     // Trigger encounter modals
-    if (targetTile.type === 'safe') {
-      setStatusMessage('Entered a safe sanctuary room (-1⚡). No threats detected.');
-      if (nextEnergy <= 0) {
-        sounds.playHazard();
-        setIsLost(true);
-        setStatusMessage('Energy exhausted! Delve is lost.');
-      }
-    } else if (targetTile.type === 'outer_door') {
+    if (targetTile.type === 'outer_door') {
       if (!targetTile.doorTested && !level3State.outerDoorsUnlocked) {
         setActiveLevel3Tile(targetTile);
         setStatusMessage('Reached an Outer Portal Door! Test yourself with the Utopia Engine dice.');
@@ -2635,6 +3060,10 @@ export default function App() {
       handleStartLevel3Test();
       return;
     }
+    if (targetLvl === 1.5) {
+      handleStartLevel1_5();
+      return;
+    }
     setCurrentLevel(targetLvl);
     setIsWon(false);
     setIsLost(false);
@@ -2652,7 +3081,15 @@ export default function App() {
       <Header
         energy={energy}
         maxEnergy={MAX_ENERGY}
-        turn={currentLevel === 3 ? level3Steps : currentLevel === 2 ? level2Steps : turn}
+        turn={
+          currentLevel === 3
+            ? level3Steps
+            : currentLevel === 2
+            ? level2Steps
+            : currentLevel === 1.5
+            ? pyramidSteps
+            : turn
+        }
         revealedCount={revealedCount}
         totalHexes={totalHexes}
         goalFound={goalFound}
@@ -2698,6 +3135,18 @@ export default function App() {
             onExecuteMove={handleExecuteMove}
             canExecuteMove={diceState.rolled && pathPreview.length > 0 && energy > 0}
           />
+        ) : currentLevel === 1.5 ? (
+          <PyramidGrid
+            tiles={pyramidData.tiles}
+            playerPos={pyramidPlayerPos}
+            baseCard={pyramidBaseCard}
+            visitedPath={pyramidVisitedPath}
+            streak={pyramidStreak}
+            energy={energy}
+            playerHand={playerHand}
+            onTileClick={handlePyramidTileClick}
+            onPredict={handlePyramidPredict}
+          />
         ) : currentLevel === 2 ? (
           <TunnelGrid
             tiles={tunnelMap.tiles}
@@ -2742,6 +3191,16 @@ export default function App() {
           onExecuteMove={handleExecuteMove}
           onResetDeviation={handleResetDeviation}
           onModifyDie={handleModifyDie}
+        />
+      ) : currentLevel === 1.5 ? (
+        <PyramidControlPanel
+          currentColumn={pyramidPlayerPos.col}
+          streak={pyramidStreak}
+          energy={energy}
+          maxEnergy={MAX_ENERGY}
+          isPredicting={pyramidIsPredicting}
+          onPredict={handlePyramidPredict}
+          onOpenRules={() => setShowRules(true)}
         />
       ) : currentLevel === 2 ? (
         <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none flex flex-col shadow-lg z-30">
@@ -3040,6 +3499,51 @@ export default function App() {
       {/* Interactive Event Prompt Modal (Shrines, Rifts, Traps, Vaults) */}
       <EventModal prompt={eventPrompt} onResolve={handleResolveEvent} />
 
+      {/* Level 1.5 Card Draw Modal (L2 style modal design) */}
+      <PyramidExplorationModal
+        isOpen={showPyramidDrawModal}
+        currentColumn={pyramidPlayerPos.col}
+        prediction={activePyramidPrediction}
+        baseCard={pyramidBaseCard}
+        drawnCard={pyramidDrawnCard}
+        deckCount={pyramidDeck.length}
+        streak={pyramidStreak}
+        energy={energy}
+        maxEnergy={MAX_ENERGY}
+        isEventHex={Boolean(
+          pyramidData.tiles.get(`${pyramidPlayerPos.col},${pyramidPlayerPos.row}`)?.isEvent
+        )}
+        pendingHonorChoice={pyramidPendingHonorChoice === 'face_gamble'}
+        resultMessage={pyramidResultText}
+        onDrawCard={handlePyramidModalDrawCard}
+        onHonorChoice={handlePyramidHonorChoice}
+        onContinue={handlePyramidModalContinue}
+      />
+
+      {/* Level 1.5 Pyramid Victory Modal (Reached Column 12 -> Ascend to Level 3) */}
+      {showPyramidVictoryModal && (
+        <PyramidVictoryModal
+          remainingEnergy={energy}
+          turnsTaken={pyramidSteps}
+          bestStreak={pyramidBestStreak}
+          playerHand={playerHand}
+          onProceedToLevel3={handlePyramidProceedToLevel3}
+          onReviewMap={() => {
+            setShowPyramidVictoryModal(false);
+            setReviewingMap(true);
+          }}
+        />
+      )}
+
+      {/* Level 1.5 Tarot Event Modal */}
+      {activeTarotCard && (
+        <TarotModal
+          card={activeTarotCard}
+          playerHand={playerHand}
+          onConfirm={handleTarotConfirm}
+        />
+      )}
+
       {/* Level 2 Victory Modal (Ace of Spades found -> Descend to Level 3) */}
       {showLevel2VictoryModal && (
         <Level2VictoryModal
@@ -3050,11 +3554,12 @@ export default function App() {
         />
       )}
 
-      {/* Level Transition Modal (Level 1 Complete -> Descend to Level 2) */}
+      {/* Level Transition Modal (Level 1 Complete -> Descend to Level 2 or Ascend Level 1.5) */}
       {showLevelTransitionModal && (
         <LevelTransitionModal
           remainingEnergy={energy}
           turnsTaken={level1Turns}
+          onAscendPyramid={() => handleStartLevel1_5(energy)}
           onDescend={handleDescendToLevel2}
           onReviewMap={() => {
             setShowLevelTransitionModal(false);
@@ -3067,7 +3572,15 @@ export default function App() {
       {(isWon || isLost) && !reviewingMap && (
         <GameOverModal
           won={isWon}
-          turns={currentLevel === 2 ? level2Steps : turn}
+          turns={
+            currentLevel === 3
+              ? level3Steps
+              : currentLevel === 2
+              ? level2Steps
+              : currentLevel === 1.5
+              ? pyramidSteps
+              : turn
+          }
           energyLeft={energy}
           revealedCount={revealedCount}
           totalHexes={totalHexes}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Volume2, VolumeX, BookOpen, RotateCcw } from 'lucide-react';
 import { ExplorationCard } from '../utils/explorationDeck';
+import { GameLevel } from '../types';
 
 interface HeaderProps {
   energy: number;
@@ -17,8 +18,8 @@ interface HeaderProps {
   onToggleSound: () => void;
   onOpenRules: () => void;
   onNewGame: () => void;
-  level?: 1 | 2 | 3;
-  onChangeLevel?: (lvl: 1 | 2 | 3) => void;
+  level?: GameLevel;
+  onChangeLevel?: (lvl: GameLevel) => void;
   level2CardsRemaining?: number;
   level2TargetFound?: boolean;
   level2Streak?: number;
@@ -139,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Quick Level Switcher Pills for convenience */}
             {onChangeLevel && (
               <div className="flex items-center gap-0.5 ml-1.5 bg-[#dfd3bc] p-0.5 rounded border border-[#2b261f]/30">
-                {([1, 2, 3] as const).map((lvl) => (
+                {([1, 1.5, 2, 3] as const).map((lvl) => (
                   <button
                     key={`lvl-btn-${lvl}`}
                     onClick={() => onChangeLevel(lvl)}
@@ -148,7 +149,13 @@ export const Header: React.FC<HeaderProps> = ({
                         ? 'bg-[#2b261f] text-white shadow-2xs'
                         : 'text-[#5c5346] hover:bg-[#ece2d0]'
                     }`}
-                    title={lvl === 3 ? 'Jump to Level 3 (15⚡ + 5 Cards)' : `Jump to Level ${lvl}`}
+                    title={
+                      lvl === 1.5
+                        ? 'Jump to Level 1.5 (Hex Pyramid Ascent)'
+                        : lvl === 3
+                        ? 'Jump to Level 3 (15⚡ + 5 Cards)'
+                        : `Jump to Level ${lvl}`
+                    }
                   >
                     L{lvl}
                   </button>
@@ -170,8 +177,8 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Banked Hand Badge */}
-            {playerHand && playerHand.length > 0 && (
+            {/* Banked Hand Badge (hidden in L1.5 as it is moved into the map) */}
+            {level !== 1.5 && playerHand && playerHand.length > 0 && (
               <div
                 className="flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-[#dbece2] text-[#166534] border border-[#86efac] rounded text-[10px] font-bold shadow-2xs"
                 title={`Banked Hand: ${playerHand.length} card(s) carried. Total reduction power: -${playerHand.reduce((s, c) => s + c.value, 0)} pts in Level 3`}

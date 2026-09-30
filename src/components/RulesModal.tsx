@@ -113,6 +113,27 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             </ul>
           </div>
 
+          {/* Level 1.5: Hex Pyramid Ascent (Alternative Level 2) */}
+          <div className="space-y-1.5 bg-[#fef3c7]/70 text-[#2b261f] p-2.5 rounded-lg border-2 border-[#b45309]">
+            <div className="font-black uppercase text-[#b45309] flex items-center gap-1.5 border-b border-[#b45309]/30 pb-1 text-xs">
+              <span className="text-sm leading-none">🔺 🔮</span>
+              <span>Level 1.5: Hex Pyramid Ascent (Alternative Level 2)</span>
+            </div>
+            <p className="text-[11px] text-[#443d33]">
+              A sideways hex pyramid spanning <strong>12 columns</strong> (1 hex in col 1, 2 in col 2, ..., 12 in col 12; <strong>78 hexes total</strong>). The goal is to traverse from left to right to breach the inner sanctum:
+            </p>
+            <div className="space-y-1 text-[10.5px]">
+              <div className="pl-2 border-l-2 border-[#b45309]/50 space-y-0.5 text-[#443d33]">
+                <div>• <strong>Predict & Advance:</strong> Start in Column 1 with a base card. To predict Higher, advance to the hex on the row above in the next column. To predict Lower, advance to the hex on the row below (-1⚡ Move).</div>
+                <div>• <strong>Modal Card Draw:</strong> Moving into a hex opens the card draw modal. Tap to draw and reveal whether your prediction was correct, push, or an Honour card!</div>
+                <div>• <strong>Full 52-Card Deck:</strong> Includes all suits (♠, ♥, ♦, ♣). Victory is reaching the 12th column, not finding the Ace of Spades!</div>
+                <div>• <strong>Streaks & Pair Pushes:</strong> Correct predictions build cumulative streaks (+1, +2, +3⚡). Incorrect predictions drain energy. <strong>Drawing a pair resets your streak but neither costs nor grants energy (Push)!</strong></div>
+                <div>• <strong>Honour Cards (J, Q, K, A):</strong> Preserve your streak and call, giving you the choice to bank your current base card into your Hand (drawing a fresh base), or draw a new card from the deck into your Hand!</div>
+                <div>• <strong>Event Hexes (21 across the pyramid):</strong> Stepping into a glowing mystical hex triggers a draw from the 21 Tarot trumps deck! Rewards include energy boosts, streak boosts, and cards into your Hand; hazards include energy drain, card discard, or the lethal Death card!</div>
+              </div>
+            </div>
+          </div>
+
           {/* Level 2: The Underground Tunnels */}
           <div className="space-y-1.5 bg-[#ede4d3] text-[#2b261f] p-2.5 rounded-lg border-2 border-[#2b261f]">
             <div className="font-black uppercase text-[#991b1b] flex items-center gap-1.5 border-b border-[#2b261f]/20 pb-1 text-xs">
@@ -143,15 +164,13 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <span>Level 3: The 19-Hex Flower Engine Core</span>
             </div>
             <p className="text-[11px] text-[#443d33]">
-              A single 19-hex concentric flower grid: 12-hex Outer Ring, 6-hex Inner Ring, and 1-hex Core Boss. All tiles start face-down and cost 1⚡ to flip (either by stepping in, or peeking from an adjacent hex).
+              A single 19-hex concentric flower grid: Yellow Outer Ring (12 hexes), Orange Middle Ring (6 hexes), and Red Core Boss. Visible fortress walls enclose each ring, with single-colour doorways at portal hexes. All tiles cost 1⚡ to step in or peek.
             </p>
             <div className="space-y-1 text-[10.5px] pl-2 border-l-2 border-[#15803d]/40 text-[#443d33]">
-              <div>• <strong>Outer Ring (12 Hexes):</strong> 1 Safe Start, 4 Locked Portals, 3 Traps, 4 Mana Vaults.</div>
-              <div>• <strong>Outer Portals:</strong> Test via Utopia Engine dice: Difference 0 = Master Unlock (all 4 portals open)! 1–10 = grants 1 code fragment (need 3 fragments total). Fail twice and you need a 0 on remaining doors; fail 3 times = Game Over!</div>
-              <div>• <strong>Spending Hand Cards from Level 2:</strong> In any room test, you can click individual cards from your banked hand to reduce your calculated dice score towards 0! Spent cards reduce difference directly, turning potential failures into Code Fragments, or achieving Master 0 Unlocks!</div>
-              <div>• <strong>Inner Ring (6 Hexes):</strong> 1 Safe, 2 Inner Gates, 2 Traps, 1 Mana Vault. Decrypt both gates (scores 1–10) or get a 0 on either to open the way to the Core.</div>
-              <div>• <strong>Traps & Vaults:</strong> Score 0 = Permanent Disarm / Full 30⚡ Restore. 1–10 = Temporary Disarm / +10⚡. 11–99 = +1⚡ refund / +5⚡. Larger differences spawn level 1–4 monsters!</div>
-              <div>• <strong>Combat & Boss:</strong> Level 1, 2, 3 monsters have 1 HP. Level 4 has 2 HP and receives damage on 1, 2, 3. The Level 5 Core Boss has 3 HP and receives damage on 1, 2, 3! Defeat the Boss to save Utopia!</div>
+              <div>• <strong>No Safe Zones:</strong> Outer ring has 4 Doors, 4 Traps, 4 Vaults. Middle ring has 2 Gates, 2 Traps, 2 Vaults. Danger lurks in every chamber!</div>
+              <div>• <strong>Exact 0 Door Unlocks:</strong> Doors unlock on <strong>EXACTLY 0</strong> (or grant code fragments on 1–10). If you overshoot 0 into negative using card modifiers, it will NOT unlock!</div>
+              <div>• <strong>Dice Placement & Hand Visibility:</strong> Cards in hand are visible during dice placement to help plan combinations. You can reset and re-place dice at any time before locking.</div>
+              <div>• <strong>Final Boss Rolls Reversed:</strong> The Level 5 Core Construct has <strong>roll values reversed</strong>: receives damage on <strong>4, 5, 6</strong> (3 HP), and damages the player on 1, 2, 3 (-1⚡)! Defeat the Boss to save Utopia!</div>
             </div>
           </div>
         </div>
