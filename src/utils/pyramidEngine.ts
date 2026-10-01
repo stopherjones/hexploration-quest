@@ -3,7 +3,7 @@ import { TarotCard, createShuffledTarotDeck } from './tarotDeck';
 
 export interface PyramidHex {
   id: string; // e.g. "0,0" or "c,r"
-  col: number; // 0 to 11 (12 columns)
+  col: number; // 0 to 10 (11 columns)
   row: number; // 0 to col (col+1 rows in column)
   isEvent: boolean;
   visited: boolean;
@@ -14,12 +14,12 @@ export interface PyramidHex {
   predictionMade?: 'higher' | 'lower' | 'start' | null;
 }
 
-export const PYRAMID_COLS = 12;
-export const PYRAMID_TOTAL_HEXES = 78; // 12 * 13 / 2
+export const PYRAMID_COLS = 11;
+export const PYRAMID_TOTAL_HEXES = 66; // 11 * 12 / 2
 
 export interface PyramidState {
-  columns: number; // 12
-  totalHexes: number; // 78
+  columns: number; // 11
+  totalHexes: number; // 66
   tiles: Map<string, PyramidHex>;
   playerPos: { col: number; row: number };
   baseCard: ExplorationCard;
@@ -64,7 +64,7 @@ export function createFull52Deck(): ExplorationCard[] {
         rank,
         value: getRankNumericValue(rank),
         isHonor,
-        isAceOfSpades: false, // In Level 1.5, Ace of Spades is treated as a regular Ace; victory is reaching column 12!
+        isAceOfSpades: false, // In Level 2, Ace of Spades is treated as a regular Ace; victory is reaching the final column.
       });
     }
   }
@@ -79,8 +79,8 @@ export function createFull52Deck(): ExplorationCard[] {
 }
 
 /**
- * Generates the 78-hex sideways pyramid (12 columns, col 0 has 1 hex, col 11 has 12 hexes).
- * Seeds 21 random event hexes across columns 1 to 11 (one for each card in the Tarot trumps deck).
+ * Generates the 66-hex sideways pyramid (11 columns, col 0 has 1 hex, col 10 has 11 hexes).
+ * Seeds 21 random event hexes across columns 1 to 10.
  */
 export function generatePyramidMap(): {
   tiles: Map<string, PyramidHex>;
@@ -96,7 +96,7 @@ export function generatePyramidMap(): {
   if (initialBaseIdx === -1) initialBaseIdx = 0;
   const [baseCard] = deck.splice(initialBaseIdx, 1);
 
-  // All eligible coords for event hexes (cols 1..11)
+  // All eligible coords for event hexes (cols 1..10)
   const eligibleEventCoords: { col: number; row: number }[] = [];
   for (let c = 1; c < PYRAMID_COLS; c++) {
     for (let r = 0; r <= c; r++) {

@@ -22,6 +22,9 @@ export interface ExplorationCard {
   value: number; // 2..10 for numbers, 11 for J, 12 for Q, 13 for K, 14 for A
   isHonor: boolean; // J, Q, K, A
   isAceOfSpades: boolean;
+  level3DiceModifier?: 'adjust' | 'flip' | 'set';
+  level3SetScore?: 0 | 1;
+  tarotCard?: 'star' | 'moon' | 'sun' | 'judgement' | 'world';
 }
 
 export const ALL_SUITS: ExplorationSuit[] = ['♠', '♣', '♦'];

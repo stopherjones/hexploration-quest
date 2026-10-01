@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { PyramidHex, getPyramidForwardMoves, PYRAMID_COLS } from '../utils/pyramidEngine';
 import { ExplorationCard } from '../utils/explorationDeck';
 import { X, Sparkles, ShieldAlert, Backpack } from 'lucide-react';
+import { TarotModifierArt, tarotModifierArt } from './TarotModifierArt';
 
 interface PyramidGridProps {
   tiles: Map<string, PyramidHex>;
@@ -29,14 +30,14 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
   // Modal state to inspect all cards in hand
   const [showHandModal, setShowHandModal] = useState<boolean>(false);
 
-  // SVG Dimensions & Exact Hex Honeycomb Geometry (Matching L1 styling with crisp gap)
-  const SVG_WIDTH = 550;
-  const SVG_HEIGHT = 720;
-  const HEX_R = 21.5;
-  const COL_SPACING = HEX_R * 1.5; // 32.25px
+  // SVG Dimensions & Exact Hex Honeycomb Geometry (Matching Level 1 hex size)
+  const SVG_WIDTH = 427;
+  const SVG_HEIGHT = 584;
+  const HEX_R = 23;
+  const COL_SPACING = HEX_R * 1.5;
   const ROW_SPACING = Math.sqrt(3) * HEX_R; // 37.239px
-  const START_X = 148;
-  const CENTER_Y = 360;
+  const START_X = 50;
+  const CENTER_Y = SVG_HEIGHT / 2;
 
   // Exact pixel center for flat-topped hexagon in column col, row row
   const getHexCoords = (col: number, row: number) => {
@@ -282,7 +283,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
             fontFamily="monospace"
             fill="#6b5d4d"
           >
-            Col {playerPos.col + 1}/12 • {energy}⚡ Left
+            Col {playerPos.col + 1}/{PYRAMID_COLS} • {energy}⚡ Left
           </text>
         </g>
 
@@ -291,7 +292,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
         {/* ============================================================== */}
         <g
           id="persistent-hand-cards-inset"
-          transform="translate(14, 556)"
+          transform={`translate(14, ${SVG_HEIGHT - 164})`}
           className="cursor-pointer transition-transform hover:opacity-95"
           onClick={() => setShowHandModal(true)}
         >
@@ -403,52 +404,60 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
                   strokeWidth="1.5"
                   filter="drop-shadow(0 2px 4px rgba(0,0,0,0.25))"
                 />
-                {/* Top-Left Rank & Suit */}
-                <text
-                  x="5"
-                  y="13"
-                  fontSize="10"
-                  fontWeight="900"
-                  fontFamily="monospace"
-                  fill={isLatestRed ? '#b91c1c' : '#1e1b18'}
-                >
-                  {latestCard.rank}
-                </text>
-                <text
-                  x="5"
-                  y="23"
-                  fontSize="9"
-                  fontWeight="bold"
-                  fill={isLatestRed ? '#b91c1c' : '#1e1b18'}
-                >
-                  {latestCard.suit}
-                </text>
-
-                {/* Center Big Suit */}
-                <text
-                  x="26"
-                  y="45"
-                  textAnchor="middle"
-                  fontSize="23"
-                  fontWeight="bold"
-                  fontFamily="serif"
-                  fill={isLatestRed ? '#dc2626' : '#1e1b18'}
-                >
-                  {latestCard.suit}
-                </text>
-
-                {/* Bottom-Right Value */}
-                <text
-                  x="47"
-                  y="66"
-                  textAnchor="end"
-                  fontSize="7.5"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                  fill="#786e5e"
-                >
-                  v:{latestCard.value}
-                </text>
+                {latestCard.tarotCard ? (
+                  <image
+                    href={tarotModifierArt[latestCard.tarotCard].src}
+                    x="3"
+                    y="3"
+                    width="46"
+                    height="66"
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                ) : (
+                  <>
+                    <text
+                      x="5"
+                      y="13"
+                      fontSize="10"
+                      fontWeight="900"
+                      fontFamily="monospace"
+                      fill={isLatestRed ? '#b91c1c' : '#1e1b18'}
+                    >
+                      {latestCard.rank}
+                    </text>
+                    <text
+                      x="5"
+                      y="23"
+                      fontSize="9"
+                      fontWeight="bold"
+                      fill={isLatestRed ? '#b91c1c' : '#1e1b18'}
+                    >
+                      {latestCard.suit}
+                    </text>
+                    <text
+                      x="26"
+                      y="45"
+                      textAnchor="middle"
+                      fontSize="23"
+                      fontWeight="bold"
+                      fontFamily="serif"
+                      fill={isLatestRed ? '#dc2626' : '#1e1b18'}
+                    >
+                      {latestCard.suit}
+                    </text>
+                    <text
+                      x="47"
+                      y="66"
+                      textAnchor="end"
+                      fontSize="7.5"
+                      fontFamily="monospace"
+                      fontWeight="bold"
+                      fill="#786e5e"
+                    >
+                      v:{latestCard.value}
+                    </text>
+                  </>
+                )}
               </g>
             </g>
           ) : (
@@ -839,7 +848,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
                     {handCount} Card{handCount === 1 ? '' : 's'} Carried
                   </div>
                   <div className="text-[10.5px] text-[#2e7d32]">
-                    Cumulative Score Reduction: <strong>-{cumulativeHandValue} pts</strong>
+                    Card Score Reduction: <strong>-{cumulativeHandValue} pts</strong>
                   </div>
                 </div>
                 <div className="text-2xl font-black bg-[#c8e6c9] px-2 py-0.5 rounded border border-[#a5d6a7]">
@@ -870,33 +879,46 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
                         key={`hand-card-modal-${card.id || idx}`}
                         className="bg-white border-2 border-[#2b261f] rounded-lg shadow p-2 flex flex-col justify-between items-center h-28 relative"
                       >
-                        <div className="w-full flex items-center justify-between">
-                          <span
-                            className={`text-xs font-black ${
-                              isRed ? 'text-red-700' : 'text-slate-900'
-                            }`}
-                          >
-                            {card.rank}
-                            <span className="text-[10px] ml-0.5">{card.suit}</span>
-                          </span>
-                          <span className="text-[9px] bg-[#f0ebd9] px-1 py-0.2 rounded font-bold text-[#5c5244]">
-                            v:{card.value}
-                          </span>
-                        </div>
+                        {card.tarotCard ? (
+                          <>
+                            <TarotModifierArt card={card} className="h-16 w-full object-contain" />
+                            <span className="text-[9px] font-black text-indigo-900">
+                              {card.tarotCard === 'judgement' ? 'JUDGEMENT · SET 1' :
+                                card.tarotCard === 'world' ? 'WORLD · SET 0' :
+                                  `${card.tarotCard.toUpperCase()} · DICE`}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-full flex items-center justify-between">
+                              <span
+                                className={`text-xs font-black ${
+                                  isRed ? 'text-red-700' : 'text-slate-900'
+                                }`}
+                              >
+                                {card.rank}
+                                <span className="text-[10px] ml-0.5">{card.suit}</span>
+                              </span>
+                              <span className="text-[9px] bg-[#f0ebd9] px-1 py-0.2 rounded font-bold text-[#5c5244]">
+                                v:{card.value}
+                              </span>
+                            </div>
 
-                        <div
-                          className={`text-3xl font-black ${
-                            isRed ? 'text-red-700' : 'text-slate-900'
-                          }`}
-                        >
-                          {card.suit}
-                        </div>
+                            <div
+                              className={`text-3xl font-black ${
+                                isRed ? 'text-red-700' : 'text-slate-900'
+                              }`}
+                            >
+                              {card.suit}
+                            </div>
 
-                        <div className="w-full text-center">
-                          <span className="text-[9px] font-black text-[#15803d] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
-                            -{card.value} pts
-                          </span>
-                        </div>
+                            <div className="w-full text-center">
+                              <span className="text-[9px] font-black text-[#15803d] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
+                                -{card.value} pts
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, ArrowDown, Footprints, Zap } from 'lucide-react';
 import { ExplorationCard } from '../utils/explorationDeck';
+import { TarotModifierArt } from './TarotModifierArt';
 
 interface Level2VictoryModalProps {
   remainingEnergy: number;
@@ -75,12 +76,21 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
                   {playerHand.map((c, i) => (
                     <span
                       key={`${c.id}-${i}`}
-                      className="px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-mono font-bold shadow-2xs"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-mono font-bold shadow-2xs"
                     >
-                      <span className={c.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
-                        {c.rank}{c.suit}
-                      </span>
-                      <span className="text-[9px] text-[#786e5e]">(-{c.value})</span>
+                      {c.tarotCard ? (
+                        <>
+                          <TarotModifierArt card={c} className="h-8 w-6 object-contain" />
+                          <span className="text-[8px] uppercase">{c.tarotCard}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={c.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
+                            {c.rank}{c.suit}
+                          </span>
+                          <span className="text-[9px] text-[#786e5e]">(-{c.value})</span>
+                        </>
+                      )}
                     </span>
                   ))}
                 </div>

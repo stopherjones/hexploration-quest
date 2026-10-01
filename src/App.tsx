@@ -125,6 +125,10 @@ export default function App() {
   const [pyramidDeck, setPyramidDeck] = useState<ExplorationCard[]>(() => pyramidData.remainingDeck);
   const [pyramidTarotDeck, setPyramidTarotDeck] = useState<TarotCard[]>(() => pyramidData.tarotDeck);
   const [activeTarotCard, setActiveTarotCard] = useState<TarotCard | null>(null);
+  const [pyramidNextSuccess, setPyramidNextSuccess] = useState(false);
+  const [pyramidJusticeApplied, setPyramidJusticeApplied] = useState(false);
+  const [pyramidNextPredictionCost, setPyramidNextPredictionCost] = useState(false);
+  const [pyramidMustSucceed, setPyramidMustSucceed] = useState(false);
   const [pyramidPendingHonorChoice, setPyramidPendingHonorChoice] = useState<'face_gamble' | null>(null);
   const [pyramidResultText, setPyramidResultText] = useState<string | null>(null);
   const [pyramidIsPredicting, setPyramidIsPredicting] = useState<boolean>(false);
@@ -431,6 +435,10 @@ export default function App() {
     setPyramidVisitedPath([{ col: 0, row: 0 }]);
     setPyramidDeck(newPyr.remainingDeck);
     setPyramidTarotDeck(newPyr.tarotDeck);
+    setPyramidNextSuccess(false);
+    setPyramidJusticeApplied(false);
+    setPyramidNextPredictionCost(false);
+    setPyramidMustSucceed(false);
     setActiveTarotCard(null);
     setPyramidPendingHonorChoice(null);
     setPyramidResultText(null);
@@ -1498,6 +1506,10 @@ export default function App() {
     setPyramidVisitedPath([{ col: 0, row: 0 }]);
     setPyramidDeck(newPyr.remainingDeck);
     setPyramidTarotDeck(newPyr.tarotDeck);
+    setPyramidNextSuccess(false);
+    setPyramidJusticeApplied(false);
+    setPyramidNextPredictionCost(false);
+    setPyramidMustSucceed(false);
     setActiveTarotCard(null);
     setPyramidPendingHonorChoice(null);
     setPyramidResultText(null);
@@ -1515,7 +1527,7 @@ export default function App() {
     }
     setCurrentLevel(2);
     setStatusMessage(
-      'Level 2: Hex Pyramid Ascent. Select Higher (row above) or Lower (row below) to traverse all 12 columns!'
+      `Level 2: Hex Pyramid Ascent. Select Higher (row above) or Lower (row below) to traverse all ${PYRAMID_COLS} columns!`
     );
   };
 
@@ -1526,13 +1538,15 @@ export default function App() {
     }
 
     sounds.playClick();
+    setPyramidJusticeApplied(false);
 
     const nextCol = pyramidPlayerPos.col + 1;
     const nextRow = prediction === 'higher' ? pyramidPlayerPos.row : pyramidPlayerPos.row + 1;
     const targetKey = `${nextCol},${nextRow}`;
 
-    // Movement costs 1⚡ energy
-    const moveCostEnergy = Math.max(0, energy - 1);
+    const movementCost = pyramidNextPredictionCost ? 5 : 1;
+    const moveCostEnergy = Math.max(0, energy - movementCost);
+    setPyramidNextPredictionCost(false);
     setEnergy(moveCostEnergy);
 
     // Update pyramid map tile as visited
@@ -1554,10 +1568,10 @@ export default function App() {
     setShowPyramidDrawModal(true);
 
     setStatusMessage(
-      `Moved to Col ${nextCol + 1} (${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}). Tap Draw Card to reveal outcome!`
+      `Moved to Col ${nextCol + 1} (${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}). Cost ${movementCost}⚡. Tap Draw Card to reveal outcome!`
     );
 
-    if (moveCostEnergy <= 0) {
+    if (moveCostEnergy <= 0 && !pyramidMustSucceed) {
       setTimeout(() => {
         sounds.playHazard();
         setIsLost(true);
@@ -1578,6 +1592,9 @@ export default function App() {
     const drawn = currentDeck.shift()!;
     setPyramidDeck(currentDeck);
     setPyramidDrawnCard(drawn);
+    const forcedSuccess = pyramidNextSuccess;
+    setPyramidNextSuccess(false);
+    setPyramidJusticeApplied(forcedSuccess);
 
     const targetKey = `${pyramidPlayerPos.col},${pyramidPlayerPos.row}`;
     setPyramidData((prev) => {
@@ -1594,10 +1611,17 @@ export default function App() {
     const isHonor = drawn.rank === 'A' || drawn.rank === 'K' || drawn.rank === 'Q' || drawn.rank === 'J';
     drawn.isHonor = isHonor;
     if (isHonor) {
+      if (pyramidMustSucceed && !forcedSuccess) {
+        setIsLost(true);
+        setStatusMessage('The Devil demanded a successful prediction, but an Honour card cannot satisfy the trial.');
+        setPyramidResultText('The required successful prediction was not made. The delve is lost.');
+        return;
+      }
+      if (forcedSuccess) setPyramidMustSucceed(false);
       sounds.playBonus();
       setPyramidPendingHonorChoice('face_gamble');
       setPyramidResultText(
-        `Honour card drawn: ${drawn.rank}${drawn.suit}! Call and streak are preserved. Choose how to bank for Level 3:`
+        `${forcedSuccess ? 'Justice guarantees success! ' : ''}Honour card drawn: ${drawn.rank}${drawn.suit}! Call and streak are preserved. Choose how to bank for Level 3:`
       );
       setStatusMessage(
         `Honour card ${drawn.rank}${drawn.suit} drawn! Streak preserved. Choose banking option.`
@@ -1606,23 +1630,31 @@ export default function App() {
     }
 
     // Numbered card outcome:
-    if (drawnVal === baseVal) {
+    if (drawnVal === baseVal && !forcedSuccess) {
       // Pair rule: "Drawing a pair should reset your streak but not give you or cost you energy - both in this L1.5 and in the existing L2"
       sounds.playClick();
       setPyramidStreak(0);
       setPyramidResultText(
         `Pair drawn (${drawn.rank}${drawn.suit} matches base ${pyramidBaseCard?.rank || baseVal})! Push — no energy change. Streak reset to 0.`
       );
+      if (pyramidMustSucceed) {
+        setPyramidMustSucceed(false);
+        setIsLost(true);
+        setStatusMessage('The Devil demanded a successful prediction, but the pair was only a push. The delve is lost.');
+        return;
+      }
       setStatusMessage(
         `Pyramid: Pair drawn (${drawn.rank}${drawn.suit})! Push. No energy penalty or reward. Streak reset to 0.`
       );
     } else {
       const isHigher = drawnVal > baseVal;
       const isCorrect =
+        forcedSuccess ||
         (activePyramidPrediction === 'higher' && isHigher) ||
         (activePyramidPrediction === 'lower' && !isHigher);
 
       if (isCorrect) {
+        if (pyramidMustSucceed) setPyramidMustSucceed(false);
         sounds.playBonus();
         const nextStreak = pyramidStreak >= 0 ? pyramidStreak + 1 : 1;
         setPyramidStreak(nextStreak);
@@ -1630,7 +1662,7 @@ export default function App() {
         const energyReward = nextStreak;
         setEnergy((prevE) => Math.min(prevE + energyReward, MAX_ENERGY));
         setPyramidResultText(
-          `Correct! ${drawn.rank}${drawn.suit} is ${isHigher ? 'Higher' : 'Lower'} than ${pyramidBaseCard?.rank || baseVal}. Streak: +${nextStreak} (+${energyReward}⚡).`
+          `${forcedSuccess ? 'Justice guarantees a correct result! ' : ''}Correct! ${drawn.rank}${drawn.suit} is ${drawnVal === baseVal ? 'a pair with' : isHigher ? 'Higher than' : 'Lower than'} ${pyramidBaseCard?.rank || baseVal}. Streak: +${nextStreak} (+${energyReward}⚡).`
         );
         setStatusMessage(
           `Correct! Drawn ${drawn.rank}${drawn.suit}. Streak +${nextStreak}: Gained +${energyReward}⚡ Energy!`
@@ -1649,10 +1681,11 @@ export default function App() {
           `Wrong call! Drawn ${drawn.rank}${drawn.suit}. Streak ${nextStreak}: Lost -${energyPenalty}⚡ Energy.`
         );
 
-        if (finalE <= 0) {
+        if (finalE <= 0 || pyramidMustSucceed) {
           setTimeout(() => {
             sounds.playHazard();
             setIsLost(true);
+            setPyramidMustSucceed(false);
             setStatusMessage('Energy exhausted ascending the great pyramid! The delve is lost.');
           }, 500);
         }
@@ -1744,36 +1777,31 @@ export default function App() {
       return;
     }
 
-    // Check if Goal column reached (Column 12, index 11)!
+    // Check if the final goal column has been reached.
     if (pyramidPlayerPos.col === PYRAMID_COLS - 1 && !isLost) {
       setTimeout(() => {
         sounds.playVictory();
         setIsWon(true);
-        setStatusMessage('THE PYRAMID HAS BEEN CONQUERED! Reached Column 12! The Gateway to Level 3 is open!');
+        setStatusMessage(
+          `THE PYRAMID HAS BEEN CONQUERED! Reached Column ${PYRAMID_COLS}! The Gateway to Level 3 is open!`
+        );
       }, 500);
     }
   };
 
-  const handleTarotConfirm = (resolution?: { sacrificeHandCards?: boolean; wheelResult?: 'win' | 'lose' }) => {
+  const handleTarotConfirm = (resolution?: { wheelResult?: 'win' | 'lose'; selectedCardId?: string }) => {
     if (!activeTarotCard) return;
     const card = activeTarotCard;
     setActiveTarotCard(null);
 
     if (card.isDeath) {
-      if (resolution?.sacrificeHandCards) {
-        sounds.playBonus();
-        setPlayerHand((prev) => prev.slice(2)); // sacrifice 2 cards
-        setStatusMessage('Death averted! Sacrificed 2 Hand cards to survive.');
-        setPyramidResultText('Death was banished by sacrificing 2 tactical cards from your Hand!');
-        return;
-      } else {
-        sounds.playHazard();
-        setIsLost(true);
-        setStatusMessage('The Pale Horseman claims your soul. Game Over!');
-        return;
-      }
+      sounds.playHazard();
+      setIsLost(true);
+      setStatusMessage('The Pale Horseman claims your soul. Game Over!');
+      return;
     }
 
+    let causesLoss = false;
     if (card.effectType === 'wheel') {
       if (resolution?.wheelResult === 'win') {
         sounds.playBonus();
@@ -1782,71 +1810,156 @@ export default function App() {
         setPyramidResultText('The Wheel of Fortune turned in your favor! Gained +5⚡ Energy.');
       } else {
         sounds.playHazard();
-        const newE = Math.max(0, energy - 2);
+        const newE = Math.max(0, energy - 5);
         setEnergy(newE);
-        setStatusMessage('Wheel of Fortune: Fate bites! -2⚡ Energy Drained.');
-        setPyramidResultText('The Wheel of Fortune was harsh! Lost -2⚡ Energy.');
+        setStatusMessage('Wheel of Fortune: Fate bites! -5⚡ Energy Drained.');
+        setPyramidResultText('The Wheel of Fortune was harsh! Lost -5⚡ Energy.');
         if (newE <= 0) {
-          setIsLost(true);
-          setStatusMessage('Energy exhausted by the turn of the wheel!');
+          causesLoss = true;
         }
       }
+    } else if (card.effectType === 'skip_columns') {
+      const skip = card.skipColumns ?? 0;
+      const destinationCol = Math.min(pyramidPlayerPos.col + skip, PYRAMID_COLS - 1);
+      const destinationRow = Math.min(pyramidPlayerPos.row, destinationCol);
+      const newTiles = new Map(pyramidData.tiles);
+      const skippedPath: { col: number; row: number }[] = [];
+      for (let col = pyramidPlayerPos.col + 1; col <= destinationCol; col += 1) {
+        const row = Math.min(pyramidPlayerPos.row, col);
+        const tile = newTiles.get(`${col},${row}`);
+        if (tile) tile.visited = true;
+        skippedPath.push({ col, row });
+      }
+      setPyramidData((prev) => ({ ...prev, tiles: newTiles }));
+      setPyramidPlayerPos({ col: destinationCol, row: destinationRow });
+      setPyramidVisitedPath((prev) => [...prev, ...skippedPath]);
+      setPyramidSteps((steps) => steps + skippedPath.length);
+      setPyramidResultText(`${card.name}: Skipped ahead ${skippedPath.length} column${skippedPath.length === 1 ? '' : 's'} without drawing cards.`);
+    } else if (card.effectType === 'choose_card') {
+      const choices = pyramidDeck.slice(0, 3);
+      const selectedCard = choices.find((choice) => choice.id === resolution?.selectedCardId);
+      if (selectedCard) {
+        setPyramidDeck((deck) => deck.slice(3));
+        setPlayerHand((hand) => [...hand, selectedCard]);
+        setPyramidResultText(`The Magician added ${selectedCard.rank}${selectedCard.suit} to your Hand.`);
+      }
+    } else if (card.effectType === 'next_success') {
+      setPyramidNextSuccess(true);
+      setPyramidResultText('Justice guarantees success on your next card draw.');
+    } else if (card.effectType === 'next_cost') {
+      setPyramidNextPredictionCost(true);
+      setPyramidResultText('The Hanged Man makes your next prediction cost 5⚡ Energy.');
+    } else if (card.effectType === 'discard_hand_or_zero') {
+      if (playerHand.length > 0) {
+        setPlayerHand([]);
+        setPyramidResultText('The Devil discarded your entire Hand.');
+      } else {
+        setEnergy(0);
+        setPyramidMustSucceed(true);
+        setPyramidResultText('The Devil set your Energy to 0. Your next prediction must be successful to continue.');
+      }
+    } else if (card.effectType === 'discard_random_or_energy') {
+      if (playerHand.length > 0) {
+        const discardedIndex = Math.floor(Math.random() * playerHand.length);
+        const discarded = playerHand[discardedIndex];
+        setPlayerHand((hand) => hand.filter((heldCard) => heldCard.id !== discarded.id));
+        setPyramidResultText(`The Tower destroyed ${discarded.rank}${discarded.suit} from your Hand.`);
+      } else {
+        const newEnergy = Math.max(0, energy - 3);
+        setEnergy(newEnergy);
+        setPyramidResultText('The Tower struck! You lost 3⚡ Energy.');
+        if (newEnergy <= 0) causesLoss = true;
+      }
+    } else if (card.effectType === 'dice_modifier') {
+      const modifierCard: ExplorationCard = {
+        id: `${card.id}-${Date.now()}`,
+        suit: '♠',
+        rank: 'A',
+        value: 0,
+        isHonor: true,
+        isAceOfSpades: false,
+        level3DiceModifier: card.diceModifier,
+        tarotCard: card.diceModifier === 'adjust'
+          ? 'star'
+          : card.diceModifier === 'flip'
+            ? 'moon'
+            : 'sun',
+      };
+      setPlayerHand((hand) => [...hand, modifierCard]);
+      setPyramidResultText(`${card.name}: A one-time Level 3 dice modifier was added to your Hand.`);
+    } else if (card.effectType === 'magic_card' && card.magicScore !== undefined) {
+      const magicCard: ExplorationCard = {
+        id: `${card.id}-${Date.now()}`,
+        suit: '♠',
+        rank: 'A',
+        value: 0,
+        isHonor: true,
+        isAceOfSpades: false,
+        level3SetScore: card.magicScore,
+        tarotCard: card.magicScore === 1 ? 'judgement' : 'world',
+      };
+      setPlayerHand((hand) => [...hand, magicCard]);
+      setPyramidResultText(`${card.name}: A Level 3 magic card setting any sum to ${card.magicScore} was added to your Hand.`);
+    } else {
+      if (card.energyChange) {
+        if (card.energyChange > 0) {
+          sounds.playBonus();
+          setEnergy((e) => Math.min(e + card.energyChange!, MAX_ENERGY));
+        } else {
+          sounds.playHazard();
+          const newE = Math.max(0, energy + card.energyChange);
+          setEnergy(newE);
+          if (newE <= 0) {
+            causesLoss = true;
+          }
+        }
+      }
+
+      if (card.resetStreak) setPyramidStreak(0);
+      if (card.streakChange) {
+        setPyramidStreak((streak) => (streak < 0 ? Math.min(0, streak + 1) : streak + card.streakChange!));
+      }
+
+      if (card.effectType === 'add_card') {
+        let currentDeck = [...pyramidDeck];
+        if (currentDeck.length === 0) currentDeck = createFull52Deck();
+        const bonusCard = currentDeck.shift()!;
+        setPyramidDeck(currentDeck);
+        setPlayerHand((hand) => [...hand, bonusCard]);
+      }
+
+      if (card.effectType === 'lose_card') {
+        if (playerHand.length > 0) {
+          const discardedIndex = Math.floor(Math.random() * playerHand.length);
+          const discarded = playerHand[discardedIndex];
+          setPlayerHand((hand) => hand.filter((heldCard) => heldCard.id !== discarded.id));
+        } else {
+          const newEnergy = Math.max(0, energy - 3);
+          setEnergy(newEnergy);
+          if (newEnergy <= 0) causesLoss = true;
+        }
+      }
+    }
+
+    if (causesLoss) {
+      setIsLost(true);
+      setStatusMessage('Energy exhausted by the Tarot event. The delve is lost.');
       return;
     }
 
-    // Energy change
-    if (card.energyChange) {
-      if (card.energyChange > 0) {
-        sounds.playBonus();
-        setEnergy((e) => Math.min(e + card.energyChange!, MAX_ENERGY));
-      } else {
-        sounds.playHazard();
-        const newE = Math.max(0, energy + card.energyChange!);
-        setEnergy(newE);
-        if (newE <= 0) {
-          setIsLost(true);
-          setStatusMessage('Energy exhausted by Tarot trial!');
-          return;
-        }
-      }
+    if (card.effectType !== 'wheel') {
+      setStatusMessage(`Event Resolved: ${card.name} — ${card.effectDescription}`);
     }
-
-    // Streak reset or streak change
-    if (card.resetStreak) {
-      setPyramidStreak(0);
+    const destinationCol = card.effectType === 'skip_columns'
+      ? Math.min(pyramidPlayerPos.col + (card.skipColumns ?? 0), PYRAMID_COLS - 1)
+      : pyramidPlayerPos.col;
+    if (destinationCol === PYRAMID_COLS - 1) {
+      setTimeout(() => {
+        sounds.playVictory();
+        setIsWon(true);
+        setStatusMessage(`THE PYRAMID HAS BEEN CONQUERED! Reached Column ${PYRAMID_COLS}! The Gateway to Level 3 is open!`);
+      }, 300);
     }
-    if (card.streakChange) {
-      setPyramidStreak((s) => s + card.streakChange!);
-    }
-
-    // Add card
-    if (card.effectType === 'add_card') {
-      sounds.playBonus();
-      let currentDeck = [...pyramidDeck];
-      if (currentDeck.length === 0) currentDeck = createFull52Deck();
-      const bonusCard = currentDeck.shift()!;
-      setPyramidDeck(currentDeck);
-      setPlayerHand((prev) => [...prev, bonusCard]);
-    }
-
-    // Lose card
-    if (card.effectType === 'lose_card') {
-      if (playerHand.length > 0) {
-        sounds.playHazard();
-        setPlayerHand((prev) => prev.slice(1));
-      } else {
-        sounds.playHazard();
-        const newE = Math.max(0, energy - 3);
-        setEnergy(newE);
-        if (newE <= 0) {
-          setIsLost(true);
-          setStatusMessage('Energy drained by The Devil!');
-          return;
-        }
-      }
-    }
-
-    setStatusMessage(`Event Resolved: ${card.name} — ${card.effectDescription}`);
   };
 
   // --- LEVEL 2: UNDERGROUND TUNNELS LOGIC ---
@@ -3279,6 +3392,7 @@ export default function App() {
         )}
         pendingHonorChoice={pyramidPendingHonorChoice === 'face_gamble'}
         resultMessage={pyramidResultText}
+        justiceGuaranteed={pyramidJusticeApplied}
         onDrawCard={handlePyramidModalDrawCard}
         onHonorChoice={handlePyramidHonorChoice}
         onContinue={handlePyramidModalContinue}
@@ -3288,7 +3402,7 @@ export default function App() {
       {activeTarotCard && (
         <TarotModal
           card={activeTarotCard}
-          playerHand={playerHand}
+          magicianChoices={activeTarotCard.effectType === 'choose_card' ? pyramidDeck.slice(0, 3) : []}
           onConfirm={handleTarotConfirm}
         />
       )}

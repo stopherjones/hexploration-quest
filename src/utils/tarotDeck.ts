@@ -14,11 +14,22 @@ export interface TarotCard {
     | 'add_card'
     | 'lose_card'
     | 'death'
-    | 'wheel';
+    | 'wheel'
+    | 'skip_columns'
+    | 'choose_card'
+    | 'next_success'
+    | 'next_cost'
+    | 'discard_hand_or_zero'
+    | 'discard_random_or_energy'
+    | 'dice_modifier'
+    | 'magic_card';
   energyChange?: number;
   streakChange?: number;
   resetStreak?: boolean;
   isDeath?: boolean;
+  skipColumns?: number;
+  diceModifier?: 'adjust' | 'flip' | 'set';
+  magicScore?: 0 | 1;
 }
 
 export const MAJOR_ARCANA: TarotCard[] = [
@@ -29,10 +40,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🃏',
     flavor: 'A leap into the unknown with an open heart and boundless hope.',
-    effectDescription: 'Gain +3⚡ Energy and reset current streak to 0.',
-    effectType: 'energy_bonus',
-    energyChange: 3,
-    resetStreak: true,
+    effectDescription: 'What madness: Skip straight to the right-hand column without drawing any cards.',
+    effectType: 'skip_columns',
+    skipColumns: 1,
   },
   {
     id: 'tarot-1',
@@ -41,9 +51,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🪄',
     flavor: 'As above, so below. Infinite skill channels destiny into reality.',
-    effectDescription: 'Conjures a tactical bonus card directly into your Hand.',
-    effectType: 'add_card',
-    energyChange: 1,
+    effectDescription: 'Pick a card: draw three cards and add one to your Hand.',
+    effectType: 'choose_card',
   },
   {
     id: 'tarot-2',
@@ -52,9 +61,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🔮',
     flavor: 'The veil of mysteries parts, revealing hidden wisdom.',
-    effectDescription: 'Deep intuition restores +3⚡ Energy.',
+    effectDescription: 'Deep intuition: Boost +1⚡ Energy.',
     effectType: 'energy_bonus',
-    energyChange: 3,
+    energyChange: 1,
   },
   {
     id: 'tarot-3',
@@ -63,9 +72,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '👑',
     flavor: 'Boundless motherly bounty nurtures the weary traveler.',
-    effectDescription: 'Abundant vitality: Gain +4⚡ Energy.',
+    effectDescription: 'Abundant vitality: Gain +3⚡ Energy.',
     effectType: 'energy_bonus',
-    energyChange: 4,
+    energyChange: 3,
   },
   {
     id: 'tarot-4',
@@ -96,9 +105,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '❤️',
     flavor: 'Divine alignment of dual forces into unified strength.',
-    effectDescription: 'Harmony: Gain +2⚡ Energy and increase Streak by +1.',
+    effectDescription: 'Harmony: Boost streak by +1 (or reduce a negative streak by 1).',
     effectType: 'streak_boost',
-    energyChange: 2,
     streakChange: 1,
   },
   {
@@ -108,10 +116,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🐎',
     flavor: 'Triumph over contradiction, driving forward at fierce velocity.',
-    effectDescription: 'Unstoppable momentum: Gain +2⚡ Energy and boost Streak by +2.',
-    effectType: 'streak_boost',
-    energyChange: 2,
-    streakChange: 2,
+    effectDescription: 'Unstoppable momentum: Skip forward two columns.',
+    effectType: 'skip_columns',
+    skipColumns: 2,
   },
   {
     id: 'tarot-8',
@@ -120,7 +127,7 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🦁',
     flavor: 'Gentle mastery over the raging beast of the depths.',
-    effectDescription: 'Unyielding stamina: Gain +3⚡ Energy.',
+    effectDescription: 'Gentle mastery: Gain +3⚡ Energy.',
     effectType: 'energy_bonus',
     energyChange: 3,
   },
@@ -142,7 +149,7 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🎡',
     flavor: 'The great wheel turns without mercy or malice.',
-    effectDescription: 'Gamble of destiny: 50% chance for +5⚡ Energy, 50% chance for -2⚡.',
+    effectDescription: 'Gamble of destiny: 50% chance for +5⚡ Energy, 50% chance for -5⚡.',
     effectType: 'wheel',
   },
   {
@@ -152,9 +159,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '⚖️',
     flavor: 'The twin scales weigh deeds and fate with absolute precision.',
-    effectDescription: 'Karmic restoration: Gain +3⚡ Energy.',
-    effectType: 'energy_bonus',
-    energyChange: 3,
+    effectDescription: 'Karmic restoration: Treat your next card draw as successful, regardless of the card.',
+    effectType: 'next_success',
   },
   {
     id: 'tarot-12',
@@ -163,9 +169,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🪢',
     flavor: 'Surrender of pride to attain transcendent vision.',
-    effectDescription: 'Sacrificial insight: Costs -2⚡ Energy, but draws 1 card into your Hand.',
-    effectType: 'add_card',
-    energyChange: -2,
+    effectDescription: 'Sacrificial insight: Your next prediction costs 5⚡ Energy.',
+    effectType: 'next_cost',
   },
   {
     id: 'tarot-13',
@@ -174,7 +179,7 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '💀',
     flavor: 'The pale horseman sweeps across the pyramid. The end of all mortal voyages.',
-    effectDescription: 'Mortality strikes! Game Over unless you sacrifice 2 cards from your Hand.',
+    effectDescription: 'Mortality strikes: Game over.',
     effectType: 'death',
     isDeath: true,
   },
@@ -185,9 +190,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🌊',
     flavor: 'Pouring the waters of life between silver and gold cups.',
-    effectDescription: 'Inner equilibrium: Gain +3⚡ Energy and clear any negative streak to 0.',
+    effectDescription: 'Inner equilibrium: Reset streak to 0.',
     effectType: 'streak_reset',
-    energyChange: 3,
     resetStreak: true,
   },
   {
@@ -197,9 +201,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '😈',
     flavor: 'Chains of shadow seize what you hold dearest.',
-    effectDescription: 'Malignant toll: Discards 1 random card from your Hand (or -3⚡ if hand is empty).',
-    effectType: 'lose_card',
-    energyChange: -3,
+    effectDescription: 'Malignant toll: Discard all cards in your Hand, or set Energy to 0 if your Hand is empty. You must then make a successful prediction to continue.',
+    effectType: 'discard_hand_or_zero',
   },
   {
     id: 'tarot-16',
@@ -208,10 +211,8 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '⚡',
     flavor: 'Lightning shatters the citadel of false security.',
-    effectDescription: 'Cataclysmic shockwave: Drains -3⚡ Energy and resets streak to 0.',
-    effectType: 'energy_penalty',
-    energyChange: -3,
-    resetStreak: true,
+    effectDescription: 'Dark foreboding: Discard 1 random card from your Hand, or lose 3⚡ Energy if your Hand is empty.',
+    effectType: 'discard_random_or_energy',
   },
   {
     id: 'tarot-17',
@@ -220,9 +221,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🌟',
     flavor: 'Seven celestial lights illuminate the crystal waters.',
-    effectDescription: 'Guiding hope: Restores +5⚡ Energy!',
-    effectType: 'energy_bonus',
-    energyChange: 5,
+    effectDescription: 'Guiding hope: Gain a one-time Level 3 dice modifier to adjust one die by +1 or -1.',
+    effectType: 'dice_modifier',
+    diceModifier: 'adjust',
   },
   {
     id: 'tarot-18',
@@ -231,10 +232,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🌙',
     flavor: 'Howling beasts and shadowy delusions distort the path.',
-    effectDescription: 'Perilous illusions: Drains -2⚡ Energy and resets streak to 0.',
-    effectType: 'energy_penalty',
-    energyChange: -2,
-    resetStreak: true,
+    effectDescription: 'Perilous illusions: Gain a one-time Level 3 dice modifier to flip one die (1↔6, 2↔5, 3↔4).',
+    effectType: 'dice_modifier',
+    diceModifier: 'flip',
   },
   {
     id: 'tarot-19',
@@ -243,10 +243,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '☀️',
     flavor: 'Warm golden rays banish the dark and renew the soul.',
-    effectDescription: 'Radiant triumph: Restores +6⚡ Energy and increases streak by +1!',
-    effectType: 'energy_bonus',
-    energyChange: 6,
-    streakChange: 1,
+    effectDescription: 'Radiant triumph: Gain a one-time Level 3 dice modifier to set one die to any value.',
+    effectType: 'dice_modifier',
+    diceModifier: 'set',
   },
   {
     id: 'tarot-20',
@@ -255,9 +254,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🎺',
     flavor: 'The great horn sounds, calling forth your true potential.',
-    effectDescription: 'Reckoning: Gain +3⚡ Energy and draw 1 bonus card into your Hand.',
-    effectType: 'add_card',
-    energyChange: 3,
+    effectDescription: 'Reckoning: Gain a magic card that sets any Level 3 sum to 1.',
+    effectType: 'magic_card',
+    magicScore: 1,
   },
   {
     id: 'tarot-21',
@@ -266,9 +265,9 @@ export const MAJOR_ARCANA: TarotCard[] = [
     arcana: 'major',
     symbol: '🌍',
     flavor: 'The grand ouroboros is complete. Absolute mastery of the pyramid.',
-    effectDescription: 'Supreme apotheosis: Gain +4⚡ Energy and draw 1 high-value card into Hand.',
-    effectType: 'add_card',
-    energyChange: 4,
+    effectDescription: 'Supreme apotheosis: Gain a magic card that sets any Level 3 sum to 0.',
+    effectType: 'magic_card',
+    magicScore: 0,
   },
 ];
 

@@ -2,6 +2,8 @@ import React from 'react';
 import { RotateCcw, Trophy, Skull, Footprints, Eye, Castle, Zap, ArrowRight, Sparkles } from 'lucide-react';
 import { GameLevel } from '../types';
 import { ExplorationCard } from '../utils/explorationDeck';
+import { TarotModifierArt } from './TarotModifierArt';
+import { PYRAMID_COLS } from '../utils/pyramidEngine';
 
 interface GameOverModalProps {
   won: boolean;
@@ -117,7 +119,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   <span className="flex items-center gap-1.5 text-amber-700">
                     🔺 Hex Columns:
                   </span>
-                  <span className="font-bold">{won ? '12 / 12 (Ascended)' : '12 Columns'}</span>
+                  <span className="font-bold">
+                    {won ? `${PYRAMID_COLS} / ${PYRAMID_COLS} (Ascended)` : `${PYRAMID_COLS} Columns`}
+                  </span>
                 </div>
               </>
             ) : level === 1 ? (
@@ -155,11 +159,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                     {playerHand.map((card, index) => (
                       <span
                         key={`${card.id}-${index}`}
-                        className="px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-bold shadow-2xs"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-bold shadow-2xs"
                       >
-                        <span className={card.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
-                          {card.rank}{card.suit}
-                        </span>
+                        {card.tarotCard ? (
+                          <>
+                            <TarotModifierArt card={card} className="h-8 w-6 object-contain" />
+                            <span className="text-[8px] uppercase">{card.tarotCard}</span>
+                          </>
+                        ) : (
+                          <span className={card.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
+                            {card.rank}{card.suit}
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>

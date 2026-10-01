@@ -1,23 +1,71 @@
 import React, { useState } from 'react';
 import { TarotCard } from '../utils/tarotDeck';
-import { Sparkles, Skull, Zap, ShieldAlert, Disc3 } from 'lucide-react';
+import { Sparkles, Skull, Zap, Disc3 } from 'lucide-react';
 import { ExplorationCard } from '../utils/explorationDeck';
+import foolArt from '../assets/colori/00-fool.svg?url';
+import magicianArt from '../assets/colori/01-magician.svg?url';
+import highPriestessArt from '../assets/colori/02-high-priestess.svg?url';
+import empressArt from '../assets/colori/03-empress.svg?url';
+import emperorArt from '../assets/colori/04-emperor.svg?url';
+import hierophantArt from '../assets/colori/05-pope.svg?url';
+import loversArt from '../assets/colori/06-lovers.svg?url';
+import chariotArt from '../assets/colori/07-chariot.svg?url';
+import justiceArt from '../assets/colori/08-justice.svg?url';
+import hermitArt from '../assets/colori/09-hermit.svg?url';
+import wheelArt from '../assets/colori/10-wheel-of-fortune.svg?url';
+import strengthArt from '../assets/colori/11-strength.svg?url';
+import hangedManArt from '../assets/colori/12-hanged-man.svg?url';
+import deathArt from '../assets/colori/13-death.svg?url';
+import temperanceArt from '../assets/colori/14-temperance.svg?url';
+import devilArt from '../assets/colori/15-devil.svg?url';
+import towerArt from '../assets/colori/16-tower.svg?url';
+import starArt from '../assets/colori/17-star.svg?url';
+import moonArt from '../assets/colori/18-moon.svg?url';
+import sunArt from '../assets/colori/19-sun.svg?url';
+import judgementArt from '../assets/colori/20-judgement.svg?url';
+import worldArt from '../assets/colori/21-world.svg?url';
+
+const tarotArtUrls: Record<number, string> = {
+  0: foolArt,
+  1: magicianArt,
+  2: highPriestessArt,
+  3: empressArt,
+  4: emperorArt,
+  5: hierophantArt,
+  6: loversArt,
+  7: chariotArt,
+  8: strengthArt,
+  9: hermitArt,
+  10: wheelArt,
+  11: justiceArt,
+  12: hangedManArt,
+  13: deathArt,
+  14: temperanceArt,
+  15: devilArt,
+  16: towerArt,
+  17: starArt,
+  18: moonArt,
+  19: sunArt,
+  20: judgementArt,
+  21: worldArt,
+};
 
 interface TarotModalProps {
   card: TarotCard;
-  playerHand: ExplorationCard[];
-  onConfirm: (resolution?: { sacrificeHandCards?: boolean; wheelResult?: 'win' | 'lose' }) => void;
+  magicianChoices?: ExplorationCard[];
+  onConfirm: (resolution?: { wheelResult?: 'win' | 'lose'; selectedCardId?: string }) => void;
 }
 
 export const TarotModal: React.FC<TarotModalProps> = ({
   card,
-  playerHand,
+  magicianChoices = [],
   onConfirm,
 }) => {
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [wheelResult, setWheelResult] = useState<'win' | 'lose' | null>(null);
-
-  const canSacrificeForDeath = card.isDeath && playerHand.length >= 2;
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const cardNumber = Number(card.id.replace('tarot-', ''));
+  const artUrl = tarotArtUrls[cardNumber];
 
   const handleSpinWheel = () => {
     setWheelSpinning(true);
@@ -51,10 +99,11 @@ export const TarotModal: React.FC<TarotModalProps> = ({
               <span>{card.number}</span>
             </div>
 
-            {/* Central Mystical Symbol */}
-            <div className="text-4xl my-auto drop-shadow-[0_0_12px_rgba(245,158,11,0.5)] transform group-hover:scale-110 transition-transform">
-              {card.symbol}
-            </div>
+            <img
+              src={artUrl}
+              alt={`${card.name} tarot card`}
+              className="w-full h-full min-h-0 object-contain my-auto"
+            />
 
             {/* Bottom Card Title */}
             <div className="text-[9px] font-bold text-amber-300 tracking-wider uppercase text-center line-clamp-1">
@@ -77,7 +126,10 @@ export const TarotModal: React.FC<TarotModalProps> = ({
             className={`p-3 rounded-xl border text-left text-xs space-y-1.5 ${
               card.isDeath
                 ? 'bg-red-950/40 border-red-600/80 text-red-200'
-                : card.effectType === 'energy_penalty' || card.effectType === 'lose_card'
+                : card.effectType === 'energy_penalty' ||
+                  card.effectType === 'lose_card' ||
+                  card.effectType === 'discard_hand_or_zero' ||
+                  card.effectType === 'discard_random_or_energy'
                 ? 'bg-amber-950/40 border-amber-600/80 text-amber-200'
                 : 'bg-emerald-950/40 border-emerald-600/80 text-emerald-200'
             }`}
@@ -117,9 +169,29 @@ export const TarotModal: React.FC<TarotModalProps> = ({
                   >
                     {wheelResult === 'win'
                       ? '✦ FORTUNE SMILES: +5⚡ Energy Restored!'
-                      : '✦ FATE BITES: -2⚡ Energy Drained!'}
+                      : '✦ FATE BITES: -5⚡ Energy Drained!'}
                   </div>
                 )}
+              </div>
+            )}
+
+            {card.effectType === 'choose_card' && (
+              <div className="grid grid-cols-3 gap-1.5 pt-2">
+                {magicianChoices.map((choice) => (
+                  <button
+                    key={choice.id}
+                    type="button"
+                    onClick={() => setSelectedCardId(choice.id)}
+                    className={`rounded-md border p-1.5 text-center font-mono ${
+                      selectedCardId === choice.id
+                        ? 'border-amber-300 bg-amber-500/30 ring-1 ring-amber-300'
+                        : 'border-amber-700 bg-stone-900 hover:bg-stone-800'
+                    }`}
+                  >
+                    <span className="block text-xs font-black">{choice.rank}{choice.suit}</span>
+                    <span className="block text-[9px] text-amber-200">Value {choice.value}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -127,29 +199,21 @@ export const TarotModal: React.FC<TarotModalProps> = ({
           {/* Action Buttons */}
           <div className="space-y-2 pt-1">
             {card.isDeath ? (
-              <>
-                {canSacrificeForDeath && (
-                  <button
-                    type="button"
-                    onClick={() => onConfirm({ sacrificeHandCards: true })}
-                    className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-stone-950 font-mono font-black text-xs uppercase tracking-wider rounded-lg shadow-lg border border-amber-400 cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <ShieldAlert className="w-4 h-4 text-stone-900" />
-                    <span>Sacrifice 2 Hand Cards to Banish Death</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onConfirm({ sacrificeHandCards: false })}
-                  className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-600 text-white font-mono font-black text-xs uppercase tracking-wider rounded-lg shadow-lg border border-red-500 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Skull className="w-4 h-4 text-red-200" />
-                  <span>{canSacrificeForDeath ? 'Refuse Sacrifice (Game Over)' : 'Mortal Doom: Expedition Ends'}</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => onConfirm()}
+                className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-600 text-white font-mono font-black text-xs uppercase tracking-wider rounded-lg shadow-lg border border-red-500 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Skull className="w-4 h-4 text-red-200" />
+                <span>Mortal Doom: Expedition Ends</span>
+              </button>
             ) : card.effectType === 'wheel' && wheelResult === null ? (
               <div className="text-[11px] text-amber-300 italic text-center">
                 Spin the wheel above to reveal your fate!
+              </div>
+            ) : card.effectType === 'choose_card' && !selectedCardId ? (
+              <div className="text-[11px] text-amber-300 italic text-center">
+                Choose one of the three cards above.
               </div>
             ) : (
               <button
@@ -157,6 +221,7 @@ export const TarotModal: React.FC<TarotModalProps> = ({
                 onClick={() =>
                   onConfirm({
                     wheelResult: wheelResult || undefined,
+                    selectedCardId: selectedCardId || undefined,
                   })
                 }
                 className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-mono font-black text-xs uppercase tracking-wider rounded-lg shadow-lg border border-amber-300 flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"

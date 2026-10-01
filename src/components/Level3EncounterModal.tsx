@@ -8,6 +8,7 @@ import {
 import { ExplorationCard } from '../utils/explorationDeck';
 import { sounds } from '../utils/sound';
 import { DiePipFace } from './UtopiaEncounterModal';
+import { TarotModifierArt } from './TarotModifierArt';
 import { ShieldAlert, Sparkles, Swords, Skull, Trophy, KeyRound, AlertTriangle, RotateCcw } from 'lucide-react';
 
 interface Level3EncounterModalProps {
@@ -81,7 +82,10 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
   // Calculate card reductions
   const selectedCards = playerHand.filter((c) => selectedHandCardIds.includes(c.id));
-  const totalCardReduction = selectedCards.reduce((sum, c) => sum + c.value, 0);
+  const selectedMagicCard = selectedCards.find((card) => card.level3SetScore !== undefined);
+  const totalCardReduction = selectedCards
+    .filter((card) => card.level3SetScore === undefined && !card.level3DiceModifier)
+    .reduce((sum, c) => sum + c.value, 0);
 
   const baseDiff = difference ?? 0;
   let effectiveDifference = baseDiff;
@@ -92,12 +96,34 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     // Card modifiers used in L3 can reduce a negative result to 0 (or turn it into a positive result)
     effectiveDifference = baseDiff + totalCardReduction;
   }
+  if (selectedMagicCard?.level3SetScore !== undefined) {
+    effectiveDifference = selectedMagicCard.level3SetScore;
+  }
 
   const toggleSelectCard = (id: string) => {
     sounds.playClick();
-    setSelectedHandCardIds((prev) =>
-      prev.includes(id) ? prev.filter((cId) => cId !== id) : [...prev, id]
-    );
+    const selectedCard = playerHand.find((card) => card.id === id);
+    if (!selectedCard || selectedCard.level3DiceModifier) return;
+    setSelectedHandCardIds((prev) => {
+      if (prev.includes(id)) return prev.filter((cardId) => cardId !== id);
+      if (selectedCard.level3SetScore !== undefined) return [id];
+      return [
+        ...prev.filter((cardId) => {
+          const card = playerHand.find((handCard) => handCard.id === cardId);
+          return card?.level3SetScore === undefined;
+        }),
+        id,
+      ];
+    });
+  };
+
+  const applyDiceModifier = (card: ExplorationCard, dieIndex: 0 | 1, value: number) => {
+    if (!currentPair || placedSlots[dieIndex] !== -1) return;
+    const nextPair: [number, number] = [...currentPair];
+    nextPair[dieIndex] = value;
+    setCurrentPair(nextPair);
+    onConsumeHandCards?.([card.id]);
+    sounds.playBonus();
   };
 
   // Reset currently placed dice back to unplaced pair
@@ -672,7 +698,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                     ) : (
                       <>
                         <p className="text-[9.5px] text-[#5c5346] leading-none">
-                          Click card to spend value towards 0:
+                          Select regular cards to adjust the score, or a magic card to set it:
                         </p>
 
                         <div className="flex flex-wrap gap-1 justify-center py-0.5">
@@ -685,21 +711,30 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                                 key={card.id}
                                 type="button"
                                 onClick={() => toggleSelectCard(card.id)}
+                                disabled={Boolean(card.level3DiceModifier)}
                                 className={`px-1.5 py-1 rounded-md border font-mono flex flex-col items-center gap-0.2 cursor-pointer transition-all select-none shadow-2xs ${
                                   isSelected
                                     ? 'bg-[#dcfce7] border-[#16a34a] ring-2 ring-[#16a34a] scale-105'
                                     : 'bg-white hover:bg-[#fff9ed] border-[#2b261f]/30'
                                 }`}
                               >
-                                <div className={`text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                                  {card.rank}{card.suit}
-                                </div>
+                                {card.tarotCard ? (
+                                  <TarotModifierArt card={card} className="h-8 w-7 object-contain" />
+                                ) : (
+                                  <div className={`text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
+                                    {card.rank}{card.suit}
+                                  </div>
+                                )}
                                 <div className="text-[8.5px] font-bold text-[#5c5244] leading-none">
-                                  -{card.value}
+                                  {card.tarotCard
+                                    ? card.tarotCard === 'judgement' ? 'SET SCORE 1' :
+                                      card.tarotCard === 'world' ? 'SET SCORE 0' :
+                                        card.tarotCard.toUpperCase()
+                                    : `-${card.value}`}
                                 </div>
                                 {isSelected && (
                                   <span className="text-[7px] font-black bg-[#16a34a] text-white px-0.5 rounded leading-tight">
-                                    SPEND
+                                    {card.level3SetScore !== undefined ? 'SET' : 'SPEND'}
                                   </span>
                                 )}
                               </button>
@@ -713,7 +748,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                               Selected ({selectedHandCardIds.length}):
                             </span>
                             <span className="font-black text-[#15803d]">
-                              {baseDiff < 0
+                              {selectedMagicCard
+                                ? `Magic card sets score to ${selectedMagicCard.level3SetScore}`
+                                : baseDiff < 0
                                 ? `+${totalCardReduction} modifier (${baseDiff} → ${effectiveDifference})`
                                 : `-${totalCardReduction} modifier (${baseDiff} → ${effectiveDifference})`}
                             </span>
@@ -782,6 +819,83 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                         </div>
                       ))}
                     </div>
+                    {playerHand.some((card) => card.level3DiceModifier) && (
+                      <div className="w-full space-y-1 rounded-md border border-amber-700/40 bg-amber-50 p-1.5">
+                        <span className="block text-center text-[9px] font-black uppercase text-amber-900">
+                          One-time Tarot dice modifiers
+                        </span>
+                        {playerHand.filter((card) => card.level3DiceModifier).map((card) => (
+                          <div key={card.id} className="flex flex-wrap items-center justify-center gap-1">
+                            <span className="mr-1 text-[9px] font-bold text-amber-900">
+                              {card.tarotCard && <TarotModifierArt card={card} className="inline-block h-7 w-5 object-contain align-middle mr-1" />}
+                              {card.level3DiceModifier === 'adjust'
+                                ? 'Star'
+                                : card.level3DiceModifier === 'flip'
+                                  ? 'Moon'
+                                  : 'Sun'}
+                            </span>
+                            {currentPair.map((value, dieIndex) => {
+                              const die = dieIndex as 0 | 1;
+                              const locked = placedSlots[die] !== -1;
+                              if (card.level3DiceModifier === 'adjust') {
+                                return (
+                                  <React.Fragment key={`${card.id}-${die}`}>
+                                    <button
+                                      type="button"
+                                      disabled={locked || value <= 1}
+                                      onClick={() => applyDiceModifier(card, die, value - 1)}
+                                      className="rounded border border-amber-800/40 bg-white px-1.5 py-0.5 text-[9px] font-bold disabled:opacity-40"
+                                    >
+                                      Die {dieIndex + 1} −1
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={locked || value >= 6}
+                                      onClick={() => applyDiceModifier(card, die, value + 1)}
+                                      className="rounded border border-amber-800/40 bg-white px-1.5 py-0.5 text-[9px] font-bold disabled:opacity-40"
+                                    >
+                                      +1
+                                    </button>
+                                  </React.Fragment>
+                                );
+                              }
+                              if (card.level3DiceModifier === 'flip') {
+                                return (
+                                  <button
+                                    key={`${card.id}-${die}`}
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => applyDiceModifier(card, die, 7 - value)}
+                                    className="rounded border border-amber-800/40 bg-white px-1.5 py-0.5 text-[9px] font-bold disabled:opacity-40"
+                                  >
+                                    Flip die {dieIndex + 1} ({7 - value})
+                                  </button>
+                                );
+                              }
+                              return (
+                                <label key={`${card.id}-${die}`} className="flex items-center gap-1 text-[9px] font-bold text-amber-900">
+                                  Die {dieIndex + 1}
+                                  <select
+                                    disabled={locked}
+                                    defaultValue=""
+                                    onChange={(event) => {
+                                      const nextValue = Number(event.target.value);
+                                      if (nextValue >= 1 && nextValue <= 6) applyDiceModifier(card, die, nextValue);
+                                    }}
+                                    className="rounded border border-amber-800/40 bg-white px-1 py-0.5 disabled:opacity-40"
+                                  >
+                                    <option value="" disabled>Set</option>
+                                    {[1, 2, 3, 4, 5, 6].map((face) => (
+                                      <option key={face} value={face}>{face}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {/* Action buttons: Reset & Lock */}
                     <div className="flex items-center justify-center gap-2 w-full mt-1">
                       {(placedSlots[0] !== -1 || placedSlots[1] !== -1) && (

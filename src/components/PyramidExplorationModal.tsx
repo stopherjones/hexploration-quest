@@ -13,6 +13,7 @@ interface PyramidExplorationModalProps {
   energy: number;
   maxEnergy: number;
   isEventHex: boolean;
+  justiceGuaranteed?: boolean;
   pendingHonorChoice: boolean;
   resultMessage: string | null;
   onDrawCard: () => void;
@@ -31,6 +32,7 @@ export const PyramidExplorationModal: React.FC<PyramidExplorationModalProps> = (
   energy,
   maxEnergy,
   isEventHex,
+  justiceGuaranteed = false,
   pendingHonorChoice,
   resultMessage,
   onDrawCard,
@@ -190,7 +192,12 @@ export const PyramidExplorationModal: React.FC<PyramidExplorationModalProps> = (
 
           {/* Outcome / Result Banner */}
           {resultMessage && (
-            <div className="p-2 bg-[#fdfbf7] rounded-lg border border-[#2b261f]/20 text-[11px] text-[#443d33] leading-relaxed">
+            <div className={`p-2 rounded-lg border text-[11px] leading-relaxed ${
+              justiceGuaranteed
+                ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                : 'bg-[#fdfbf7] border-[#2b261f]/20 text-[#443d33]'
+            }`}>
+              {justiceGuaranteed && <div className="mb-1 uppercase tracking-wide">Justice: Correct result guaranteed</div>}
               {resultMessage}
             </div>
           )}
