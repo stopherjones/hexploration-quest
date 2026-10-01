@@ -127,53 +127,59 @@ export function drawInitialComparisonCard(deck: ExplorationCard[]): {
   return { card: fallback, remainingDeck: remaining, discarded };
 }
 
-/**
- * Creates 5 distinct cards for testing Level 3:
- * 10♦ (val: 10), 8♠ (val: 8), 6♣ (val: 6), 4♦ (val: 4), 2♠ (val: 2).
- * These give 30 total reduction points and tactical coverage across values.
- */
+/** Creates the five Tarot modifier cards for testing Level 3. */
 export function createLevel3TestHand(): ExplorationCard[] {
   const seed = Date.now();
   return [
     {
-      id: `test-10d-${seed}-1`,
+      id: `test-star-${seed}-1`,
       suit: '♦',
-      rank: '10',
-      value: 10,
-      isHonor: false,
+      rank: 'A',
+      value: 0,
+      isHonor: true,
       isAceOfSpades: false,
+      level3DiceModifier: 'adjust',
+      tarotCard: 'star',
     },
     {
-      id: `test-8s-${seed}-2`,
+      id: `test-moon-${seed}-2`,
       suit: '♠',
-      rank: '8',
-      value: 8,
-      isHonor: false,
+      rank: 'A',
+      value: 0,
+      isHonor: true,
       isAceOfSpades: false,
+      level3DiceModifier: 'flip',
+      tarotCard: 'moon',
     },
     {
-      id: `test-6c-${seed}-3`,
+      id: `test-sun-${seed}-3`,
       suit: '♣',
-      rank: '6',
-      value: 6,
-      isHonor: false,
+      rank: 'A',
+      value: 0,
+      isHonor: true,
       isAceOfSpades: false,
+      level3DiceModifier: 'set',
+      tarotCard: 'sun',
     },
     {
-      id: `test-4d-${seed}-4`,
+      id: `test-judgement-${seed}-4`,
       suit: '♦',
-      rank: '4',
-      value: 4,
-      isHonor: false,
+      rank: 'A',
+      value: 0,
+      isHonor: true,
       isAceOfSpades: false,
+      level3SetScore: 1,
+      tarotCard: 'judgement',
     },
     {
-      id: `test-2s-${seed}-5`,
+      id: `test-world-${seed}-5`,
       suit: '♠',
-      rank: '2',
-      value: 2,
-      isHonor: false,
+      rank: 'A',
+      value: 0,
+      isHonor: true,
       isAceOfSpades: false,
+      level3SetScore: 0,
+      tarotCard: 'world',
     },
   ];
 }

@@ -7,6 +7,8 @@ interface PyramidControlPanelProps {
   streak: number;
   energy: number;
   maxEnergy: number;
+  movementCost: number;
+  mustSucceed: boolean;
   isPredicting: boolean;
   onPredict: (prediction: 'higher' | 'lower') => void;
   onOpenRules?: () => void;
@@ -17,6 +19,8 @@ export const PyramidControlPanel: React.FC<PyramidControlPanelProps> = ({
   streak,
   energy,
   maxEnergy,
+  movementCost,
+  mustSucceed,
   isPredicting,
   onPredict,
   onOpenRules,
@@ -30,7 +34,9 @@ export const PyramidControlPanel: React.FC<PyramidControlPanelProps> = ({
             Col {currentColumn + 1}/{PYRAMID_COLS}
           </span>
           <span className="text-[11px] text-[#5c5346]">
-            {currentColumn === PYRAMID_COLS - 1 ? 'Final Sanctum Threshold' : 'Select Next Chamber Path (-1⚡)'}
+            {currentColumn === PYRAMID_COLS - 1
+              ? 'Final Sanctum Threshold'
+              : `Select Next Chamber Path (pay ${movementCost}⚡ after resolution)`}
           </span>
         </div>
 
@@ -60,29 +66,29 @@ export const PyramidControlPanel: React.FC<PyramidControlPanelProps> = ({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled={isPredicting || currentColumn >= PYRAMID_COLS - 1 || energy <= 0}
+          disabled={isPredicting || currentColumn >= PYRAMID_COLS - 1 || (energy <= 0 && !mustSucceed)}
           onClick={() => onPredict('higher')}
           className="flex-1 py-2.5 px-3 bg-[#15803d] hover:bg-[#166534] active:bg-[#14532d] disabled:opacity-40 text-white font-mono font-black text-xs sm:text-sm rounded-lg shadow-md border-2 border-[#14532d] flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
-          title="Predict higher and move northeast into next column (-1⚡)"
+          title={`Predict higher and move northeast into next column (pay ${movementCost}⚡ after resolution)`}
         >
           <ArrowUpRight className="w-4 h-4 text-emerald-200 stroke-[2.5]" />
           <span>HIGHER</span>
           <span className="text-[10px] bg-[#14532d] px-1.5 py-0.5 rounded text-[#86efac] font-bold">
-            -1⚡
+            -{movementCost}⚡
           </span>
         </button>
 
         <button
           type="button"
-          disabled={isPredicting || currentColumn >= PYRAMID_COLS - 1 || energy <= 0}
+          disabled={isPredicting || currentColumn >= PYRAMID_COLS - 1 || (energy <= 0 && !mustSucceed)}
           onClick={() => onPredict('lower')}
           className="flex-1 py-2.5 px-3 bg-[#b91c1c] hover:bg-[#991b1b] active:bg-[#7f1d1d] disabled:opacity-40 text-white font-mono font-black text-xs sm:text-sm rounded-lg shadow-md border-2 border-[#7f1d1d] flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
-          title="Predict lower and move southeast into next column (-1⚡)"
+          title={`Predict lower and move southeast into next column (pay ${movementCost}⚡ after resolution)`}
         >
           <ArrowDownRight className="w-4 h-4 text-red-200 stroke-[2.5]" />
           <span>LOWER</span>
           <span className="text-[10px] bg-[#7f1d1d] px-1.5 py-0.5 rounded text-[#fca5a5] font-bold">
-            -1⚡
+            -{movementCost}⚡
           </span>
         </button>
       </div>

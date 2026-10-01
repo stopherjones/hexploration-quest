@@ -128,6 +128,7 @@ export default function App() {
   const [pyramidNextSuccess, setPyramidNextSuccess] = useState(false);
   const [pyramidJusticeApplied, setPyramidJusticeApplied] = useState(false);
   const [pyramidNextPredictionCost, setPyramidNextPredictionCost] = useState(false);
+  const [pyramidPendingMovementCost, setPyramidPendingMovementCost] = useState<number | null>(null);
   const [pyramidMustSucceed, setPyramidMustSucceed] = useState(false);
   const [pyramidPendingHonorChoice, setPyramidPendingHonorChoice] = useState<'face_gamble' | null>(null);
   const [pyramidResultText, setPyramidResultText] = useState<string | null>(null);
@@ -438,6 +439,7 @@ export default function App() {
     setPyramidNextSuccess(false);
     setPyramidJusticeApplied(false);
     setPyramidNextPredictionCost(false);
+    setPyramidPendingMovementCost(null);
     setPyramidMustSucceed(false);
     setActiveTarotCard(null);
     setPyramidPendingHonorChoice(null);
@@ -1509,6 +1511,7 @@ export default function App() {
     setPyramidNextSuccess(false);
     setPyramidJusticeApplied(false);
     setPyramidNextPredictionCost(false);
+    setPyramidPendingMovementCost(null);
     setPyramidMustSucceed(false);
     setActiveTarotCard(null);
     setPyramidPendingHonorChoice(null);
@@ -1545,9 +1548,8 @@ export default function App() {
     const targetKey = `${nextCol},${nextRow}`;
 
     const movementCost = pyramidNextPredictionCost ? 5 : 1;
-    const moveCostEnergy = Math.max(0, energy - movementCost);
+    setPyramidPendingMovementCost(movementCost);
     setPyramidNextPredictionCost(false);
-    setEnergy(moveCostEnergy);
 
     // Update pyramid map tile as visited
     const newTiles = new Map(pyramidData.tiles);
@@ -1568,16 +1570,8 @@ export default function App() {
     setShowPyramidDrawModal(true);
 
     setStatusMessage(
-      `Moved to Col ${nextCol + 1} (${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}). Cost ${movementCost}⚡. Tap Draw Card to reveal outcome!`
+      `Moved to Col ${nextCol + 1} (${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}). Reveal the card and resolve any Tarot event before paying ${movementCost}⚡.`
     );
-
-    if (moveCostEnergy <= 0 && !pyramidMustSucceed) {
-      setTimeout(() => {
-        sounds.playHazard();
-        setIsLost(true);
-        setStatusMessage('Energy exhausted moving through the pyramid! The delve is lost.');
-      }, 500);
-    }
   };
 
   // Step 2: Inside modal, draw card & evaluate Higher / Lower / Pair / Honour
@@ -1748,6 +1742,25 @@ export default function App() {
     }
   };
 
+  const applyPyramidMovementCost = (resolvedEnergy: number, allowZeroEnergy = pyramidMustSucceed) => {
+    if (pyramidPendingMovementCost === null) {
+      setEnergy(resolvedEnergy);
+      return true;
+    }
+
+    const remainingEnergy = Math.max(0, resolvedEnergy - pyramidPendingMovementCost);
+    setEnergy(remainingEnergy);
+    setPyramidPendingMovementCost(null);
+
+    if (remainingEnergy <= 0 && !allowZeroEnergy) {
+      sounds.playHazard();
+      setIsLost(true);
+      setStatusMessage('Energy exhausted moving through the pyramid! The delve is lost.');
+      return false;
+    }
+    return true;
+  };
+
   // Step 4: Return to map after card is resolved
   const handlePyramidModalContinue = () => {
     setShowPyramidDrawModal(false);
@@ -1777,6 +1790,8 @@ export default function App() {
       return;
     }
 
+    if (!applyPyramidMovementCost(energy)) return;
+
     // Check if the final goal column has been reached.
     if (pyramidPlayerPos.col === PYRAMID_COLS - 1 && !isLost) {
       setTimeout(() => {
@@ -1796,25 +1811,27 @@ export default function App() {
 
     if (card.isDeath) {
       sounds.playHazard();
+      setPyramidPendingMovementCost(null);
       setIsLost(true);
       setStatusMessage('The Pale Horseman claims your soul. Game Over!');
       return;
     }
 
     let causesLoss = false;
+    let resolvedEnergy = energy;
+    let allowsZeroEnergy = pyramidMustSucceed;
     if (card.effectType === 'wheel') {
       if (resolution?.wheelResult === 'win') {
         sounds.playBonus();
-        setEnergy((e) => Math.min(e + 5, MAX_ENERGY));
+        resolvedEnergy = Math.min(resolvedEnergy + 5, MAX_ENERGY);
         setStatusMessage('Wheel of Fortune: Fortune smiles! +5⚡ Energy Restored.');
         setPyramidResultText('The Wheel of Fortune turned in your favor! Gained +5⚡ Energy.');
       } else {
         sounds.playHazard();
-        const newE = Math.max(0, energy - 5);
-        setEnergy(newE);
+        resolvedEnergy = Math.max(0, resolvedEnergy - 5);
         setStatusMessage('Wheel of Fortune: Fate bites! -5⚡ Energy Drained.');
         setPyramidResultText('The Wheel of Fortune was harsh! Lost -5⚡ Energy.');
-        if (newE <= 0) {
+        if (resolvedEnergy <= 0) {
           causesLoss = true;
         }
       }
@@ -1854,7 +1871,8 @@ export default function App() {
         setPlayerHand([]);
         setPyramidResultText('The Devil discarded your entire Hand.');
       } else {
-        setEnergy(0);
+        resolvedEnergy = 0;
+        allowsZeroEnergy = true;
         setPyramidMustSucceed(true);
         setPyramidResultText('The Devil set your Energy to 0. Your next prediction must be successful to continue.');
       }
@@ -1865,10 +1883,9 @@ export default function App() {
         setPlayerHand((hand) => hand.filter((heldCard) => heldCard.id !== discarded.id));
         setPyramidResultText(`The Tower destroyed ${discarded.rank}${discarded.suit} from your Hand.`);
       } else {
-        const newEnergy = Math.max(0, energy - 3);
-        setEnergy(newEnergy);
+        resolvedEnergy = Math.max(0, resolvedEnergy - 3);
         setPyramidResultText('The Tower struck! You lost 3⚡ Energy.');
-        if (newEnergy <= 0) causesLoss = true;
+        if (resolvedEnergy <= 0) causesLoss = true;
       }
     } else if (card.effectType === 'dice_modifier') {
       const modifierCard: ExplorationCard = {
@@ -1904,12 +1921,11 @@ export default function App() {
       if (card.energyChange) {
         if (card.energyChange > 0) {
           sounds.playBonus();
-          setEnergy((e) => Math.min(e + card.energyChange!, MAX_ENERGY));
+          resolvedEnergy = Math.min(resolvedEnergy + card.energyChange, MAX_ENERGY);
         } else {
           sounds.playHazard();
-          const newE = Math.max(0, energy + card.energyChange);
-          setEnergy(newE);
-          if (newE <= 0) {
+          resolvedEnergy = Math.max(0, resolvedEnergy + card.energyChange);
+          if (resolvedEnergy <= 0) {
             causesLoss = true;
           }
         }
@@ -1934,18 +1950,19 @@ export default function App() {
           const discarded = playerHand[discardedIndex];
           setPlayerHand((hand) => hand.filter((heldCard) => heldCard.id !== discarded.id));
         } else {
-          const newEnergy = Math.max(0, energy - 3);
-          setEnergy(newEnergy);
-          if (newEnergy <= 0) causesLoss = true;
+          resolvedEnergy = Math.max(0, resolvedEnergy - 3);
+          if (resolvedEnergy <= 0) causesLoss = true;
         }
       }
     }
 
+    const movementCostSurvived = applyPyramidMovementCost(resolvedEnergy, allowsZeroEnergy);
     if (causesLoss) {
       setIsLost(true);
       setStatusMessage('Energy exhausted by the Tarot event. The delve is lost.');
       return;
     }
+    if (!movementCostSurvived) return;
 
     if (card.effectType !== 'wheel') {
       setStatusMessage(`Event Resolved: ${card.name} — ${card.effectDescription}`);
@@ -2870,6 +2887,9 @@ export default function App() {
     const updatedTiles = new Map(level3State.tiles);
     const cur = updatedTiles.get(targetKey);
     if (cur) {
+      if (cur.type === 'trap' && cur.disarmedTemporarily) {
+        cur.disarmedTemporarily = false;
+      }
       cur.revealed = true;
       cur.visited = true;
       cur.status = cur.status === 'cleared' ? 'cleared' : 'visited';
@@ -3158,7 +3178,7 @@ export default function App() {
     setLevel3Steps(0);
     setIsWon(false);
     setIsLost(false);
-    setStatusMessage('Started Level 3 Test: 15⚡ Energy and 5 Cards in Hand (10♦, 8♠, 6♣, 4♦, 2♠).');
+    setStatusMessage('Started Level 3 Test: 15⚡ Energy and the Star, Moon, Sun, Judgement and World Tarot cards in Hand.');
   };
 
   const handleChangeLevel = (targetLvl: GameLevel) => {
@@ -3257,6 +3277,7 @@ export default function App() {
               playerCoord={level3State.playerCoord}
               outerDoorsUnlocked={level3State.outerDoorsUnlocked}
               innerDoorsUnlocked={level3State.innerDoorsUnlocked}
+              bossDefeated={level3State.bossDefeated}
               energy={energy}
               onStepIn={handleLevel3StepIn}
               onPeek={handleLevel3Peek}
@@ -3295,6 +3316,8 @@ export default function App() {
           streak={pyramidStreak}
           energy={energy}
           maxEnergy={MAX_ENERGY}
+          movementCost={pyramidNextPredictionCost ? 5 : 1}
+          mustSucceed={pyramidMustSucceed}
           isPredicting={pyramidIsPredicting}
           onPredict={handlePyramidPredict}
           onOpenRules={() => setShowRules(true)}

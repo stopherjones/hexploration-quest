@@ -112,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
                 id="btn-test-level3"
                 onClick={onTestLevel3}
                 className="flex items-center gap-1 ml-1 px-1.5 py-0.5 text-[9.5px] font-mono font-black uppercase tracking-wider bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border border-[#2b261f] rounded shadow-2xs active:translate-y-px cursor-pointer"
-                title="Directly test Level 3: Starts on 15⚡ Energy with 5 tactical cards in Hand"
+                title="Directly test Level 3: Starts on 15⚡ Energy with the Star, Moon, Sun, Judgement and World Tarot cards in Hand"
               >
                 <span>Test L3</span>
                 <span className="text-[8.5px] text-[#86efac] font-bold bg-[#14532d] px-1 rounded">15⚡+5🃏</span>

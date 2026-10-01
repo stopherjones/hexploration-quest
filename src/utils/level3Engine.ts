@@ -27,6 +27,7 @@ export interface FlowerTile {
   status: 'unexplored' | 'peeked' | 'visited' | 'cleared';
   doorTested?: boolean;  // doors can only be tested once
   doorPassed?: boolean;  // true if unlocked (0-10 on outer, 0 on inner)
+  doorwayTo?: string;   // selected neighboring hex for this door's single boundary opening
   disarmed?: boolean;    // trap permanently disarmed
   disarmedTemporarily?: boolean; // trap disarmed temporarily (reactivates if player returns)
   monsterBypassed?: boolean; // sneaked past monster
@@ -69,27 +70,27 @@ export const LEVEL3_MONSTERS: Record<number, MonsterDef> = {
     level: 3,
     name: 'Obsidian Dread Golem',
     title: 'Level 3 Stone Sentinel (3 HP)',
-    description: 'A massive basalt automaton forged to crush all trespassers! Damaged on 6 (3 HP). Player takes damage on 1, 2, 3 (-1⚡).',
+    description: 'A massive basalt automaton forged to crush all trespassers! Damaged on 5, 6. Player takes damage on 1, 2 (-1⚡ per matching die).',
     maxHp: 3,
-    monsterDamageValues: [6],
-    playerDamageValues: [1, 2, 3],
+    monsterDamageValues: [5, 6],
+    playerDamageValues: [1, 2],
   },
   4: {
     level: 4,
     name: 'Chthonic Abomination',
     title: 'Level 4 Horrific Behemoth (4 HP)',
-    description: 'A towering eldritch abomination writhing with subterranean power! Receives damage on 1, 2, 3 (4 HP). Player takes damage on 4, 5, 6 (-1⚡).',
+    description: 'A towering eldritch abomination writhing with subterranean power! Damaged on 5, 6. Player takes damage on 1, 2 (-1⚡ per matching die).',
     maxHp: 4,
-    monsterDamageValues: [1, 2, 3],
-    playerDamageValues: [4, 5, 6],
+    monsterDamageValues: [5, 6],
+    playerDamageValues: [1, 2],
   },
   5: {
     level: 5,
     name: 'The Utopia Engine Core Construct',
     title: 'Level 5 Ancient Guardian (5 HP)',
-    description: 'The supreme mechanical sovereign defending the subterranean core! Roll values reversed: Receives damage on 4, 5, 6 (5 HP). Beware rolls of 1, 2, 3 (-1⚡)!',
+    description: 'The supreme mechanical sovereign defending the subterranean core! Damaged on 6 only. Player takes damage on 1, 2, 3 (-1⚡ per matching die).',
     maxHp: 5,
-    monsterDamageValues: [4, 5, 6],
+    monsterDamageValues: [6],
     playerDamageValues: [1, 2, 3],
   },
 };
@@ -324,6 +325,20 @@ export function generateLevel3Map(): Level3State {
     visited: false,
     status: 'unexplored',
   });
+
+  for (const tile of tiles.values()) {
+    if (tile.type !== 'outer_door' && tile.type !== 'inner_door') continue;
+    const tileDistance = getHexDistance(tile.q, tile.r);
+    const inwardNeighbors = getAxialNeighbors(tile.q, tile.r)
+      .map((coord) => tiles.get(`${coord.q},${coord.r}`))
+      .filter((neighbor): neighbor is FlowerTile =>
+        Boolean(neighbor && getHexDistance(neighbor.q, neighbor.r) === tileDistance - 1)
+      );
+    if (inwardNeighbors.length > 0) {
+      const doorwayNeighbor = inwardNeighbors[Math.floor(Math.random() * inwardNeighbors.length)];
+      tile.doorwayTo = doorwayNeighbor.id;
+    }
+  }
 
   return {
     tiles,

@@ -168,6 +168,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   });
   const [combatDice, setCombatDice] = useState<[number, number] | null>(null);
   const [isCombatRolling, setIsCombatRolling] = useState<boolean>(false);
+  const [combatRollPending, setCombatRollPending] = useState<boolean>(false);
   const [combatLogs, setCombatLogs] = useState<string[]>(() => {
     if (isDirectBoss) return ['The Utopia Engine Core Construct awakens! Engage in battle to save Utopia!'];
     return [];
@@ -389,76 +390,92 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     }
   };
 
-  // Roll 2D6 Combat
+  const resolveCombatRoll = (dice: [number, number]) => {
+    if (!monster) return;
+    const [d1, d2] = dice;
+    const nextRound = combatRound + 1;
+    setCombatRound(nextRound);
+    setCombatRollPending(false);
+
+    let damageToPlayer = 0;
+    if (monster.playerDamageValues.includes(d1)) damageToPlayer += 1;
+    if (monster.playerDamageValues.includes(d2)) damageToPlayer += 1;
+
+    let damageToMonster = 0;
+    if (monster.monsterDamageValues.includes(d1)) damageToMonster += 1;
+    if (monster.monsterDamageValues.includes(d2)) damageToMonster += 1;
+
+    let roundMsg = `Round ${nextRound}: Rolled [${d1}, ${d2}]. `;
+    if (damageToPlayer > 0) {
+      roundMsg += `Took -${damageToPlayer} ⚡ harm! `;
+      onModifyEnergy(-damageToPlayer);
+    } else {
+      roundMsg += 'Evaded harm! ';
+    }
+    if (damageToMonster > 0) roundMsg += `Dealt ${damageToMonster} damage to monster! `;
+
+    const nextMonsterHp = Math.max(0, monsterHp - damageToMonster);
+    setMonsterHp(nextMonsterHp);
+    const projectedEnergy = energy - damageToPlayer;
+    if (projectedEnergy <= 0) {
+      roundMsg += 'Energy exhausted! Slain in combat.';
+      setCombatLogs((prev) => [roundMsg, ...prev]);
+      onGameOver(`Defeated by ${monster.name}!`);
+      return;
+    }
+
+    if (nextMonsterHp <= 0) {
+      sounds.playVictory();
+      setMonsterDefeated(true);
+      roundMsg += `The ${monster.name} is vanquished!`;
+      if (monster.level === 5) {
+        onBossDefeated();
+      } else if (tile.type === 'monster') {
+        onMonsterDefeated?.();
+      } else if (tile.type === 'treasure') {
+        onTreasureClaimed?.();
+      } else if (tile.type === 'trap') {
+        onTrapDisarmed(false);
+      }
+    } else if (damageToPlayer > 0) {
+      sounds.playHazard();
+    } else {
+      sounds.playClick();
+    }
+    setCombatLogs((prev) => [roundMsg, ...prev]);
+  };
+
   const handleRollCombat = () => {
-    if (!monster || monsterDefeated || isCombatRolling) return;
+    if (!monster || monsterDefeated || isCombatRolling || combatRollPending) return;
 
     setIsCombatRolling(true);
     sounds.playDiceRoll();
-
     setTimeout(() => {
-      const d1 = Math.floor(Math.random() * 6) + 1;
-      const d2 = Math.floor(Math.random() * 6) + 1;
-      setCombatDice([d1, d2]);
-      const nextRound = combatRound + 1;
-      setCombatRound(nextRound);
-
-      // Check damage to player (-1 energy per match)
-      let damageToPlayer = 0;
-      if (monster.playerDamageValues.includes(d1)) damageToPlayer += 1;
-      if (monster.playerDamageValues.includes(d2)) damageToPlayer += 1;
-
-      // Check damage to monster
-      let damageToMonster = 0;
-      if (monster.monsterDamageValues.includes(d1)) damageToMonster += 1;
-      if (monster.monsterDamageValues.includes(d2)) damageToMonster += 1;
-
-      let roundMsg = `Round ${nextRound}: Rolled [${d1}, ${d2}]. `;
-
-      if (damageToPlayer > 0) {
-        roundMsg += `Took -${damageToPlayer} ⚡ harm! `;
-        onModifyEnergy(-damageToPlayer);
-      } else {
-        roundMsg += `Evaded harm! `;
-      }
-
-      if (damageToMonster > 0) {
-        roundMsg += `Dealt ${damageToMonster} damage to monster! `;
-      }
-
-      const nextMonsterHp = Math.max(0, monsterHp - damageToMonster);
-      setMonsterHp(nextMonsterHp);
-
-      const projectedEnergy = energy - damageToPlayer;
-      if (projectedEnergy <= 0) {
-        roundMsg += 'Energy exhausted! Slain in combat.';
-        setCombatLogs((prev) => [roundMsg, ...prev]);
-        setIsCombatRolling(false);
-        onGameOver(`Defeated by ${monster.name}!`);
-        return;
-      }
-
-      if (nextMonsterHp <= 0) {
-        sounds.playVictory();
-        setMonsterDefeated(true);
-        roundMsg += `The ${monster.name} is vanquished!`;
-        if (monster.level === 5) {
-          onBossDefeated();
-        } else if (tile.type === 'monster') {
-          onMonsterDefeated?.();
-        } else if (tile.type === 'treasure') {
-          onTreasureClaimed?.();
-        } else if (tile.type === 'trap') {
-          onTrapDisarmed(false);
-        }
-      } else {
-        if (damageToPlayer > 0) sounds.playHazard();
-        else sounds.playClick();
-      }
-
-      setCombatLogs((prev) => [roundMsg, ...prev]);
+      const dice: [number, number] = [
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+      ];
+      setCombatDice(dice);
       setIsCombatRolling(false);
+      if (playerHand.some((card) => card.level3DiceModifier)) {
+        setCombatRollPending(true);
+      } else {
+        resolveCombatRoll(dice);
+      }
     }, 400);
+  };
+
+  const applyCombatDiceModifier = (
+    card: ExplorationCard,
+    dieIndex: 0 | 1,
+    value: number
+  ) => {
+    if (!combatDice || !combatRollPending) return;
+    const nextDice: [number, number] = [...combatDice];
+    nextDice[dieIndex] = value;
+    setCombatDice(nextDice);
+    onConsumeHandCards?.([card.id]);
+    sounds.playBonus();
   };
 
   const absDiff = difference !== null ? Math.abs(difference) : 0;
@@ -1040,6 +1057,102 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
               </div>
             )}
 
+            {combatRollPending && combatDice && (
+              <div className="flex flex-col gap-2">
+                {playerHand.some((card) => card.level3DiceModifier) && (
+                  <div className="w-full space-y-1 rounded-md border border-amber-700/40 bg-amber-50 p-2">
+                    <span className="block text-center text-[10px] font-black uppercase text-amber-900">
+                      Use a Tarot modifier before resolving this round
+                    </span>
+                    {playerHand.filter((card) => card.level3DiceModifier).map((card) => (
+                      <div key={card.id} className="flex flex-wrap items-center justify-center gap-1">
+                        <span className="mr-1 text-[9px] font-bold text-amber-900">
+                          {card.tarotCard && (
+                            <TarotModifierArt
+                              card={card}
+                              className="inline-block h-7 w-5 object-contain align-middle mr-1"
+                            />
+                          )}
+                          {card.level3DiceModifier === 'adjust'
+                            ? 'Star'
+                            : card.level3DiceModifier === 'flip'
+                              ? 'Moon'
+                              : 'Sun'}
+                        </span>
+                        {combatDice.map((value, dieIndex) => {
+                          const die = dieIndex as 0 | 1;
+                          if (card.level3DiceModifier === 'adjust') {
+                            return (
+                              <React.Fragment key={`${card.id}-${die}`}>
+                                <button
+                                  type="button"
+                                  disabled={value <= 1}
+                                  onClick={() => applyCombatDiceModifier(card, die, value - 1)}
+                                  className="rounded border border-amber-800/40 bg-white px-1.5 py-0.5 text-[9px] font-bold disabled:opacity-40"
+                                >
+                                  Die {dieIndex + 1} −1
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={value >= 6}
+                                  onClick={() => applyCombatDiceModifier(card, die, value + 1)}
+                                  className="rounded border border-amber-800/40 bg-white px-1.5 py-0.5 text-[9px] font-bold disabled:opacity-40"
+                                >
+                                  +1
+                                </button>
+                              </React.Fragment>
+                            );
+                          }
+                          if (card.level3DiceModifier === 'flip') {
+                            return (
+                              <button
+                                key={`${card.id}-${die}`}
+                                type="button"
+                                onClick={() => applyCombatDiceModifier(card, die, 7 - value)}
+                                className="rounded border border-amber-800/40 bg-white px-1.5 py-0.5 text-[9px] font-bold"
+                              >
+                                Flip die {dieIndex + 1} ({7 - value})
+                              </button>
+                            );
+                          }
+                          return (
+                            <label
+                              key={`${card.id}-${die}`}
+                              className="flex items-center gap-1 text-[9px] font-bold text-amber-900"
+                            >
+                              Die {dieIndex + 1}
+                              <select
+                                defaultValue=""
+                                onChange={(event) => {
+                                  const nextValue = Number(event.target.value);
+                                  if (nextValue >= 1 && nextValue <= 6) {
+                                    applyCombatDiceModifier(card, die, nextValue);
+                                  }
+                                }}
+                                className="rounded border border-amber-800/40 bg-white px-1 py-0.5"
+                              >
+                                <option value="" disabled>Set</option>
+                                {[1, 2, 3, 4, 5, 6].map((face) => (
+                                  <option key={face} value={face}>{face}</option>
+                                ))}
+                              </select>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => resolveCombatRoll(combatDice)}
+                  className="w-full py-2.5 bg-[#991b1b] hover:bg-[#7f1d1d] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer"
+                >
+                  Resolve Combat Round ({combatDice[0]}, {combatDice[1]})
+                </button>
+              </div>
+            )}
+
             {/* Combat Logs */}
             <div className="h-16 overflow-y-auto bg-[#ede4d3] p-2 rounded border border-[#2b261f]/20 text-[10px] leading-tight flex flex-col gap-1">
               {combatLogs.map((log, i) => (
@@ -1053,7 +1166,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
             {!monsterDefeated ? (
               <button
                 onClick={handleRollCombat}
-                disabled={isCombatRolling}
+                disabled={isCombatRolling || combatRollPending}
                 className="w-full py-2.5 bg-[#991b1b] hover:bg-[#7f1d1d] text-white rounded-lg font-black text-xs uppercase tracking-wider border-2 border-[#2b261f] shadow-md cursor-pointer transition-transform active:translate-y-0.5 flex items-center justify-center gap-2"
               >
                 <Swords className="w-4 h-4" />

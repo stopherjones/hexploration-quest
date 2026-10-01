@@ -8,12 +8,14 @@ import {
 } from '../utils/level3Engine';
 import { ExplorationCard } from '../utils/explorationDeck';
 import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent, Backpack, X } from 'lucide-react';
+import { TarotModifierArt } from './TarotModifierArt';
 
 interface FlowerHexGridProps {
   tiles: Map<string, FlowerTile>;
   playerCoord: FlowerHexCoord;
   outerDoorsUnlocked: boolean;
   innerDoorsUnlocked: boolean;
+  bossDefeated?: boolean;
   energy: number;
   onStepIn: (target: FlowerTile) => void;
   onPeek: (target: FlowerTile) => void;
@@ -35,6 +37,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   playerCoord,
   outerDoorsUnlocked,
   innerDoorsUnlocked,
+  bossDefeated = false,
   energy,
   onStepIn,
   onPeek,
@@ -102,15 +105,28 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
         if (processedPairs.has(pairKey)) continue;
         processedPairs.add(pairKey);
 
-        // The outer hex of the boundary pair
+        // The outer hex owns the doorway; only its selected inward edge opens after a successful test.
         const outerHex = d1 > d2 ? h1 : h2;
-        const isDoor = outerHex.type === 'outer_door' || outerHex.type === 'inner_door';
+        const innerHex = d1 < d2 ? h1 : h2;
+        const inwardNeighbors = getAxialNeighbors(outerHex.q, outerHex.r)
+          .map((coord) => tiles.get(`${coord.q},${coord.r}`))
+          .filter((neighbor): neighbor is FlowerTile =>
+            Boolean(neighbor && getHexDistance(neighbor.q, neighbor.r) === Math.min(d1, d2))
+          );
+        const legacyDoorTarget = inwardNeighbors.length > 0
+          ? inwardNeighbors
+            .slice()
+            .sort((a, b) => a.id.localeCompare(b.id))[
+              [...outerHex.id].reduce((hash, char) => hash + char.charCodeAt(0), 0) % inwardNeighbors.length
+            ]?.id
+          : undefined;
+        const doorwayTarget = outerHex.doorwayTo ?? legacyDoorTarget;
+        const isDoor =
+          (outerHex.type === 'outer_door' || outerHex.type === 'inner_door') &&
+          outerHex.doorPassed === true &&
+          doorwayTarget === innerHex.id;
         const doorType = isDoor ? (outerHex.type as 'outer_door' | 'inner_door') : undefined;
-        const isUnlocked = isDoor
-          ? doorType === 'outer_door'
-            ? outerDoorsUnlocked || outerHex.doorPassed || false
-            : innerDoorsUnlocked || outerHex.doorPassed || false
-          : false;
+        const isUnlocked = isDoor;
 
         // Calculate exact shared edge endpoints
         const pix1 = hexToPixel(h1.q, h1.r);
@@ -207,16 +223,14 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
 
             if (!tile.revealed) {
               if (dist === 2) {
-                // Outer ring unrevealed: dark bronze yellow stone
-                fillColor = '#3f3524';
-                strokeColor = '#6b542c';
+                // Outer ring mystery tiles use the bright yellow map palette.
+                fillColor = '#fef3c7';
+                strokeColor = '#ca8a04';
               } else if (dist === 1) {
-                // Middle ring unrevealed: dark terracotta orange stone
-                fillColor = '#422413';
-                strokeColor = '#8c3514';
+                fillColor = '#ffedd5';
+                strokeColor = '#ea580c';
               } else {
-                // Inner ring / boss unrevealed: dark crimson stone
-                fillColor = '#450a0a';
+                fillColor = '#fee2e2';
                 strokeColor = '#991b1b';
               }
             } else if (dist === 0) {
@@ -317,9 +331,9 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                       x={x}
                       y={y + 5}
                       textAnchor="middle"
-                      fill={dist === 2 ? '#d4af37' : dist === 1 ? '#fb923c' : '#f87171'}
+                      fill="#3f3524"
                       fontSize="14"
-                      fontWeight="bold"
+                      fontWeight="900"
                     >
                       ?
                     </text>
@@ -328,91 +342,101 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                   // Face-up Revealed Tile Content
                   <g pointerEvents="none" className="select-none">
                     {tile.type === 'safe' && (
-                      <g transform={`translate(${x - 8}, ${y - 12})`}>
-                        <Tent className="w-4 h-4 text-emerald-700" />
-                        <text x={8} y={22} textAnchor="middle" fill="#15803d" fontSize="7" fontWeight="bold">
-                          CAMP
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
+                        <Tent className="w-5 h-5 text-emerald-800" />
+                        <text x={10} y={25} textAnchor="middle" fill="#14532d" fontSize="7" fontWeight="900">
+                          CAMP: SAFE
                         </text>
                       </g>
                     )}
                     {tile.type === 'center_boss' && (
-                      <g transform={`translate(${x - 9}, ${y - 12})`}>
-                        <Skull className="w-4.5 h-4.5 text-red-800" />
-                        <text x={9} y={23} textAnchor="middle" fill="#991b1b" fontSize="8" fontWeight="900">
-                          BOSS
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
+                        <Skull className="w-5 h-5 text-red-900" />
+                        <text x={10} y={25} textAnchor="middle" fill="#7f1d1d" fontSize="7.5" fontWeight="900">
+                          {bossDefeated ? 'CORE: CLEAR' : 'CORE: BOSS'}
                         </text>
                       </g>
                     )}
                     {tile.type === 'outer_door' && (
-                      <g transform={`translate(${x - 8}, ${y - 12})`}>
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
                         {outerDoorsUnlocked || tile.doorPassed ? (
-                          <Unlock className="w-4 h-4 text-emerald-700" />
+                          <Unlock className="w-5 h-5 text-emerald-800" />
                         ) : (
-                          <Lock className={`w-4 h-4 ${tile.doorTested ? 'text-red-800' : 'text-amber-800'}`} />
+                          <Lock className={`w-5 h-5 ${tile.doorTested ? 'text-red-900' : 'text-amber-900'}`} />
                         )}
                         <text
-                          x={8}
-                          y={22}
+                          x={10}
+                          y={25}
                           textAnchor="middle"
-                          fill={tile.doorTested && !tile.doorPassed ? '#991b1b' : '#92400e'}
-                          fontSize="7"
-                          fontWeight="bold"
+                          fill={tile.doorTested && !tile.doorPassed ? '#7f1d1d' : '#78350f'}
+                          fontSize="6.5"
+                          fontWeight="900"
                         >
-                          {tile.doorTested && !tile.doorPassed ? 'SEALED' : 'DOOR'}
+                          {tile.doorTested && !tile.doorPassed ? 'DOOR: SEALED' :
+                            tile.doorPassed || outerDoorsUnlocked ? 'DOOR: OPEN' : 'DOOR: LOCKED'}
                         </text>
                       </g>
                     )}
                     {tile.type === 'inner_door' && (
-                      <g transform={`translate(${x - 8}, ${y - 12})`}>
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
                         {innerDoorsUnlocked || tile.doorPassed ? (
-                          <Unlock className="w-4 h-4 text-emerald-800" />
+                          <Unlock className="w-5 h-5 text-emerald-900" />
                         ) : (
-                          <KeyRound className={`w-4 h-4 ${tile.doorTested ? 'text-red-900' : 'text-amber-900'}`} />
+                          <KeyRound className={`w-5 h-5 ${tile.doorTested ? 'text-red-900' : 'text-amber-900'}`} />
                         )}
                         <text
-                          x={8}
-                          y={22}
+                          x={10}
+                          y={25}
                           textAnchor="middle"
-                          fill={tile.doorTested && !tile.doorPassed ? '#991b1b' : '#78350f'}
-                          fontSize="7"
-                          fontWeight="bold"
+                          fill={tile.doorTested && !tile.doorPassed ? '#7f1d1d' : '#713f12'}
+                          fontSize="6.5"
+                          fontWeight="900"
                         >
-                          {tile.doorTested && !tile.doorPassed ? 'SEALED' : 'GATE'}
+                          {tile.doorTested && !tile.doorPassed ? 'GATE: SEALED' :
+                            tile.doorPassed || innerDoorsUnlocked ? 'GATE: OPEN' : 'GATE: LOCKED'}
                         </text>
                       </g>
                     )}
                     {tile.type === 'trap' && (
-                      <g transform={`translate(${x - 8}, ${y - 12})`}>
-                        <ShieldAlert className={`w-4 h-4 ${tile.disarmed ? 'text-gray-500' : 'text-red-700'}`} />
-                        <text x={8} y={22} textAnchor="middle" fill={tile.disarmed ? '#6b7280' : '#b91c1c'} fontSize="7" fontWeight="bold">
-                          {tile.disarmed ? 'SAFE' : 'TRAP'}
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
+                        <ShieldAlert className={`w-5 h-5 ${tile.disarmed || tile.disarmedTemporarily ? 'text-emerald-800' : 'text-red-800'}`} />
+                        <text
+                          x={10}
+                          y={25}
+                          textAnchor="middle"
+                          fill={tile.disarmed || tile.disarmedTemporarily ? '#14532d' : '#7f1d1d'}
+                          fontSize="7"
+                          fontWeight="900"
+                        >
+                          {tile.disarmed || tile.disarmedTemporarily ? 'TRAP: SAFE' : 'TRAP: ACTIVE'}
                         </text>
                       </g>
                     )}
                     {tile.type === 'monster' && (
-                      <g transform={`translate(${x - 8}, ${y - 12})`}>
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
                         <Swords
-                          className={`w-4 h-4 ${
-                            tile.monsterBypassed || tile.monsterDefeated ? 'text-gray-400' : 'text-red-700'
+                          className={`w-5 h-5 ${
+                            tile.monsterBypassed || tile.monsterDefeated ? 'text-emerald-800' : 'text-red-800'
                           }`}
                         />
                         <text
-                          x={8}
-                          y={22}
+                          x={10}
+                          y={25}
                           textAnchor="middle"
-                          fill={tile.monsterBypassed || tile.monsterDefeated ? '#9ca3af' : '#b91c1c'}
-                          fontSize="7"
-                          fontWeight="bold"
+                          fill={tile.monsterBypassed || tile.monsterDefeated ? '#14532d' : '#7f1d1d'}
+                          fontSize="6.5"
+                          fontWeight="900"
                         >
-                          {tile.monsterBypassed ? 'SNEAK' : tile.monsterDefeated ? 'CLEARED' : 'BEAST'}
+                          {tile.monsterBypassed ? 'BEAST: SNEAKED' :
+                            tile.monsterDefeated ? 'BEAST: CLEARED' : 'BEAST: ACTIVE'}
                         </text>
                       </g>
                     )}
                     {tile.type === 'treasure' && (
-                      <g transform={`translate(${x - 8}, ${y - 12})`}>
-                        <Sparkles className={`w-4 h-4 ${tile.looted ? 'text-gray-400' : 'text-amber-600'}`} />
-                        <text x={8} y={22} textAnchor="middle" fill={tile.looted ? '#9ca3af' : '#b45309'} fontSize="7" fontWeight="bold">
-                          {tile.looted ? 'EMPTY' : 'MANA'}
+                      <g transform={`translate(${x - 10}, ${y - 13})`}>
+                        <Sparkles className={`w-5 h-5 ${tile.looted ? 'text-stone-600' : 'text-amber-800'}`} />
+                        <text x={10} y={25} textAnchor="middle" fill={tile.looted ? '#57534e' : '#78350f'} fontSize="7" fontWeight="900">
+                          {tile.looted ? 'MANA: EMPTY' : 'MANA: FOUND'}
                         </text>
                       </g>
                     )}
@@ -887,33 +911,46 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                         key={`flower-hand-card-${card.id || idx}`}
                         className="bg-white border-2 border-[#2b261f] rounded-lg shadow p-2 flex flex-col justify-between items-center h-28 relative"
                       >
-                        <div className="w-full flex items-center justify-between">
-                          <span
-                            className={`text-xs font-black ${
-                              isRed ? 'text-red-700' : 'text-slate-900'
-                            }`}
-                          >
-                            {card.rank}
-                            <span className="text-[10px] ml-0.5">{card.suit}</span>
-                          </span>
-                          <span className="text-[9px] bg-[#f0ebd9] px-1 py-0.2 rounded font-bold text-[#5c5244]">
-                            v:{card.value}
-                          </span>
-                        </div>
+                        {card.tarotCard ? (
+                          <>
+                            <TarotModifierArt card={card} className="h-20 w-full object-contain" />
+                            <span className="text-[9px] font-black text-indigo-900 uppercase">
+                              {card.tarotCard === 'judgement' ? 'Judgement · Set 1' :
+                                card.tarotCard === 'world' ? 'World · Set 0' :
+                                  `${card.tarotCard} · Dice Modifier`}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-full flex items-center justify-between">
+                              <span
+                                className={`text-xs font-black ${
+                                  isRed ? 'text-red-700' : 'text-slate-900'
+                                }`}
+                              >
+                                {card.rank}
+                                <span className="text-[10px] ml-0.5">{card.suit}</span>
+                              </span>
+                              <span className="text-[9px] bg-[#f0ebd9] px-1 py-0.2 rounded font-bold text-[#5c5244]">
+                                v:{card.value}
+                              </span>
+                            </div>
 
-                        <div
-                          className={`text-3xl font-black ${
-                            isRed ? 'text-red-700' : 'text-slate-900'
-                          }`}
-                        >
-                          {card.suit}
-                        </div>
+                            <div
+                              className={`text-3xl font-black ${
+                                isRed ? 'text-red-700' : 'text-slate-900'
+                              }`}
+                            >
+                              {card.suit}
+                            </div>
 
-                        <div className="w-full text-center">
-                          <span className="text-[9px] font-black text-[#15803d] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
-                            -{card.value} pts
-                          </span>
-                        </div>
+                            <div className="w-full text-center">
+                              <span className="text-[9px] font-black text-[#15803d] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
+                                -{card.value} pts
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
