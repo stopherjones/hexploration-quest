@@ -21,7 +21,7 @@ export const PyramidControlPanel: React.FC<PyramidControlPanelProps> = ({
   onOpenRules,
 }) => {
   return (
-    <div className="bg-[#e8deca] border-t-2 border-[#2b261f] p-2.5 text-[#2b261f] font-mono select-none space-y-2 shrink-0">
+    <footer className="h-[148px] shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] p-2.5 text-[#2b261f] font-mono select-none space-y-2">
       {/* Top summary row: Progress & Streak */}
       <div className="flex items-center justify-between text-xs border-b border-[#2b261f]/20 pb-1.5">
         <div className="flex items-center gap-2">
@@ -91,6 +91,6 @@ export const PyramidControlPanel: React.FC<PyramidControlPanelProps> = ({
         <span>•</span>
         <span>Pairs push (0⚡)</span>
       </div>
-    </div>
+    </footer>
   );
 };

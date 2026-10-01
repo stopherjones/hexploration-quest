@@ -53,9 +53,9 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   // SVG Geometry parameters (spaced to allow bottom-left hand card inset)
   const hexSize = 44;
   const svgWidth = 460;
-  const svgHeight = 420;
+  const svgHeight = 620;
   const centerX = 230;
-  const centerY = 195;
+  const centerY = 270;
 
   // Pointy-topped axial to pixel coords
   const hexToPixel = (q: number, r: number) => {
@@ -139,12 +139,12 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   }, [tiles, hexSize, outerDoorsUnlocked, innerDoorsUnlocked]);
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-between p-2 select-none font-mono">
+    <div className="relative w-full h-full min-h-0 flex flex-col items-center p-0 select-none font-mono">
       {/* 19-Hex SVG Canvas */}
       <div className="relative flex-1 w-full flex items-center justify-center min-h-0">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="w-full h-full max-h-[380px] drop-shadow-md"
+          className="w-full h-full drop-shadow-md"
         >
           <defs>
             {/* Concentric Ring Track Gradients */}
@@ -535,7 +535,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
           {/* ============================================================== */}
           <g
             id="l3-hand-cards-inset"
-            transform="translate(10, 266)"
+            transform="translate(10, 460)"
             className="cursor-pointer transition-transform hover:opacity-95"
             onClick={() => setShowHandModal(true)}
           >
@@ -774,59 +774,58 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
       </div>
 
       {/* Selected Tile Action Bar / Quick Commands */}
-      <div className="w-full bg-[#fdfbf7] border-2 border-[#2b261f] rounded-lg p-2.5 shadow-md flex flex-col gap-2">
-        {selectedTile ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-black text-[#2b261f] truncate">
-                {selectedTile.revealed ? selectedTile.title : `Unrevealed Hex [${selectedTile.q}, ${selectedTile.r}]`}
-              </span>
-              <span className="text-[10px] uppercase font-bold text-[#786e5e] bg-[#e8deca] px-1.5 py-0.5 rounded">
-                {selectedTile.ring} Ring
-              </span>
-            </div>
-
-            {/* Interaction Options */}
-            {selectedTile.q === playerCoord.q && selectedTile.r === playerCoord.r ? (
-              <span className="text-[11px] text-[#5c5346] italic">
-                Current adventurer position.
-              </span>
-            ) : isSelectedAdjacent ? (
-              <div className="flex items-center gap-2">
-                {/* Step In Option */}
-                <button
-                  onClick={() => onStepIn(selectedTile)}
-                  disabled={energy <= 0}
-                  className="flex-1 py-2 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-md font-black text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:translate-y-0.5 disabled:opacity-50"
-                >
-                  <Footprints className="w-3.5 h-3.5" />
-                  <span>Step In (-1⚡)</span>
-                </button>
-
-                {/* Peek Option (Only if unrevealed) */}
-                {!selectedTile.revealed && (
-                  <button
-                    onClick={() => onPeek(selectedTile)}
-                    disabled={energy <= 0}
-                    className="flex-1 py-2 bg-[#b45309] hover:bg-[#92400e] text-white rounded-md font-black text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:translate-y-0.5 disabled:opacity-50"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Peek (-1⚡)</span>
-                  </button>
-                )}
+      <footer className="w-full h-[148px] shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] p-2.5 shadow-lg flex flex-col justify-center select-none">
+        <div className="w-full bg-[#fdfbf7] border-2 border-[#2b261f] rounded-lg p-2.5 shadow-md flex flex-col gap-2">
+          {selectedTile ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-black text-[#2b261f] truncate">
+                  {selectedTile.revealed ? selectedTile.title : `Unrevealed Hex [${selectedTile.q}, ${selectedTile.r}]`}
+                </span>
+                <span className="text-[10px] uppercase font-bold text-[#786e5e] bg-[#e8deca] px-1.5 py-0.5 rounded">
+                  {selectedTile.ring} Ring
+                </span>
               </div>
-            ) : (
-              <span className="text-[11px] text-[#786e5e]">
-                Select an adjacent hex to step into or peek.
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="text-center text-xs text-[#786e5e] py-1">
-            Tap an adjacent hex to Step In (-1⚡) or Peek (-1⚡).
-          </div>
-        )}
-      </div>
+
+              {selectedTile.q === playerCoord.q && selectedTile.r === playerCoord.r ? (
+                <span className="text-[11px] text-[#5c5346] italic">
+                  Current adventurer position.
+                </span>
+              ) : isSelectedAdjacent ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onStepIn(selectedTile)}
+                    disabled={energy <= 0}
+                    className="flex-1 py-2 bg-[#2d6a4f] hover:bg-[#23533e] text-white rounded-md font-black text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:translate-y-0.5 disabled:opacity-50"
+                  >
+                    <Footprints className="w-3.5 h-3.5" />
+                    <span>Step In (-1⚡)</span>
+                  </button>
+
+                  {!selectedTile.revealed && (
+                    <button
+                      onClick={() => onPeek(selectedTile)}
+                      disabled={energy <= 0}
+                      className="flex-1 py-2 bg-[#b45309] hover:bg-[#92400e] text-white rounded-md font-black text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:translate-y-0.5 disabled:opacity-50"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Peek (-1⚡)</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[11px] text-[#786e5e]">
+                  Select an adjacent hex to step into or peek.
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="text-center text-xs text-[#786e5e] py-1">
+              Tap an adjacent hex to Step In (-1⚡) or Peek (-1⚡).
+            </div>
+          )}
+        </div>
+      </footer>
 
       {/* Hand Cards Modal */}
       {showHandModal && (

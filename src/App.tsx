@@ -84,7 +84,6 @@ import { PyramidGrid } from './components/PyramidGrid';
 import { PyramidControlPanel } from './components/PyramidControlPanel';
 import { PyramidExplorationModal } from './components/PyramidExplorationModal';
 import { TarotModal } from './components/TarotModal';
-import { PyramidVictoryModal } from './components/PyramidVictoryModal';
 import {
   saveGameStateLocally,
   loadGameStateLocally,
@@ -129,7 +128,6 @@ export default function App() {
   const [pyramidPendingHonorChoice, setPyramidPendingHonorChoice] = useState<'face_gamble' | null>(null);
   const [pyramidResultText, setPyramidResultText] = useState<string | null>(null);
   const [pyramidIsPredicting, setPyramidIsPredicting] = useState<boolean>(false);
-  const [showPyramidVictoryModal, setShowPyramidVictoryModal] = useState<boolean>(false);
   const [showPyramidDrawModal, setShowPyramidDrawModal] = useState<boolean>(false);
   const [activePyramidPrediction, setActivePyramidPrediction] = useState<'higher' | 'lower'>('higher');
 
@@ -437,8 +435,6 @@ export default function App() {
     setPyramidPendingHonorChoice(null);
     setPyramidResultText(null);
     setPyramidIsPredicting(false);
-    setShowPyramidVictoryModal(false);
-
     setTunnelMap(createTunnelMap(createShuffledHeartsDeck()));
     setCurrentTunnelHeading(2);
     setLevel2Steps(0);
@@ -1506,7 +1502,6 @@ export default function App() {
     setPyramidPendingHonorChoice(null);
     setPyramidResultText(null);
     setPyramidIsPredicting(false);
-    setShowPyramidVictoryModal(false);
     setShowPyramidDrawModal(false);
     setShowLevelTransitionModal(false);
     setIsWon(false);
@@ -1754,7 +1749,6 @@ export default function App() {
       setTimeout(() => {
         sounds.playVictory();
         setIsWon(true);
-        setShowPyramidVictoryModal(true);
         setStatusMessage('THE PYRAMID HAS BEEN CONQUERED! Reached Column 12! The Gateway to Level 3 is open!');
       }, 500);
     }
@@ -1853,20 +1847,6 @@ export default function App() {
     }
 
     setStatusMessage(`Event Resolved: ${card.name} — ${card.effectDescription}`);
-  };
-
-  const handlePyramidProceedToLevel3 = () => {
-    sounds.playVictory();
-    setShowPyramidVictoryModal(false);
-    setCurrentLevel(3);
-    setLevel3State(generateLevel3Map());
-    setActiveLevel3Tile(null);
-    setLevel3Steps(0);
-    setIsWon(false);
-    setIsLost(false);
-    setStatusMessage(
-      `Descended from the Great Pyramid to Level 3! Carrying ${energy}⚡ Energy and ${playerHand.length} cards in Hand.`
-    );
   };
 
   // --- LEVEL 2: UNDERGROUND TUNNELS LOGIC ---
@@ -3158,7 +3138,7 @@ export default function App() {
             onPredict={handlePyramidPredict}
           />
         ) : (
-          <div className="h-full overflow-hidden p-1 flex items-center justify-center">
+          <div className="h-full min-h-0 w-full overflow-hidden">
             <FlowerHexGrid
               tiles={level3State.tiles}
               playerCoord={level3State.playerCoord}
@@ -3304,21 +3284,6 @@ export default function App() {
         onContinue={handlePyramidModalContinue}
       />
 
-      {/* Level 1.5 Pyramid Victory Modal (Reached Column 12 -> Ascend to Level 3) */}
-      {showPyramidVictoryModal && (
-        <PyramidVictoryModal
-          remainingEnergy={energy}
-          turnsTaken={pyramidSteps}
-          bestStreak={pyramidBestStreak}
-          playerHand={playerHand}
-          onProceedToLevel3={handlePyramidProceedToLevel3}
-          onReviewMap={() => {
-            setShowPyramidVictoryModal(false);
-            setReviewingMap(true);
-          }}
-        />
-      )}
-
       {/* Level 1.5 Tarot Event Modal */}
       {activeTarotCard && (
         <TarotModal
@@ -3368,11 +3333,12 @@ export default function App() {
           totalHexes={totalHexes}
           towersFound={visitedTowerCount}
           totalTowers={mapData.towerCoords.length}
-          onRestart={handleNewGame}
+          onRestart={currentLevel === 2 && isWon ? handleDescendToLevel3 : handleNewGame}
           onReviewMap={() => setReviewingMap(true)}
           level={currentLevel}
           cardsDrawn={level2CardsDrawn}
           tunnelsCarved={litTunnelCount}
+          playerHand={playerHand}
         />
       )}
 

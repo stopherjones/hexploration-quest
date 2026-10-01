@@ -1,6 +1,7 @@
 import React from 'react';
-import { RotateCcw, Trophy, Skull, Footprints, Eye, Castle, Zap } from 'lucide-react';
+import { RotateCcw, Trophy, Skull, Footprints, Eye, Castle, Zap, ArrowRight, Sparkles } from 'lucide-react';
 import { GameLevel } from '../types';
+import { ExplorationCard } from '../utils/explorationDeck';
 
 interface GameOverModalProps {
   won: boolean;
@@ -15,6 +16,7 @@ interface GameOverModalProps {
   level?: GameLevel;
   cardsDrawn?: number;
   tunnelsCarved?: number;
+  playerHand?: ExplorationCard[];
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -30,8 +32,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   level = 1,
   cardsDrawn = 0,
   tunnelsCarved = 0,
+  playerHand = [],
 }) => {
   const exploredPct = Math.round((revealedCount / totalHexes) * 100);
+  const isLevel2Victory = level === 2 && won;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs select-none">
@@ -83,12 +87,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 ? 'Underground Catacombs Ledger'
                 : 'Expedition Ledger'}
             </div>
-            <div className="flex justify-between items-center">
-              <span className="flex items-center gap-1.5">
-                <Footprints className="w-3.5 h-3.5 text-[#2d6a4f]" /> Total Steps:
-              </span>
-              <span className="font-bold">{turns}</span>
-            </div>
+            {!isLevel2Victory && (
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-1.5">
+                  <Footprints className="w-3.5 h-3.5 text-[#2d6a4f]" /> Total Steps:
+                </span>
+                <span className="font-bold">{turns}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5 text-[#b45309]" /> Remaining Energy:
@@ -105,7 +111,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   <span className="font-bold">{won ? 'Vanquished (Victory!)' : 'Unconquered'}</span>
                 </div>
               </>
-            ) : level === 2 ? (
+            ) : level === 2 && !isLevel2Victory ? (
               <>
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-1.5 text-amber-700">
@@ -114,7 +120,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   <span className="font-bold">{won ? '12 / 12 (Ascended)' : '12 Columns'}</span>
                 </div>
               </>
-            ) : (
+            ) : level === 1 ? (
               <>
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-1.5">
@@ -133,6 +139,34 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                   </span>
                 </div>
               </>
+            ) : null}
+            {isLevel2Victory && (
+              <div className="border-t border-[#2b261f]/20 pt-2">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Banked Hand for Level 3
+                  </span>
+                  <span className="font-black text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                    {playerHand.length}
+                  </span>
+                </div>
+                {playerHand.length > 0 ? (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {playerHand.map((card, index) => (
+                      <span
+                        key={`${card.id}-${index}`}
+                        className="px-1.5 py-0.5 bg-white border border-[#2b261f]/30 rounded text-[10px] font-bold shadow-2xs"
+                      >
+                        <span className={card.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>
+                          {card.rank}{card.suit}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[#786e5e] italic">No cards banked in hand.</p>
+                )}
+              </div>
             )}
           </div>
 
@@ -142,8 +176,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               onClick={onRestart}
               className="w-full py-2.5 px-4 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white font-mono font-black text-xs uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-px"
             >
-              <RotateCcw className="w-4 h-4" />
-              <span>Embark On New Expedition</span>
+              {isLevel2Victory ? <ArrowRight className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
+              <span>{isLevel2Victory ? 'Continue to Level 3' : 'Embark On New Expedition'}</span>
             </button>
 
             {onReviewMap && (

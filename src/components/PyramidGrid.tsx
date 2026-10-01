@@ -31,12 +31,12 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
 
   // SVG Dimensions & Exact Hex Honeycomb Geometry (Matching L1 styling with crisp gap)
   const SVG_WIDTH = 550;
-  const SVG_HEIGHT = 500;
+  const SVG_HEIGHT = 720;
   const HEX_R = 21.5;
   const COL_SPACING = HEX_R * 1.5; // 32.25px
   const ROW_SPACING = Math.sqrt(3) * HEX_R; // 37.239px
   const START_X = 148;
-  const CENTER_Y = 250;
+  const CENTER_Y = 360;
 
   // Exact pixel center for flat-topped hexagon in column col, row row
   const getHexCoords = (col: number, row: number) => {
@@ -124,10 +124,10 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
   const playerPixel = getHexCoords(playerPos.col, playerPos.row);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-1 relative select-none">
+    <div className="w-full h-full flex flex-col items-center justify-center relative select-none">
       <svg
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-        className="w-full max-h-full aspect-[550/500] drop-shadow-md touch-manipulation"
+        className="w-full h-full block drop-shadow-md touch-manipulation"
       >
         <defs>
           {/* L1 Matching Subtle Paper Stipple Pattern */}
@@ -136,13 +136,6 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
             <circle cx="6" cy="6" r="0.8" fill="#bfae95" opacity="0.6" />
           </pattern>
 
-          {/* L1 Background Parchment Gradient */}
-          <linearGradient id="l1BgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ede1ca" />
-            <stop offset="50%" stopColor="#e4d4ba" />
-            <stop offset="100%" stopColor="#d8c5a4" />
-          </linearGradient>
-
           {/* L1 Player Adventurer Token Glow */}
           <radialGradient id="player-glow" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#22c55e" stopOpacity="0.45" />
@@ -150,19 +143,6 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
             <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
           </radialGradient>
         </defs>
-
-        {/* Map Backdrop Frame */}
-        <rect
-          x="6"
-          y="6"
-          width={SVG_WIDTH - 12}
-          height={SVG_HEIGHT - 12}
-          rx="12"
-          fill="url(#l1BgGrad)"
-          stroke="#4a3e31"
-          strokeWidth="1.5"
-          opacity="0.95"
-        />
 
         {/* ============================================================== */}
         {/* 1. TOP-LEFT ACTIVE BASE CARD INSET (Natural Negative Space)     */}
@@ -311,7 +291,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
         {/* ============================================================== */}
         <g
           id="persistent-hand-cards-inset"
-          transform="translate(14, 336)"
+          transform="translate(14, 556)"
           className="cursor-pointer transition-transform hover:opacity-95"
           onClick={() => setShowHandModal(true)}
         >
