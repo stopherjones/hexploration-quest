@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   const isGitHubActions = process.env.GITHUB_ACTIONS === 'true';
-  const repoName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : 'vangarde';
+  const repoName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : 'hexploration-quest';
   const basePath = isGitHubActions ? `/${repoName}/` : './';
 
   return {
