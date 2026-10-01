@@ -79,6 +79,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
   // Hand card reduction selection
   const [selectedHandCardIds, setSelectedHandCardIds] = useState<string[]>([]);
+  const [hasTarotDiceModifiers] = useState(() =>
+    playerHand.some((card) => card.level3DiceModifier)
+  );
 
   // Calculate card reductions
   const selectedCards = playerHand.filter((c) => selectedHandCardIds.includes(c.id));
@@ -788,7 +791,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
             {/* Active Dice Tray (When placing round dice) */}
             {phase === 'grid' && (
-              <div className="flex flex-col items-center gap-1.5">
+              <div className={`flex flex-col items-center gap-1.5 ${
+                hasTarotDiceModifiers ? 'min-h-[186px]' : 'min-h-[148px]'
+              }`}>
                 {!currentPair ? (
                   <button
                     onClick={handleRollRoundDice}
