@@ -3,6 +3,7 @@ import { PyramidHex, getPyramidForwardMoves, PYRAMID_COLS } from '../utils/pyram
 import { ExplorationCard } from '../utils/explorationDeck';
 import { X, Sparkles, ShieldAlert, Backpack } from 'lucide-react';
 import { TarotModifierArt, tarotModifierArt } from './TarotModifierArt';
+import { MapZoomViewport } from './MapZoomViewport';
 
 interface PyramidGridProps {
   tiles: Map<string, PyramidHex>;
@@ -126,10 +127,11 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center relative select-none">
-      <svg
-        viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-        className="w-full h-full block drop-shadow-md touch-manipulation"
-      >
+      <MapZoomViewport className="relative w-full flex-1 min-h-0">
+        <svg
+          viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+          className="w-full h-full block drop-shadow-md touch-manipulation"
+        >
         <defs>
           {/* L1 Matching Subtle Paper Stipple Pattern */}
           <pattern id="l1-paper-stipple" width="8" height="8" patternUnits="userSpaceOnUse">
@@ -815,7 +817,8 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
           {/* Center Golden Pip */}
           <circle cx="0" cy="0" r="2.8" fill="#f59e0b" stroke="#1c1917" strokeWidth="0.8" />
         </g>
-      </svg>
+        </svg>
+      </MapZoomViewport>
 
       {/* ============================================================== */}
       {/* 5. MODAL: SEE ALL CARDS IN HAND (Opened via Hand cards button)  */}

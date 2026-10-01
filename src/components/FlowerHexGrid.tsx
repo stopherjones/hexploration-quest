@@ -9,6 +9,7 @@ import {
 import { ExplorationCard } from '../utils/explorationDeck';
 import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent, Backpack, X } from 'lucide-react';
 import { TarotModifierArt } from './TarotModifierArt';
+import { MapZoomViewport } from './MapZoomViewport';
 
 interface FlowerHexGridProps {
   tiles: Map<string, FlowerTile>;
@@ -157,7 +158,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   return (
     <div className="relative w-full h-full min-h-0 flex flex-col items-center p-0 select-none font-mono">
       {/* 19-Hex SVG Canvas */}
-      <div className="relative flex-1 w-full flex items-center justify-center min-h-0">
+      <MapZoomViewport className="relative flex-1 w-full min-h-0">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-full drop-shadow-md"
@@ -795,7 +796,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
             </g>
           </g>
         </svg>
-      </div>
+      </MapZoomViewport>
 
       {/* Selected Tile Action Bar / Quick Commands */}
       <footer className="w-full h-[148px] shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] p-2.5 shadow-lg flex flex-col justify-center select-none">

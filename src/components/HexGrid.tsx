@@ -10,6 +10,7 @@ import {
   tracePath,
   getCairnShortBearing,
 } from '../utils/hexMath';
+import { MapZoomViewport } from './MapZoomViewport';
 
 interface HexGridProps {
   tiles: Map<string, HexTile>;
@@ -114,11 +115,12 @@ export const HexGrid: React.FC<HexGridProps> = ({
       <div className="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(#8f8370_1px,transparent_1px)] [background-size:18px_18px]" />
 
       {/* Responsive Fixed SVG Hex Canvas with ViewBox - 100% Board Fit */}
-      <svg
-        viewBox={`${VB_X} ${VB_Y} ${VB_WIDTH} ${VB_HEIGHT}`}
-        preserveAspectRatio="xMidYMid meet"
-        className="w-full h-full block touch-manipulation"
-      >
+      <MapZoomViewport className="absolute inset-0">
+        <svg
+          viewBox={`${VB_X} ${VB_Y} ${VB_WIDTH} ${VB_HEIGHT}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="w-full h-full block touch-manipulation"
+        >
         <defs>
           <pattern id="paper-stipple" width="8" height="8" patternUnits="userSpaceOnUse">
             <circle cx="2" cy="2" r="0.8" fill="#bfae95" opacity="0.6" />
@@ -784,7 +786,8 @@ export const HexGrid: React.FC<HexGridProps> = ({
           {/* Center Golden Pip */}
           <circle cx="0" cy="0" r="3.5" fill="#f59e0b" stroke="#1c1917" strokeWidth="1" />
         </g>
-      </svg>
+        </svg>
+      </MapZoomViewport>
     </div>
   );
 };
