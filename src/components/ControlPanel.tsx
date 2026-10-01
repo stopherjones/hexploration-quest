@@ -6,7 +6,7 @@ import {
   HexCoord,
 } from '../types';
 import { DIRECTION_LABELS } from '../utils/hexMath';
-import { Footprints, Eye, Dices, CornerDownRight, RotateCcw } from 'lucide-react';
+import { Footprints, Eye, Dices, CornerDownRight, RotateCcw, Compass, Sparkles } from 'lucide-react';
 
 interface ControlPanelProps {
   diceState: DiceState;
@@ -17,7 +17,10 @@ interface ControlPanelProps {
   pathPreview: HexCoord[];
   isMoveOne: boolean;
   freeMoves?: number;
+  hasTelescope?: boolean;
   hasDiceModifier?: boolean;
+  goalFound?: boolean;
+  goalClue?: string | null;
   statusMessage: string;
   onRollDice: () => void;
   onSelectDirectionDie: (dieNum: 1 | 2) => void;
@@ -169,7 +172,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   pathPreview,
   isMoveOne,
   freeMoves = 0,
-  hasDiceModifier,
+  hasTelescope = false,
+  hasDiceModifier = false,
+  goalFound = false,
+  goalClue = null,
   statusMessage,
   onRollDice,
   onSelectDirectionDie,
@@ -182,49 +188,126 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const moveEnergyCost = Math.min(pathPreview.length, energy);
 
   return (
-    <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none flex flex-col shadow-lg z-30">
-      <div className="p-1.5 sm:p-2 flex flex-col gap-1.5">
+    <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none shadow-lg z-30 h-[148px]">
+      <div className="h-full p-1.5 sm:p-2 flex flex-col justify-between">
         {!diceState.rolled ? (
-          /* 1. Pre-Roll State: Big prominent roll button + Move 1 toggle */
-          <div className="flex items-center gap-2">
-            <button
-              id="btn-roll-dice"
-              onClick={onRollDice}
-              disabled={diceState.isRolling || energy <= 0}
-              className="flex-1 py-2 px-3 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Dices className={`w-4 h-4 ${diceState.isRolling ? 'animate-spin' : ''}`} />
-              <span>{diceState.isRolling ? 'ROLLING 2D6...' : 'ROLL 2D6 FOR MOVEMENT'}</span>
-            </button>
-
-            {/* Free Move 1 Hex button - ONLY available when granted by Fortune Shrine */}
-            {freeMoves > 0 && (
+          /* 1. Pre-Roll State: Fixed height with Roll Button + Goal Hex Reminder + Collected Items */
+          <div className="h-full flex flex-col justify-between gap-1.5">
+            {/* Top: Roll 2D6 button + optional Free Move toggle */}
+            <div className="flex items-center gap-2">
               <button
-                id="btn-move-one"
-                onClick={onToggleMoveOne}
-                className={`py-1 px-3 text-[10.5px] font-mono font-bold rounded-lg border-2 flex flex-col items-center justify-center transition-colors cursor-pointer shrink-0 leading-tight shadow-xs ${
-                  isMoveOne
-                    ? 'bg-[#15803d] text-white ring-2 ring-[#166534] border-[#166534]'
-                    : energy <= 0
-                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-600 animate-pulse ring-2 ring-amber-400'
-                    : 'bg-[#dcfce7] hover:bg-[#bbf7d0] text-[#15803d] border-[#16a34a]'
-                }`}
-                title={`Free Move 1 Hex: Step into any adjacent hex for 0 Energy (${freeMoves} free move${freeMoves > 1 ? 's' : ''} left)`}
+                id="btn-roll-dice"
+                onClick={onRollDice}
+                disabled={diceState.isRolling || energy <= 0}
+                className="flex-1 py-2 px-3 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div className="flex items-center gap-1">
-                  <Footprints className="w-3.5 h-3.5" />
-                  <span>{isMoveOne ? 'Cancel' : energy <= 0 ? `LAST BREATH (${freeMoves})` : `Free Move (${freeMoves})`}</span>
-                </div>
-                <span className="text-[9px] opacity-80 whitespace-nowrap font-black">
-                  {isMoveOne ? 'Tap Hex' : energy <= 0 ? '0⚡ REMAINING!' : 'FREE ⚡'}
-                </span>
+                <Dices className={`w-4 h-4 ${diceState.isRolling ? 'animate-spin' : ''}`} />
+                <span>{diceState.isRolling ? 'ROLLING 2D6...' : 'ROLL 2D6 FOR MOVEMENT'}</span>
               </button>
-            )}
+
+              {/* Free Move 1 Hex button - ONLY available when granted by Fortune Shrine */}
+              {freeMoves > 0 && (
+                <button
+                  id="btn-move-one"
+                  onClick={onToggleMoveOne}
+                  className={`py-1 px-3 text-[10.5px] font-mono font-bold rounded-lg border-2 flex flex-col items-center justify-center transition-colors cursor-pointer shrink-0 leading-tight shadow-xs ${
+                    isMoveOne
+                      ? 'bg-[#15803d] text-white ring-2 ring-[#166534] border-[#166534]'
+                      : energy <= 0
+                      ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-600 animate-pulse ring-2 ring-amber-400'
+                      : 'bg-[#dcfce7] hover:bg-[#bbf7d0] text-[#15803d] border-[#16a34a]'
+                  }`}
+                  title={`Free Move 1 Hex: Step into any adjacent hex for 0 Energy (${freeMoves} free move${freeMoves > 1 ? 's' : ''} left)`}
+                >
+                  <div className="flex items-center gap-1">
+                    <Footprints className="w-3.5 h-3.5" />
+                    <span>{isMoveOne ? 'Cancel' : energy <= 0 ? `LAST BREATH (${freeMoves})` : `Free Move (${freeMoves})`}</span>
+                  </div>
+                  <span className="text-[9px] opacity-80 whitespace-nowrap font-black">
+                    {isMoveOne ? 'Tap Hex' : energy <= 0 ? '0⚡ REMAINING!' : 'FREE ⚡'}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Middle: Visual reminder of the Goal Hex */}
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-[#fdfbf7] rounded-lg border border-[#2b261f]/25 text-[11px] font-mono shadow-2xs">
+              <span className="text-base leading-none shrink-0">
+                {goalFound ? '🌟' : goalClue ? '🧭' : '❓'}
+              </span>
+              <div className="flex flex-col min-w-0 flex-1 leading-tight">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-[#2b261f] text-[10px] uppercase">
+                    Goal Hex: Secret Tunnel Entrance
+                  </span>
+                  <span
+                    className={`text-[9.5px] font-black uppercase ${
+                      goalFound ? 'text-[#15803d]' : goalClue ? 'text-[#b45309]' : 'text-[#786e5e]'
+                    }`}
+                  >
+                    {goalFound ? 'Discovered!' : goalClue ? 'Clue Active' : 'Hidden'}
+                  </span>
+                </div>
+                <span
+                  className={`text-[10px] truncate ${
+                    goalFound ? 'text-[#15803d] font-bold' : goalClue ? 'text-[#b45309] font-bold' : 'text-[#786e5e]'
+                  }`}
+                >
+                  {goalFound
+                    ? 'Secret Tunnel Discovered! Move onto this hex to descend to Level 2.'
+                    : goalClue
+                    ? `Entrance lies: ${goalClue}`
+                    : 'Search ancient ruins and watchtowers to discover the entrance.'}
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom: Visual reminder of Collected Items (Telescope, Dice Modifier, Free Move) */}
+            <div className="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
+              {/* Telescope */}
+              <div
+                className={`p-1 rounded-md border flex items-center justify-center gap-1 transition-all ${
+                  hasTelescope
+                    ? 'bg-[#dcfce7] border-[#86efac] text-[#15803d] font-bold shadow-2xs'
+                    : 'bg-[#ede4d3]/60 border-[#2b261f]/15 text-[#8a7f6f]'
+                }`}
+                title={hasTelescope ? 'Telescope Active: Range 3 Tower scouting & directional clues' : 'Telescope not yet collected'}
+              >
+                <span>🔭</span>
+                <span className="truncate">{hasTelescope ? 'Telescope' : 'No Telescope'}</span>
+              </div>
+
+              {/* Dice Modifier */}
+              <div
+                className={`p-1 rounded-md border flex items-center justify-center gap-1 transition-all ${
+                  hasDiceModifier
+                    ? 'bg-[#f3e8ff] border-[#d8b4fe] text-[#7e22ce] font-bold shadow-2xs'
+                    : 'bg-[#ede4d3]/60 border-[#2b261f]/15 text-[#8a7f6f]'
+                }`}
+                title={hasDiceModifier ? 'Dice Modifier Active: Alter any movement die by ±1' : 'Dice Modifier not yet collected'}
+              >
+                <span>🎲</span>
+                <span className="truncate">{hasDiceModifier ? '±1 Modifier' : 'No Modifier'}</span>
+              </div>
+
+              {/* Free Move */}
+              <div
+                className={`p-1 rounded-md border flex items-center justify-center gap-1 transition-all ${
+                  freeMoves > 0
+                    ? 'bg-[#dbeafe] border-[#93c5fd] text-[#1d4ed8] font-bold shadow-2xs'
+                    : 'bg-[#ede4d3]/60 border-[#2b261f]/15 text-[#8a7f6f]'
+                }`}
+                title={freeMoves > 0 ? `${freeMoves} Free 1-Hex step(s) available from Fortune Shrine` : 'No Free Moves'}
+              >
+                <span>👣</span>
+                <span className="truncate">{freeMoves > 0 ? `${freeMoves} Free Move${freeMoves > 1 ? 's' : ''}` : '0 Free Move'}</span>
+              </div>
+            </div>
           </div>
         ) : (
-          /* 2. Post-Roll State: Clean interactive dice row + Execute move */
-          <div className="flex flex-col gap-1.5">
-            {/* Interactive Dice Selection Bar */}
+          /* 2. Post-Roll State: Same fixed height with Interactive Dice + Status Bar + Confirm Move */
+          <div className="h-full flex flex-col justify-between gap-1.5">
+            {/* Row 1: Interactive Dice Selection Bar */}
             <div className="flex items-stretch justify-between gap-1.5">
               <div className="flex items-stretch gap-1.5 flex-1 min-w-0">
                 {/* Die 1 */}
@@ -281,21 +364,21 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               )}
             </div>
 
-            {/* Hint bar explaining on-map deviation or dice modifier active */}
+            {/* Row 2: Hint / Deviation / Modifier / Path Info Bar */}
             {deviationState.active && deviationState.type === 'split_path' ? (
-              <div className="flex items-center justify-between gap-2 px-2 py-1 bg-[#fef3c7] border border-[#d97706] rounded-md text-[10.5px] font-mono text-[#92400e]">
+              <div className="flex items-center justify-between gap-2 px-2 py-0.5 bg-[#fef3c7] border border-[#d97706] rounded-md text-[10px] font-mono text-[#92400e]">
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <CornerDownRight className="w-3.5 h-3.5 text-[#d97706] shrink-0" />
-                  <span className="leading-tight">
+                  <span className="leading-tight truncate">
                     {deviationState.step1Distance === 0
-                      ? `Deviation from Current Hex: ${deviationState.step2Distance} spaces. Tap branch on map or execute.`
-                      : `Deviation at Step ${deviationState.step1Distance}: ${deviationState.step2Distance} spaces left. Tap branch on map or execute.`}
+                      ? `Deviation: ${deviationState.step2Distance} spaces. Tap branch or confirm.`
+                      : `Deviation at Step ${deviationState.step1Distance}: ${deviationState.step2Distance} spaces. Tap branch or confirm.`}
                   </span>
                 </div>
                 {onResetDeviation && (
                   <button
                     onClick={onResetDeviation}
-                    className="px-2 py-0.5 text-[10px] font-mono font-bold rounded border border-[#b45309] bg-[#fffbeb] hover:bg-[#fde68a] text-[#92400e] flex items-center gap-1 cursor-pointer shrink-0 transition-colors shadow-2xs"
+                    className="px-2 py-0.2 text-[9.5px] font-mono font-bold rounded border border-[#b45309] bg-[#fffbeb] hover:bg-[#fde68a] text-[#92400e] flex items-center gap-1 cursor-pointer shrink-0 transition-colors shadow-2xs"
                     title="Clear deviation and reset to straight path"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -317,9 +400,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                   </button>
                 )}
               </div>
-            ) : null}
+            ) : (
+              <div className="flex items-center justify-between px-2 py-0.5 bg-[#ede4d3]/80 border border-[#2b261f]/20 rounded text-[10px] font-mono text-[#5c5346]">
+                <span className="truncate">🎯 Tap either die above to switch Direction / Distance</span>
+                <span className="text-[#2d6a4f] font-bold shrink-0">{pathPreview.length} space{pathPreview.length !== 1 ? 's' : ''} planned</span>
+              </div>
+            )}
 
-            {/* Big Execute Move Primary Action Button */}
+            {/* Row 3: Big Execute Move Primary Action Button */}
             <button
               id="btn-execute-move"
               onClick={onExecuteMove}

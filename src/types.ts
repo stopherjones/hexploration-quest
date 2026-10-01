@@ -59,7 +59,7 @@ export interface DeviationState {
 
 export type GameStatus = 'ready_to_roll' | 'planning_move' | 'moving_one' | 'moving' | 'event_prompt' | 'won' | 'lost';
 
-export type GameLevel = 1 | 1.5 | 2 | 3;
+export type GameLevel = 1 | 2 | 3;
 
 export interface EventPrompt {
   title: string;

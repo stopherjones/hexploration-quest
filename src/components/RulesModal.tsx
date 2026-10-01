@@ -113,46 +113,23 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             </ul>
           </div>
 
-          {/* Level 1.5: Hex Pyramid Ascent (Alternative Level 2) */}
-          <div className="space-y-1.5 bg-[#fef3c7]/70 text-[#2b261f] p-2.5 rounded-lg border-2 border-[#b45309]">
-            <div className="font-black uppercase text-[#b45309] flex items-center gap-1.5 border-b border-[#b45309]/30 pb-1 text-xs">
-              <span className="text-sm leading-none">🔺 🔮</span>
-              <span>Level 1.5: Hex Pyramid Ascent (Alternative Level 2)</span>
+          {/* Level 2: The Underground Catacombs */}
+          <div className="space-y-1.5 bg-[#fef3c7]/70 text-[#2b261f] p-2.5 rounded-lg border-2 border-[#2d6a4f]">
+            <div className="font-black uppercase text-[#2d6a4f] flex items-center gap-1.5 border-b border-[#2d6a4f]/30 pb-1 text-xs">
+              <span className="text-sm leading-none">🏛️ 🔮</span>
+              <span>Level 2: The Underground Catacombs</span>
             </div>
             <p className="text-[11px] text-[#443d33]">
-              A sideways hex pyramid spanning <strong>12 columns</strong> (1 hex in col 1, 2 in col 2, ..., 12 in col 12; <strong>78 hexes total</strong>). The goal is to traverse from left to right to breach the inner sanctum:
+              Make your way through the underground catacombs by drawing cards and predicting if the next card draw will be higher or lower (ranks 2-10). Honour cards (J,Q,K,A) allow you to draw cards into your hand in preparation for Level 3. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
             </p>
             <div className="space-y-1 text-[10.5px]">
-              <div className="pl-2 border-l-2 border-[#b45309]/50 space-y-0.5 text-[#443d33]">
+              <div className="pl-2 border-l-2 border-[#2d6a4f]/50 space-y-0.5 text-[#443d33]">
                 <div>• <strong>Predict & Advance:</strong> Start in Column 1 with a base card. To predict Higher, advance to the hex on the row above in the next column. To predict Lower, advance to the hex on the row below (-1⚡ Move).</div>
-                <div>• <strong>Modal Card Draw:</strong> Moving into a hex opens the card draw modal. Tap to draw and reveal whether your prediction was correct, push, or an Honour card!</div>
-                <div>• <strong>Full 52-Card Deck:</strong> Includes all suits (♠, ♥, ♦, ♣). Victory is reaching the 12th column, not finding the Ace of Spades!</div>
-                <div>• <strong>Streaks & Pair Pushes:</strong> Correct predictions build cumulative streaks (+1, +2, +3⚡). Incorrect predictions drain energy. <strong>Drawing a pair resets your streak but neither costs nor grants energy (Push)!</strong></div>
+                <div>• <strong>Modal Card Draw:</strong> Moving into a hex reveals whether your prediction was correct, push, or an Honour card!</div>
+                <div>• <strong>Full 52-Card Deck:</strong> Includes all suits (♠, ♥, ♦, ♣). Victory is reaching the 12th column!</div>
+                <div>• <strong>Streaks & Pair Pushes:</strong> Correct predictions build cumulative streaks (+1, +2, +3⚡). Incorrect predictions drain energy. Drawing a pair resets your streak but neither costs nor grants energy (Push)!</div>
                 <div>• <strong>Honour Cards (J, Q, K, A):</strong> Preserve your streak and call, giving you the choice to bank your current base card into your Hand (drawing a fresh base), or draw a new card from the deck into your Hand!</div>
-                <div>• <strong>Event Hexes (21 across the pyramid):</strong> Stepping into a glowing mystical hex triggers a draw from the 21 Tarot trumps deck! Rewards include energy boosts, streak boosts, and cards into your Hand; hazards include energy drain, card discard, or the lethal Death card!</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Level 2: The Underground Tunnels */}
-          <div className="space-y-1.5 bg-[#ede4d3] text-[#2b261f] p-2.5 rounded-lg border-2 border-[#2b261f]">
-            <div className="font-black uppercase text-[#991b1b] flex items-center gap-1.5 border-b border-[#2b261f]/20 pb-1 text-xs">
-              <span className="text-sm leading-none">♠ ♣ ♦</span>
-              <span>Level 2: Underground Tunnels & Higher/Lower Exploration</span>
-            </div>
-            <p className="text-[11px] text-[#443d33]">
-              Carry forward remaining Energy from Level 1 into the subterranean labyrinth. When entering chambers, predict whether the next exploration card will be <strong>Higher or Lower</strong>:
-            </p>
-            <div className="space-y-1 text-[10.5px]">
-              <div className="pl-2 border-l-2 border-[#991b1b]/40 space-y-0.5 text-[#443d33]">
-                <div>• <strong>Exploration Deck (♠, ♣, ♦):</strong> 39 cards. Starts on an initial numbered baseline (2 to 10).</div>
-                <div>• <strong>Higher / Lower Call:</strong> Correct call gives +Energy; incorrect call drains -Energy. Streaks are cumulative! (+1, +2, +3... or -1, -2, -3...). Breaking a streak resets it; pairs push with no energy change.</div>
-                <div>• <strong>Honor Cards (J, Q, K, A) & Hand Banking:</strong> Drawing an honor card does <em>not</em> affect your streak or Higher/Lower call! Instead of replacing or drawing cards, you get the option to <strong>bank your current base card</strong> into your Hand (drawing a fresh base for future surveys), or <strong>draw a new card from the deck into your Hand</strong> (keeping your base active). You can also bank the drawn honor card itself. All banked cards are carried forward into Level 3!</div>
-                <div>• <strong>Ace of Spades (A♠):</strong> Shuffled anywhere in the 39-card deck. Drawing it (or drawing it into hand) opens the gateway to Level 3!</div>
-                <div>• <strong>Hearts Delve Deck:</strong> Carves corridor exits (Fork, Chamber, Dead End, Trap, or Vaults). Ace of Hearts now acts as an Ancient Vault.</div>
-                <div>• <strong>Unexplored Exits & Overlaps:</strong> The map tracks live unexplored exits with glowing beacons. When multiple corridors converge onto the same chamber, an <strong>Overlap (✦)</strong> badge marks the convergent junction!</div>
-                <div>• <strong>Phase 2 Re-Exploration (Map Fully Drawn):</strong> If you chart the entire map without discovering the Ace of Spades (A♠), you are prompted to explore the map again. In Phase 2, moving costs <strong>2 ⚡ Energy</strong> per chamber, and stepping into any chamber prompts the Higher/Lower survey to win back energy while hunting for A♠!</div>
-                <div>• <strong>Navigation:</strong> Step forward through carved exits (-1 ⚡ in Phase 1, -2 ⚡ in Phase 2) or use the retrace direction button to backtrack.</div>
+                <div>• <strong>Event Hexes:</strong> Stepping into an event hex triggers a draw from the Tarot deck! Rewards include energy boosts, streak boosts, and cards into your Hand; hazards include energy drain or card discard!</div>
               </div>
             </div>
           </div>
@@ -164,13 +141,15 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <span>Level 3: The 19-Hex Flower Engine Core</span>
             </div>
             <p className="text-[11px] text-[#443d33]">
-              A single 19-hex concentric flower grid: Yellow Outer Ring (12 hexes), Orange Middle Ring (6 hexes), and Red Core Boss. Visible fortress walls enclose each ring, with single-colour doorways at portal hexes. All tiles cost 1⚡ to step in or peek.
+              A 19-hex concentric flower grid: Yellow Outer Ring (12 hexes), Orange Middle Ring (6 hexes), and Red Core Boss. Visible fortress walls enclose each ring, with single-colour doorways at portal hexes. Stepping in or peeking costs 1⚡.
             </p>
             <div className="space-y-1 text-[10.5px] pl-2 border-l-2 border-[#15803d]/40 text-[#443d33]">
-              <div>• <strong>No Safe Zones:</strong> Outer ring has 4 Doors, 4 Traps, 4 Vaults. Middle ring has 2 Gates, 2 Traps, 2 Vaults. Danger lurks in every chamber!</div>
-              <div>• <strong>Exact 0 Door Unlocks:</strong> Doors unlock on <strong>EXACTLY 0</strong> (or grant code fragments on 1–10). If you overshoot 0 into negative using card modifiers, it will NOT unlock!</div>
-              <div>• <strong>Dice Placement & Hand Visibility:</strong> Cards in hand are visible during dice placement to help plan combinations. You can reset and re-place dice at any time before locking.</div>
-              <div>• <strong>Final Boss Rolls Reversed:</strong> The Level 5 Core Construct has <strong>roll values reversed</strong>: receives damage on <strong>4, 5, 6</strong> (3 HP), and damages the player on 1, 2, 3 (-1⚡)! Defeat the Boss to save Utopia!</div>
+              <div>• <strong>Outer Ring (12 Hexes):</strong> 1 Safe Zone (your entry camp), 3 Traps, 4 Portal Doors, and 4 Beast Lairs.</div>
+              <div>• <strong>Inner Ring (6 Hexes):</strong> 2 Core Gates, 2 Grinder Traps, and 2 Elite Guardian Lairs.</div>
+              <div>• <strong>Trap Disarming:</strong> Outer traps deactivate permanently on <strong>0–10</strong>, or temporarily on <strong>11–99</strong>. If you return to a temporarily deactivated trap, it reactivates! Any other result loses <strong>5⚡ Energy</strong> and retreats to the previous hex (no monster encounter). Inner traps permanently disable on <strong>0</strong>, or temporarily on <strong>1–10</strong> (else -5⚡ and retreat).</div>
+              <div>• <strong>Door Unlocks:</strong> Outer doors unlock on <strong>0–10</strong> to access the Inner Ring (no code fragments). Inner gates unlock on <strong>0</strong> to reach the Boss. Any failed test permanently locks that door!</div>
+              <div>• <strong>Monsters & Sneaking:</strong> Sneak past outer beasts on <strong>0–10</strong>; sneak past inner guardians on <strong>0</strong>. Any other score triggers combat! Monsters have <strong>HP equal to their level</strong> (L1: 1 HP, L2: 2 HP, L3: 3 HP, L4: 4 HP, L5: 5 HP).</div>
+              <div>• <strong>Final Boss Rolls Reversed:</strong> The Level 5 Core Construct has <strong>5 HP</strong> and <strong>reversed combat rolls</strong>: receives damage on <strong>4, 5, 6</strong> and deals harm on 1, 2, 3 (-1⚡). Defeat the Core Construct to win!</div>
             </div>
           </div>
         </div>

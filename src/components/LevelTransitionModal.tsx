@@ -62,32 +62,22 @@ export const LevelTransitionModal: React.FC<LevelTransitionModalProps> = ({
 
           {/* Level 2 Rules Teaser */}
           <div className="bg-[#fdfbf7] p-2.5 rounded-lg border border-[#2b261f]/20 text-left space-y-1 text-[10.5px]">
-            <span className="text-[#b91c1c] font-bold uppercase flex items-center gap-1">
-              <span>♥</span> Level 2: The Underground Tunnels
+            <span className="text-[#2d6a4f] font-bold uppercase flex items-center gap-1">
+              <span>🏛️</span> Level 2: The Underground Catacombs
             </span>
-            <p className="text-[#5c5346]">
-              Draw from the Hearts deck to illuminate corridors and carve exits. Beware traps and dead ends, and seek the Ace of Hearts to escape to the surface!
+            <p className="text-[#5c5346] leading-relaxed">
+              Level 2: The Underground Catacombs. Make your way through the underground catacombs by drawing cards and predicting if the next card draw will be higher or lower (ranks 2-10). Honour cards (J,Q,K,A) allow you to draw cards into your hand in preparation for Level 3. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
             </p>
           </div>
 
           {/* Actions */}
           <div className="space-y-2 pt-1">
-            {onAscendPyramid && (
-              <button
-                type="button"
-                onClick={onAscendPyramid}
-                className="w-full py-2.5 px-4 bg-[#b45309] hover:bg-[#92400e] active:bg-[#78350f] text-white font-mono font-black text-xs sm:text-sm uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
-              >
-                <span>🔺 Ascend Level 1.5 (Hex Pyramid)</span>
-              </button>
-            )}
-
             <button
-              onClick={onDescend}
+              type="button"
+              onClick={onAscendPyramid || onDescend}
               className="w-full py-2.5 px-4 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white font-mono font-black text-xs sm:text-sm uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
             >
-              <ArrowDown className="w-4 h-4" />
-              <span>Descend into Underground Tunnels (Level 2)</span>
+              <span>Enter the Underground Catacombs (Level 2)</span>
             </button>
 
             <button

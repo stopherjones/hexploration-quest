@@ -6,7 +6,8 @@ import {
   areAxialAdjacent,
   getAxialNeighbors,
 } from '../utils/level3Engine';
-import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent } from 'lucide-react';
+import { ExplorationCard } from '../utils/explorationDeck';
+import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent, Backpack, X } from 'lucide-react';
 
 interface FlowerHexGridProps {
   tiles: Map<string, FlowerTile>;
@@ -17,6 +18,7 @@ interface FlowerHexGridProps {
   onStepIn: (target: FlowerTile) => void;
   onPeek: (target: FlowerTile) => void;
   onSelectTile?: (tile: FlowerTile) => void;
+  playerHand?: ExplorationCard[];
 }
 
 interface BoundaryEdge {
@@ -37,15 +39,23 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   onStepIn,
   onPeek,
   onSelectTile,
+  playerHand = [],
 }) => {
   const [selectedCoord, setSelectedCoord] = useState<FlowerHexCoord | null>(null);
+  const [showHandModal, setShowHandModal] = useState<boolean>(false);
 
-  // SVG Geometry parameters
+  // Hand cards calculations (for persistent bottom-left inset)
+  const handCount = playerHand.length;
+  const cumulativeHandValue = playerHand.reduce((acc, c) => acc + c.value, 0);
+  const latestCard = handCount > 0 ? playerHand[handCount - 1] : null;
+  const isLatestRed = latestCard ? latestCard.suit === '♥' || latestCard.suit === '♦' : false;
+
+  // SVG Geometry parameters (spaced to allow bottom-left hand card inset)
   const hexSize = 44;
-  const svgWidth = 420;
-  const svgHeight = 400;
-  const centerX = svgWidth / 2;
-  const centerY = svgHeight / 2;
+  const svgWidth = 460;
+  const svgHeight = 420;
+  const centerX = 230;
+  const centerY = 195;
 
   // Pointy-topped axial to pixel coords
   const hexToPixel = (q: number, r: number) => {
@@ -317,6 +327,14 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                 ) : (
                   // Face-up Revealed Tile Content
                   <g pointerEvents="none" className="select-none">
+                    {tile.type === 'safe' && (
+                      <g transform={`translate(${x - 8}, ${y - 12})`}>
+                        <Tent className="w-4 h-4 text-emerald-700" />
+                        <text x={8} y={22} textAnchor="middle" fill="#15803d" fontSize="7" fontWeight="bold">
+                          CAMP
+                        </text>
+                      </g>
+                    )}
                     {tile.type === 'center_boss' && (
                       <g transform={`translate(${x - 9}, ${y - 12})`}>
                         <Skull className="w-4.5 h-4.5 text-red-800" />
@@ -330,10 +348,17 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                         {outerDoorsUnlocked || tile.doorPassed ? (
                           <Unlock className="w-4 h-4 text-emerald-700" />
                         ) : (
-                          <Lock className="w-4 h-4 text-amber-800" />
+                          <Lock className={`w-4 h-4 ${tile.doorTested ? 'text-red-800' : 'text-amber-800'}`} />
                         )}
-                        <text x={8} y={22} textAnchor="middle" fill="#92400e" fontSize="7" fontWeight="bold">
-                          DOOR
+                        <text
+                          x={8}
+                          y={22}
+                          textAnchor="middle"
+                          fill={tile.doorTested && !tile.doorPassed ? '#991b1b' : '#92400e'}
+                          fontSize="7"
+                          fontWeight="bold"
+                        >
+                          {tile.doorTested && !tile.doorPassed ? 'SEALED' : 'DOOR'}
                         </text>
                       </g>
                     )}
@@ -342,10 +367,17 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                         {innerDoorsUnlocked || tile.doorPassed ? (
                           <Unlock className="w-4 h-4 text-emerald-800" />
                         ) : (
-                          <KeyRound className="w-4 h-4 text-amber-900" />
+                          <KeyRound className={`w-4 h-4 ${tile.doorTested ? 'text-red-900' : 'text-amber-900'}`} />
                         )}
-                        <text x={8} y={22} textAnchor="middle" fill="#78350f" fontSize="7" fontWeight="bold">
-                          GATE
+                        <text
+                          x={8}
+                          y={22}
+                          textAnchor="middle"
+                          fill={tile.doorTested && !tile.doorPassed ? '#991b1b' : '#78350f'}
+                          fontSize="7"
+                          fontWeight="bold"
+                        >
+                          {tile.doorTested && !tile.doorPassed ? 'SEALED' : 'GATE'}
                         </text>
                       </g>
                     )}
@@ -354,6 +386,25 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                         <ShieldAlert className={`w-4 h-4 ${tile.disarmed ? 'text-gray-500' : 'text-red-700'}`} />
                         <text x={8} y={22} textAnchor="middle" fill={tile.disarmed ? '#6b7280' : '#b91c1c'} fontSize="7" fontWeight="bold">
                           {tile.disarmed ? 'SAFE' : 'TRAP'}
+                        </text>
+                      </g>
+                    )}
+                    {tile.type === 'monster' && (
+                      <g transform={`translate(${x - 8}, ${y - 12})`}>
+                        <Swords
+                          className={`w-4 h-4 ${
+                            tile.monsterBypassed || tile.monsterDefeated ? 'text-gray-400' : 'text-red-700'
+                          }`}
+                        />
+                        <text
+                          x={8}
+                          y={22}
+                          textAnchor="middle"
+                          fill={tile.monsterBypassed || tile.monsterDefeated ? '#9ca3af' : '#b91c1c'}
+                          fontSize="7"
+                          fontWeight="bold"
+                        >
+                          {tile.monsterBypassed ? 'SNEAK' : tile.monsterDefeated ? 'CLEARED' : 'BEAST'}
                         </text>
                       </g>
                     )}
@@ -478,6 +529,247 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
               ▲
             </text>
           </g>
+
+          {/* ============================================================== */}
+          {/* PERSISTENT HAND CARD INSET (Bottom-Left Corner from Level 1.5) */}
+          {/* ============================================================== */}
+          <g
+            id="l3-hand-cards-inset"
+            transform="translate(10, 266)"
+            className="cursor-pointer transition-transform hover:opacity-95"
+            onClick={() => setShowHandModal(true)}
+          >
+            {/* Frame */}
+            <rect
+              x="0"
+              y="0"
+              width="104"
+              height="146"
+              rx="8"
+              fill="#f7f1e3"
+              stroke="#5c5346"
+              strokeWidth="1.5"
+              filter="drop-shadow(0 2px 4px rgba(0,0,0,0.15))"
+            />
+            {/* Header Bar */}
+            <rect
+              x="0"
+              y="0"
+              width="104"
+              height="20"
+              rx="8"
+              fill="#dbece2"
+              stroke="#5c5346"
+              strokeWidth="1.5"
+            />
+            <text
+              x="52"
+              y="13"
+              textAnchor="middle"
+              fontSize="8.5"
+              fontWeight="900"
+              fontFamily="monospace"
+              fill="#166534"
+              letterSpacing="0.5"
+            >
+              HAND CARDS
+            </text>
+
+            {/* Splayed Card Stack */}
+            {handCount > 0 && latestCard ? (
+              <g transform="translate(27, 26)">
+                {/* 3rd card in stack (if 3+ cards) */}
+                {handCount >= 3 && (
+                  <g transform="translate(-4, 2) rotate(-8 25 35)">
+                    <rect
+                      x="0"
+                      y="0"
+                      width="50"
+                      height="70"
+                      rx="5"
+                      fill="#e8ded0"
+                      stroke="#786e5e"
+                      strokeWidth="1.2"
+                      opacity="0.85"
+                    />
+                    <rect
+                      x="3"
+                      y="3"
+                      width="44"
+                      height="64"
+                      rx="3"
+                      fill="#d8cebf"
+                      stroke="#a39684"
+                      strokeWidth="0.8"
+                      strokeDasharray="2 2"
+                    />
+                  </g>
+                )}
+
+                {/* 2nd card in stack (if 2+ cards) */}
+                {handCount >= 2 && (
+                  <g transform="translate(4, 1) rotate(6 25 35)">
+                    <rect
+                      x="0"
+                      y="0"
+                      width="50"
+                      height="70"
+                      rx="5"
+                      fill="#f2ebe0"
+                      stroke="#5c5346"
+                      strokeWidth="1.2"
+                      opacity="0.92"
+                    />
+                    <rect
+                      x="3"
+                      y="3"
+                      width="44"
+                      height="64"
+                      rx="3"
+                      fill="#e4dbcc"
+                      stroke="#948573"
+                      strokeWidth="0.8"
+                      strokeDasharray="2 2"
+                    />
+                  </g>
+                )}
+
+                {/* Top card: latest drawn card in hand */}
+                <g transform="translate(0, 0)">
+                  <rect
+                    x="0"
+                    y="0"
+                    width="50"
+                    height="70"
+                    rx="6"
+                    fill="#ffffff"
+                    stroke="#2b261f"
+                    strokeWidth="1.5"
+                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.25))"
+                  />
+                  {/* Top-Left Rank & Suit */}
+                  <text
+                    x="4"
+                    y="12"
+                    fontSize="9.5"
+                    fontWeight="900"
+                    fontFamily="monospace"
+                    fill={isLatestRed ? '#b91c1c' : '#1e1b18'}
+                  >
+                    {latestCard.rank}
+                  </text>
+                  <text
+                    x="4"
+                    y="22"
+                    fontSize="8.5"
+                    fontWeight="bold"
+                    fill={isLatestRed ? '#b91c1c' : '#1e1b18'}
+                  >
+                    {latestCard.suit}
+                  </text>
+
+                  {/* Center Big Suit */}
+                  <text
+                    x="25"
+                    y="43"
+                    textAnchor="middle"
+                    fontSize="21"
+                    fontWeight="bold"
+                    fontFamily="serif"
+                    fill={isLatestRed ? '#dc2626' : '#1e1b18'}
+                  >
+                    {latestCard.suit}
+                  </text>
+
+                  {/* Bottom-Right Value */}
+                  <text
+                    x="46"
+                    y="64"
+                    textAnchor="end"
+                    fontSize="7"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                    fill="#786e5e"
+                  >
+                    v:{latestCard.value}
+                  </text>
+                </g>
+              </g>
+            ) : (
+              /* Empty Hand Placeholder */
+              <g transform="translate(27, 26)">
+                <rect
+                  x="0"
+                  y="0"
+                  width="50"
+                  height="70"
+                  rx="6"
+                  fill="#f1ebdf"
+                  stroke="#a89d8d"
+                  strokeWidth="1.2"
+                  strokeDasharray="3 3"
+                />
+                <text
+                  x="25"
+                  y="33"
+                  textAnchor="middle"
+                  fontSize="17"
+                  opacity="0.5"
+                >
+                  🃏
+                </text>
+                <text
+                  x="25"
+                  y="49"
+                  textAnchor="middle"
+                  fontSize="7"
+                  fontWeight="bold"
+                  fontFamily="monospace"
+                  fill="#8a7e6d"
+                >
+                  0 Cards
+                </text>
+              </g>
+            )}
+
+            {/* Cumulative Hand Badge / Tap to View Button */}
+            <g transform="translate(6, 104)">
+              <rect
+                x="0"
+                y="0"
+                width="92"
+                height="34"
+                rx="4"
+                fill={handCount > 0 ? '#1b4332' : '#e5ddcc'}
+                stroke={handCount > 0 ? '#15803d' : '#948775'}
+                strokeWidth="1"
+              />
+              <text
+                x="46"
+                y="13"
+                textAnchor="middle"
+                fontSize="7.5"
+                fontWeight="900"
+                fontFamily="monospace"
+                fill={handCount > 0 ? '#86efac' : '#5c5244'}
+              >
+                {handCount > 0
+                  ? `${handCount} card${handCount === 1 ? '' : 's'} • -${cumulativeHandValue}`
+                  : 'Empty Hand (0)'}
+              </text>
+              <text
+                x="46"
+                y="25"
+                textAnchor="middle"
+                fontSize="6.5"
+                fontWeight="bold"
+                fontFamily="monospace"
+                fill={handCount > 0 ? '#bbf7d0' : '#786e5e'}
+              >
+                Tap to View Hand
+              </text>
+            </g>
+          </g>
         </svg>
       </div>
 
@@ -535,6 +827,114 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
           </div>
         )}
       </div>
+
+      {/* Hand Cards Modal */}
+      {showHandModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/65 backdrop-blur-xs select-none">
+          <div className="w-full max-w-sm bg-[#f4edd9] border-2 border-[#2b261f] rounded-xl shadow-2xl overflow-hidden font-mono text-[#2b261f] animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="py-2.5 px-3 border-b-2 border-[#2b261f] font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-between bg-[#ede4d3]">
+              <div className="flex items-center gap-1.5">
+                <Backpack className="w-4 h-4 text-emerald-800" />
+                <span>Hand Cards (Level 3 Inventory)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHandModal(false)}
+                className="p-1 rounded hover:bg-[#dfd3bc] active:bg-[#d0c2a8] text-[#5c5244] cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-3.5 space-y-3 overflow-y-auto text-xs">
+              {/* Summary Banner */}
+              <div className="bg-[#e8f5e9] border border-[#81c784] rounded-lg p-2.5 flex items-center justify-between text-[#1b5e20]">
+                <div>
+                  <div className="font-black text-xs">
+                    {handCount} Card{handCount === 1 ? '' : 's'} Carried
+                  </div>
+                  <div className="text-[10.5px] text-[#2e7d32]">
+                    Cumulative Reduction: <strong>-{cumulativeHandValue} pts</strong>
+                  </div>
+                </div>
+                <div className="text-2xl font-black bg-[#c8e6c9] px-2 py-0.5 rounded border border-[#a5d6a7]">
+                  -{cumulativeHandValue}
+                </div>
+              </div>
+
+              {/* Strategic Explanation */}
+              <p className="text-[11px] text-[#5c5244] leading-relaxed">
+                Cards banked in Level 2 carry forward into <strong>Level 3</strong>. Playing cards in encounter challenges reduces Utopia Engine dice scores towards 0, unlocking doors and disarming traps without combat!
+              </p>
+
+              {/* Cards Grid */}
+              {handCount === 0 ? (
+                <div className="py-8 text-center bg-[#ede4d3] rounded-lg border border-[#cfbe9f] text-[#7a6d59] space-y-1">
+                  <div className="text-2xl">🃏</div>
+                  <div className="font-bold text-xs">Your hand is currently empty</div>
+                  <div className="text-[10px]">
+                    Draw honour cards in Level 2 to bank cards into your hand!
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2.5 pt-1">
+                  {playerHand.map((card, idx) => {
+                    const isRed = card.suit === '♥' || card.suit === '♦';
+                    return (
+                      <div
+                        key={`flower-hand-card-${card.id || idx}`}
+                        className="bg-white border-2 border-[#2b261f] rounded-lg shadow p-2 flex flex-col justify-between items-center h-28 relative"
+                      >
+                        <div className="w-full flex items-center justify-between">
+                          <span
+                            className={`text-xs font-black ${
+                              isRed ? 'text-red-700' : 'text-slate-900'
+                            }`}
+                          >
+                            {card.rank}
+                            <span className="text-[10px] ml-0.5">{card.suit}</span>
+                          </span>
+                          <span className="text-[9px] bg-[#f0ebd9] px-1 py-0.2 rounded font-bold text-[#5c5244]">
+                            v:{card.value}
+                          </span>
+                        </div>
+
+                        <div
+                          className={`text-3xl font-black ${
+                            isRed ? 'text-red-700' : 'text-slate-900'
+                          }`}
+                        >
+                          {card.suit}
+                        </div>
+
+                        <div className="w-full text-center">
+                          <span className="text-[9px] font-black text-[#15803d] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
+                            -{card.value} pts
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-2.5 bg-[#ede4d3] border-t border-[#2b261f]/20 text-center">
+              <button
+                type="button"
+                onClick={() => setShowHandModal(false)}
+                className="w-full py-2 px-4 bg-[#2d6a4f] hover:bg-[#3d3328] active:bg-[#1a1612] text-white font-mono font-black text-xs uppercase tracking-wider rounded-lg shadow cursor-pointer transition-transform active:translate-y-0.5"
+              >
+                Close Hand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

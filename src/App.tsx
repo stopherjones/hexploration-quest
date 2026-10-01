@@ -59,6 +59,7 @@ import {
   generateLevel3Map,
   Level3State,
   FlowerTile,
+  FlowerHexCoord,
   canTraverseToTile,
   areAxialAdjacent,
 } from './utils/level3Engine';
@@ -209,6 +210,7 @@ export default function App() {
       : generateLevel3Map()
   );
   const [activeLevel3Tile, setActiveLevel3Tile] = useState<FlowerTile | null>(null);
+  const [level3PreviousCoord, setLevel3PreviousCoord] = useState<FlowerHexCoord | null>(null);
   const [level3Steps, setLevel3Steps] = useState<number>(() =>
     initialSave ? initialSave.level3.level3Steps : 0
   );
@@ -1486,7 +1488,8 @@ export default function App() {
 
   // --- LEVEL 1.5: HEX PYRAMID ASCENT LOGIC ---
 
-  const handleStartLevel1_5 = (startingEnergy?: number) => {
+  // --- LEVEL 2: HEX PYRAMID ASCENT LOGIC ---
+  const handleStartLevel2 = (startingEnergy?: number) => {
     sounds.playBonus();
     const newPyr = generatePyramidMap();
     setPyramidData(newPyr);
@@ -1515,15 +1518,15 @@ export default function App() {
     } else if (energy <= 5) {
       setEnergy(15);
     }
-    setCurrentLevel(1.5);
+    setCurrentLevel(2);
     setStatusMessage(
-      'Level 1.5: Hex Pyramid Ascent. Select Higher (row above) or Lower (row below) to traverse all 12 columns!'
+      'Level 2: Hex Pyramid Ascent. Select Higher (row above) or Lower (row below) to traverse all 12 columns!'
     );
   };
 
   // Step 1: Move into hex and open Card Draw Modal
   const handlePyramidPredict = (prediction: 'higher' | 'lower') => {
-    if (currentLevel !== 1.5 || isWon || isLost || pyramidPlayerPos.col >= PYRAMID_COLS - 1) {
+    if (currentLevel !== 2 || isWon || isLost || pyramidPlayerPos.col >= PYRAMID_COLS - 1) {
       return;
     }
 
@@ -2768,13 +2771,15 @@ export default function App() {
     sounds.playStep();
     setLevel3Steps((prev) => prev + 1);
 
+    setLevel3PreviousCoord({ q: level3State.playerCoord.q, r: level3State.playerCoord.r });
+
     const targetKey = `${targetTile.q},${targetTile.r}`;
     const updatedTiles = new Map(level3State.tiles);
     const cur = updatedTiles.get(targetKey);
     if (cur) {
       cur.revealed = true;
       cur.visited = true;
-      cur.status = 'visited';
+      cur.status = cur.status === 'cleared' ? 'cleared' : 'visited';
     }
 
     setLevel3State((prev) => ({
@@ -2784,34 +2789,44 @@ export default function App() {
     }));
 
     // Trigger encounter modals
-    if (targetTile.type === 'outer_door') {
+    if (targetTile.type === 'safe') {
+      setStatusMessage('Entered safe encampment (-1⚡). Safe from traps and monsters.');
+    } else if (targetTile.type === 'outer_door') {
       if (!targetTile.doorTested && !level3State.outerDoorsUnlocked) {
         setActiveLevel3Tile(targetTile);
-        setStatusMessage('Reached an Outer Portal Door! Test yourself with the Utopia Engine dice.');
+        setStatusMessage('Reached an Outer Portal Door! Test yourself with the Utopia Engine dice (Score 0–10 unlocks).');
       } else {
         setStatusMessage(
-          level3State.outerDoorsUnlocked
+          level3State.outerDoorsUnlocked || targetTile.doorPassed
             ? 'Passed through unlocked outer portal (-1⚡).'
-            : 'Outer portal already tested.'
+            : 'Outer portal door is permanently locked.'
         );
       }
     } else if (targetTile.type === 'inner_door') {
       if (!targetTile.doorTested && !level3State.innerDoorsUnlocked) {
         setActiveLevel3Tile(targetTile);
-        setStatusMessage('Reached an Inner Core Gate! Test yourself with the Utopia Engine dice.');
+        setStatusMessage('Reached an Inner Core Gate! Test yourself with the Utopia Engine dice (Score 0 to decrypt).');
       } else {
         setStatusMessage(
-          level3State.innerDoorsUnlocked
+          level3State.innerDoorsUnlocked || targetTile.doorPassed
             ? 'Passed through unlocked core gate (-1⚡).'
-            : 'Core gate already tested.'
+            : 'Inner core gate is permanently locked.'
         );
       }
     } else if (targetTile.type === 'trap') {
+      // If not permanently disarmed, entering triggers the trap challenge!
       if (!targetTile.disarmed) {
         setActiveLevel3Tile(targetTile);
         setStatusMessage('Trap chamber entered! Align the gears to disarm the mechanism.');
       } else {
-        setStatusMessage('Passed through previously disarmed trap corridor (-1⚡).');
+        setStatusMessage('Passed through permanently dismantled trap corridor (-1⚡).');
+      }
+    } else if (targetTile.type === 'monster') {
+      if (!targetTile.monsterDefeated && !targetTile.monsterBypassed) {
+        setActiveLevel3Tile(targetTile);
+        setStatusMessage('Subterranean beast lair! Roll Utopia Engine dice to attempt sneaking past.');
+      } else {
+        setStatusMessage('Passing through cleared beast lair (-1⚡).');
       }
     } else if (targetTile.type === 'treasure') {
       if (!targetTile.looted) {
@@ -2865,62 +2880,32 @@ export default function App() {
     }
   };
 
-  const handleLevel3OuterDoorResult = (result: 'master' | 'code' | 'fail') => {
+  const handleLevel3OuterDoorResult = (result: 'unlocked' | 'fail') => {
     setLevel3State((prev) => {
       const updatedTiles = new Map(prev.tiles);
       if (activeLevel3Tile) {
         const cur = updatedTiles.get(activeLevel3Tile.id);
         if (cur) {
           cur.doorTested = true;
-          cur.doorPassed = result !== 'fail';
+          cur.doorPassed = result === 'unlocked';
         }
       }
 
       let nextUnlocked = prev.outerDoorsUnlocked;
-      let nextFrags = prev.outerCodeFragments;
       let nextFails = prev.outerDoorFails;
 
-      if (result === 'master') {
+      if (result === 'unlocked') {
         nextUnlocked = true;
         sounds.playVictory();
-        setStatusMessage('MASTER UNLOCK (Score 0)! All 4 Outer Portal Doors unlocked! The Inner Ring is now accessible.');
-      } else if (result === 'code') {
-        nextFrags += 1;
-        if (nextFrags >= 3) {
-          nextUnlocked = true;
-          sounds.playVictory();
-          setStatusMessage('Acquired Code Fragment 3/3! All 4 Outer Portal Doors unlocked! The Inner Ring is accessible.');
-        } else {
-          const testedCount = nextFrags + nextFails;
-          if (nextFails >= 2) {
-            // Already failed twice: cannot reach 3 fragments, must get a 0 on remaining doors!
-            if (testedCount >= 4 && !nextUnlocked) {
-              sounds.playHazard();
-              setIsLost(true);
-              setStatusMessage('All 4 outer portal doors tested without unlocking. Outer ring permanently sealed. Game over.');
-            } else {
-              setStatusMessage(`Acquired code fragment (${nextFrags}/3), but with 2 fails you need a Master Score of 0 on remaining doors!`);
-            }
-          } else {
-            setStatusMessage(`Acquired Outer Code Fragment (${nextFrags}/3)! Find and test other doors.`);
-          }
-        }
+        setStatusMessage('PORTAL UNLOCKED (Score 0–10)! Outer Portal Doors opened! The Inner Ring is now accessible.');
       } else {
         nextFails += 1;
-        const testedCount = nextFrags + nextFails;
-        if (testedCount >= 4 && !nextUnlocked) {
-          sounds.playHazard();
+        sounds.playHazard();
+        if (nextFails >= 4 && !nextUnlocked) {
           setIsLost(true);
-          setStatusMessage('All 4 outer portal doors failed without unlocking. Outer ring permanently sealed. Game over.');
-        } else if (nextFails === 2 && !nextUnlocked) {
-          sounds.playHazard();
-          setStatusMessage('Door failed (2 fails)! You can no longer get 3 code fragments — you must roll a Master Score of 0 on doors three or four!');
-        } else if (nextFails === 3 && !nextUnlocked) {
-          sounds.playHazard();
-          setStatusMessage('Door failed (3 fails)! Only one door remains — you must roll a Master Score of 0 to unlock!');
+          setStatusMessage('All 4 outer portal doors failed and are permanently locked. Outer ring permanently sealed. Game over.');
         } else {
-          sounds.playHazard();
-          setStatusMessage('Door test failed. Seek another outer portal door.');
+          setStatusMessage(`Door failed and is permanently locked! Must test remaining portal doors (${4 - nextFails} remaining).`);
         }
       }
 
@@ -2928,57 +2913,37 @@ export default function App() {
         ...prev,
         tiles: updatedTiles,
         outerDoorsUnlocked: nextUnlocked,
-        outerCodeFragments: nextFrags,
         outerDoorFails: nextFails,
       };
     });
   };
 
-  const handleLevel3InnerDoorResult = (result: 'master' | 'code' | 'fail') => {
+  const handleLevel3InnerDoorResult = (result: 'unlocked' | 'fail') => {
     setLevel3State((prev) => {
       const updatedTiles = new Map(prev.tiles);
       if (activeLevel3Tile) {
         const cur = updatedTiles.get(activeLevel3Tile.id);
         if (cur) {
           cur.doorTested = true;
-          cur.doorPassed = result !== 'fail';
+          cur.doorPassed = result === 'unlocked';
         }
       }
 
       let nextUnlocked = prev.innerDoorsUnlocked;
-      let nextFrags = prev.innerCodeFragments;
       let nextFails = prev.innerDoorFails;
 
-      if (result === 'master') {
+      if (result === 'unlocked') {
         nextUnlocked = true;
         sounds.playVictory();
         setStatusMessage('MASTER UNLOCK (Score 0)! The Core Gate to the Utopia Engine opened!');
-      } else if (result === 'code') {
-        nextFrags += 1;
-        if (nextFrags >= 2) {
-          nextUnlocked = true;
-          sounds.playVictory();
-          setStatusMessage('Acquired Inner Code (2/2)! The Core Gate to the Utopia Engine opened!');
-        } else {
-          if (nextFails >= 1) {
-            // First door failed, second door gave code (not 0): both tested, cannot reach 2 codes, so failed!
-            sounds.playHazard();
-            setIsLost(true);
-            setStatusMessage('Both inner gates tested without obtaining both codes or a master 0. The Core cannot be reached. Game over.');
-          } else {
-            setStatusMessage('Acquired Inner Code (1/2)! Test the other inner gate to reach the Core.');
-          }
-        }
       } else {
         nextFails += 1;
-        const testedCount = nextFrags + nextFails;
-        if (testedCount >= 2 && !nextUnlocked) {
-          sounds.playHazard();
+        sounds.playHazard();
+        if (nextFails >= 2 && !nextUnlocked) {
           setIsLost(true);
-          setStatusMessage('Failed inner gates without unlocking. The Core cannot be reached. Game over.');
+          setStatusMessage('Both inner core gates failed and are permanently locked. The Core cannot be reached. Game over.');
         } else {
-          sounds.playHazard();
-          setStatusMessage('Inner gate failed! You cannot get 2 codes — you must roll a Master Score of 0 on the second gate to open the Core!');
+          setStatusMessage('Inner gate failed and is permanently locked! Must roll an exact score of 0 on the second gate!');
         }
       }
 
@@ -2986,7 +2951,6 @@ export default function App() {
         ...prev,
         tiles: updatedTiles,
         innerDoorsUnlocked: nextUnlocked,
-        innerCodeFragments: nextFrags,
         innerDoorFails: nextFails,
       };
     });
@@ -2999,16 +2963,66 @@ export default function App() {
         const cur = updatedTiles.get(activeLevel3Tile.id);
         if (cur) {
           cur.disarmed = permanent;
-          cur.disarmedOnce = !permanent;
+          cur.disarmedTemporarily = !permanent;
         }
       }
       return { ...prev, tiles: updatedTiles };
     });
     if (permanent) {
-      setStatusMessage('Score 0: Trap permanently dismantled! Room converted to safe corridor.');
+      setStatusMessage('Score 0–10: Trap permanently dismantled! Room converted to safe corridor.');
     } else {
-      setStatusMessage('Trap disarmed for this traversal! Safe to pass.');
+      setStatusMessage('Trap temporarily deactivated! Safe to pass now, but will reactivate if you return.');
     }
+  };
+
+  const handleLevel3TrapFailed = () => {
+    sounds.playHazard();
+    const nextEnergy = Math.max(0, energy - 5);
+    setEnergy(nextEnergy);
+
+    if (level3PreviousCoord) {
+      setLevel3State((prev) => ({
+        ...prev,
+        playerCoord: level3PreviousCoord,
+      }));
+    }
+
+    if (nextEnergy <= 0) {
+      setIsLost(true);
+      setStatusMessage('Energy exhausted by spring trap (-5⚡)! Delve is lost.');
+    } else {
+      setStatusMessage('Trap sprung! Lost 5⚡ Energy and retreated to previous hex. Trap remains active.');
+    }
+  };
+
+  const handleLevel3MonsterSneaked = () => {
+    setLevel3State((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      if (activeLevel3Tile) {
+        const cur = updatedTiles.get(activeLevel3Tile.id);
+        if (cur) {
+          cur.monsterBypassed = true;
+          cur.status = 'cleared';
+        }
+      }
+      return { ...prev, tiles: updatedTiles };
+    });
+    setStatusMessage('Stealth success! Slipped past the monster unnoticed without fighting.');
+  };
+
+  const handleLevel3MonsterDefeated = () => {
+    setLevel3State((prev) => {
+      const updatedTiles = new Map(prev.tiles);
+      if (activeLevel3Tile) {
+        const cur = updatedTiles.get(activeLevel3Tile.id);
+        if (cur) {
+          cur.monsterDefeated = true;
+          cur.status = 'cleared';
+        }
+      }
+      return { ...prev, tiles: updatedTiles };
+    });
+    setStatusMessage('Monster defeated in combat! The lair is safely cleared.');
   };
 
   const handleLevel3TreasureClaimed = () => {
@@ -3060,8 +3074,8 @@ export default function App() {
       handleStartLevel3Test();
       return;
     }
-    if (targetLvl === 1.5) {
-      handleStartLevel1_5();
+    if (targetLvl === 2) {
+      handleStartLevel2();
       return;
     }
     setCurrentLevel(targetLvl);
@@ -3070,8 +3084,6 @@ export default function App() {
     setActiveLevel3Tile(null);
     if (targetLvl === 1) {
       setStatusMessage('Switched to Level 1: Hex Crawl wilderness exploration.');
-    } else if (targetLvl === 2) {
-      setStatusMessage('Switched to Level 2: Subterranean Tunnels delve.');
     }
   };
 
@@ -3085,8 +3097,6 @@ export default function App() {
           currentLevel === 3
             ? level3Steps
             : currentLevel === 2
-            ? level2Steps
-            : currentLevel === 1.5
             ? pyramidSteps
             : turn
         }
@@ -3135,7 +3145,7 @@ export default function App() {
             onExecuteMove={handleExecuteMove}
             canExecuteMove={diceState.rolled && pathPreview.length > 0 && energy > 0}
           />
-        ) : currentLevel === 1.5 ? (
+        ) : currentLevel === 2 ? (
           <PyramidGrid
             tiles={pyramidData.tiles}
             playerPos={pyramidPlayerPos}
@@ -3147,16 +3157,6 @@ export default function App() {
             onTileClick={handlePyramidTileClick}
             onPredict={handlePyramidPredict}
           />
-        ) : currentLevel === 2 ? (
-          <TunnelGrid
-            tiles={tunnelMap.tiles}
-            playerCoord={tunnelMap.playerCoord}
-            onTileClick={handleTunnelTileClick}
-            interactiveExits={tunnelInteractiveExits}
-            energy={energy}
-            moveCost={level2MoveCost}
-            isReExploring={level2ReExploring}
-          />
         ) : (
           <div className="h-full overflow-hidden p-1 flex items-center justify-center">
             <FlowerHexGrid
@@ -3167,12 +3167,13 @@ export default function App() {
               energy={energy}
               onStepIn={handleLevel3StepIn}
               onPeek={handleLevel3Peek}
+              playerHand={playerHand}
             />
           </div>
         )}
       </main>
 
-      {/* 3. Fixed Footer Control Panel */}
+      {/* 3. Fixed Footer Control Panel (No footer in Level 3) */}
       {currentLevel === 1 ? (
         <ControlPanel
           diceState={diceState}
@@ -3183,7 +3184,10 @@ export default function App() {
           pathPreview={pathPreview}
           isMoveOne={isMoveOne}
           freeMoves={freeMoves}
+          hasTelescope={hasTelescope}
           hasDiceModifier={hasDiceModifier}
+          goalFound={goalFound}
+          goalClue={goalClue}
           statusMessage={statusMessage}
           onRollDice={handleRollDice}
           onSelectDirectionDie={handleSelectDirectionDie}
@@ -3192,7 +3196,7 @@ export default function App() {
           onResetDeviation={handleResetDeviation}
           onModifyDie={handleModifyDie}
         />
-      ) : currentLevel === 1.5 ? (
+      ) : currentLevel === 2 ? (
         <PyramidControlPanel
           currentColumn={pyramidPlayerPos.col}
           streak={pyramidStreak}
@@ -3202,232 +3206,7 @@ export default function App() {
           onPredict={handlePyramidPredict}
           onOpenRules={() => setShowRules(true)}
         />
-      ) : currentLevel === 2 ? (
-        <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none flex flex-col shadow-lg z-30">
-          <div className="p-2 flex flex-col gap-2">
-            {/* Card Display with Heart theme and Deck Tracker */}
-            <CardDisplay
-              card={tunnelMap.activeCard}
-              deckCount={tunnelMap.deck.length}
-              discardCards={tunnelMap.discard}
-              onDrawCard={handleTunnelDrawCard}
-              canDraw={canDrawTunnelCard}
-              delveStage={delveStage}
-              delveExitInfo={delveExitInfo}
-              activeExitDirs={
-                tunnelMap.tiles.get(
-                  `${tunnelMap.playerCoord.col},${tunnelMap.playerCoord.row}`
-                )?.carvedExitDirs
-              }
-              isReExploring={level2ReExploring}
-              canReExplore={
-                (isLevel2MapFullyDrawn && !level2ReExploring) ||
-                (tunnelMap.deck.length === 0 && unexploredExits.length === 0)
-              }
-              onOpenReExplorePrompt={() => {
-                setReExploreDismissedForCurrentState(false);
-                setShowReExploreModal(true);
-              }}
-            />
-
-            {/* Primary Action Buttons Area: Consistent with Level 1 bottom CTA */}
-            {delveStage ? (
-              /* Active 2-stage tabletop sequence progress bar */
-              <div className="w-full py-2.5 px-3 bg-[#241e18] border-2 border-[#2b261f] rounded-lg shadow-md flex items-center justify-between gap-2 text-xs font-mono select-none">
-                <div className="flex items-center gap-2 min-w-0">
-                  {delveStage === 'draw' && (
-                    <>
-                      <span className="text-amber-400 font-black text-sm animate-pulse shrink-0">🃏</span>
-                      <div className="truncate">
-                        <span className="text-[#a89d8d] text-[10px] block uppercase font-bold tracking-wider leading-tight">Stage 1 of 2: Drawn Card</span>
-                        <span className="text-[#fef3c7] font-black tracking-wide">{tunnelMap.activeCard?.rank} of Hearts</span>
-                      </div>
-                    </>
-                  )}
-                  {delveStage === 'ink' && (
-                    <>
-                      <span className="text-emerald-400 font-black text-sm animate-pulse shrink-0">✏️</span>
-                      <div className="truncate">
-                        <span className="text-[#a89d8d] text-[10px] block uppercase font-bold tracking-wider leading-tight">Stage 2 of 2: Inking Map</span>
-                        <span className="text-[#bbf7d0] font-black tracking-wide">
-                          {delveExitInfo
-                            ? `Inking exit ${delveExitInfo.current} of ${delveExitInfo.total} (${delveExitInfo.dirName})...`
-                            : 'Inking passages on map...'}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* 2 Stage Pill Tracker */}
-                <div className="flex items-center gap-1.5 shrink-0 bg-[#191410] px-2 py-1 rounded border border-[#3d3429]">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      delveStage === 'draw' ? 'bg-amber-400 ring-2 ring-amber-300/40 animate-pulse' : 'bg-amber-500'
-                    }`}
-                    title="Stage 1: Draw Card"
-                  />
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${
-                      delveStage === 'ink' ? 'bg-emerald-400 ring-2 ring-emerald-300/40 animate-pulse' : 'bg-[#4a4034]'
-                    }`}
-                    title="Stage 2: Ink on Map"
-                  />
-                </div>
-              </div>
-            ) : canDrawTunnelCard ? (
-              /* When in an unsurveyed chamber or awaiting next card (after entering or after JQK),
-                 the ONLY action is Draw Delve Card */
-              <button
-                id="btn-draw-delve-card"
-                onClick={handleTunnelDrawCard}
-                className="w-full py-2 px-3 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
-              >
-                <span className="text-sm">♥</span>
-                <span>DRAW DELVE CARD</span>
-                <span className="text-[10px] text-[#bbf7d0] font-bold bg-[#1b4332] px-2 py-0.5 rounded border border-[#15803d] ml-1">
-                  {tunnelMap.deck.length} IN DECK
-                </span>
-              </button>
-            ) : tunnelInteractiveExits.length > 0 ? (
-              /* When exits are carved, show exits as primary action buttons matching Level 1 style. */
-              <div className="flex items-center gap-1.5 w-full">
-                {tunnelInteractiveExits.map((exitCoord, idx) => {
-                  const bearing = getAdjacentBearing(tunnelMap.playerCoord, exitCoord);
-                  const exitKey = `${exitCoord.col},${exitCoord.row}`;
-                  const exitTile = tunnelMap.tiles.get(exitKey);
-                  const isTarget = Boolean(exitTile?.isTarget);
-                  const isOverlapping = Boolean(exitTile && !exitTile.visited && !exitTile.isDeadEnd && exitTile.connections.length > 1);
-
-                  if (isTarget) {
-                    return (
-                      <button
-                        key={`exit-${exitCoord.col}-${exitCoord.row}-${idx}`}
-                        onClick={() => handleTunnelTileClick(exitCoord)}
-                        className="flex-1 min-w-0 py-2 px-2 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border-2 border-[#2b261f] rounded-lg font-mono font-black text-xs sm:text-sm tracking-wider uppercase shadow-md flex items-center justify-between gap-1 cursor-pointer transition-transform active:translate-y-0.5"
-                      >
-                        <span className="truncate">🏆 {bearing}</span>
-                        <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] shrink-0">
-                          -{level2MoveCost}⚡
-                        </span>
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={`exit-${exitCoord.col}-${exitCoord.row}-${idx}`}
-                      onClick={() => handleTunnelTileClick(exitCoord)}
-                      className={`flex-1 min-w-0 py-2 px-2 text-white border-2 border-[#2b261f] rounded-lg font-mono font-bold text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-between gap-1 cursor-pointer transition-transform active:translate-y-0.5 ${
-                        isOverlapping
-                          ? 'bg-[#92400e] hover:bg-[#78350f] active:bg-[#451a03]'
-                          : level2ReExploring
-                          ? 'bg-[#1e3a8a] hover:bg-[#172554] active:bg-[#0f172a]'
-                          : 'bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332]'
-                      }`}
-                    >
-                      <span className="truncate font-black flex items-center gap-1">
-                        {isOverlapping && <span className="text-amber-300">✦</span>}
-                        <span>{bearing}</span>
-                        {isOverlapping && exitTile && (
-                          <span className="text-[10px] text-amber-200">
-                            ({exitTile.connections.length}x)
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-[10px] font-mono font-bold text-[#bbf7d0] bg-[#1b4332] px-1.5 py-0.5 rounded border border-[#15803d] shrink-0">
-                        -{level2MoveCost}⚡
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="w-full py-2 px-3 text-center text-xs font-mono text-[#786e5e] italic">
-                No exits available.
-              </div>
-            )}
-            {/* Level 2 Hand Tracker */}
-            {playerHand.length > 0 && (
-              <div className="bg-[#ede4d3] px-2 py-1 rounded border border-[#2b261f]/20 flex items-center justify-between text-[10.5px] font-mono">
-                <span className="font-bold text-[#5c5244] flex items-center gap-1.5">
-                  <span>🎒</span>
-                  <span>Banked Hand ({playerHand.length} cards):</span>
-                  <span className="text-[#166534] font-black">-{playerHand.reduce((s, c) => s + c.value, 0)} pts</span>
-                </span>
-                <span className="text-[#786e5e] text-[9.5px]">Reduces Level 3 Utopia dice score</span>
-              </div>
-            )}
-          </div>
-        </footer>
-      ) : (
-        /* Level 3 Footer */
-        <footer className="shrink-0 bg-[#e8deca] border-t-2 border-[#2b261f] select-none flex flex-col shadow-lg z-30 p-2 gap-1.5">
-          <div className="flex items-center justify-between font-mono text-xs text-[#2b261f]">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span
-                className={`px-2 py-0.5 rounded text-[10px] font-black border ${
-                  level3State.outerDoorsUnlocked
-                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
-                    : 'bg-amber-100 text-amber-900 border-amber-400'
-                }`}
-              >
-                {level3State.outerDoorsUnlocked
-                  ? 'Outer Portals: UNLOCKED'
-                  : `Outer Codes: ${level3State.outerCodeFragments}/3`}
-              </span>
-              <span
-                className={`px-2 py-0.5 rounded text-[10px] font-black border ${
-                  level3State.innerDoorsUnlocked
-                    ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
-                    : 'bg-amber-100 text-amber-900 border-amber-400'
-                }`}
-              >
-                {level3State.innerDoorsUnlocked
-                  ? 'Core Gate: UNLOCKED'
-                  : `Inner Codes: ${level3State.innerCodeFragments}/2`}
-              </span>
-              {playerHand.length > 0 && (
-                <span
-                  className="px-2 py-0.5 rounded text-[10px] font-black border bg-[#dbece2] text-[#166534] border-[#86efac]"
-                  title="Hand cards brought from Level 2. Click them inside encounter tests to reduce Utopia Engine dice scores towards 0!"
-                >
-                  🎒 Hand: {playerHand.length} cards (-{playerHand.reduce((s, c) => s + c.value, 0)} pts)
-                </span>
-              )}
-              <button
-                type="button"
-                id="btn-restart-l3-test"
-                onClick={handleStartLevel3Test}
-                className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-[#e2d5bd] hover:bg-[#d4c3a7] text-[#2b261f] border border-[#2b261f]/40 cursor-pointer shadow-2xs active:translate-y-px"
-                title="Restart Level 3 test fresh with 15 Energy and 5 Cards in Hand"
-              >
-                🔄 Restart Test (15⚡ + 5🃏)
-              </button>
-            </div>
-            <span className="text-[10px] font-black bg-[#ede4d3] px-2 py-0.5 rounded border border-[#2b261f]/30">
-              {energy}⚡ Energy
-            </span>
-          </div>
-          {playerHand.length > 0 && (
-            <div className="flex items-center gap-1 px-1 overflow-x-auto text-[10px] font-mono">
-              <span className="text-[#5c5244] font-bold shrink-0">Hand Reserve:</span>
-              {playerHand.map((c, idx) => (
-                <span
-                  key={`${c.id}-${idx}`}
-                  className="px-1.5 py-0.2 bg-white border border-[#2b261f]/30 rounded text-[9.5px] font-bold shadow-2xs shrink-0"
-                >
-                  <span className={c.suit === '♦' ? 'text-red-600' : 'text-slate-900'}>{c.rank}{c.suit}</span>
-                  <span className="text-[#786e5e] ml-0.5">(-{c.value})</span>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="text-[11px] text-[#5c5346] leading-tight px-1 font-mono truncate">
-            {statusMessage}
-          </div>
-        </footer>
-      )}
+      ) : null}
 
       {/* Level 3 Encounter Modal (Utopia Engine Tests & Combat) */}
       {activeLevel3Tile && (
@@ -3435,6 +3214,8 @@ export default function App() {
           tile={activeLevel3Tile}
           energy={energy}
           maxEnergy={MAX_ENERGY}
+          outerDoorsUnlocked={level3State.outerDoorsUnlocked}
+          innerDoorsUnlocked={level3State.innerDoorsUnlocked}
           outerCodeFragments={level3State.outerCodeFragments}
           innerCodeFragments={level3State.innerCodeFragments}
           playerHand={playerHand}
@@ -3443,6 +3224,9 @@ export default function App() {
           onOuterDoorResult={handleLevel3OuterDoorResult}
           onInnerDoorResult={handleLevel3InnerDoorResult}
           onTrapDisarmed={handleLevel3TrapDisarmed}
+          onTrapFailed={handleLevel3TrapFailed}
+          onMonsterSneaked={handleLevel3MonsterSneaked}
+          onMonsterDefeated={handleLevel3MonsterDefeated}
           onTreasureClaimed={handleLevel3TreasureClaimed}
           onBossDefeated={handleLevel3BossDefeated}
           onGameOver={(reason) => {
@@ -3554,13 +3338,13 @@ export default function App() {
         />
       )}
 
-      {/* Level Transition Modal (Level 1 Complete -> Descend to Level 2 or Ascend Level 1.5) */}
+      {/* Level Transition Modal (Level 1 Complete -> Ascend to Level 2) */}
       {showLevelTransitionModal && (
         <LevelTransitionModal
           remainingEnergy={energy}
           turnsTaken={level1Turns}
-          onAscendPyramid={() => handleStartLevel1_5(energy)}
-          onDescend={handleDescendToLevel2}
+          onAscendPyramid={() => handleStartLevel2(energy)}
+          onDescend={() => handleStartLevel2(energy)}
           onReviewMap={() => {
             setShowLevelTransitionModal(false);
             setReviewingMap(true);
@@ -3576,8 +3360,6 @@ export default function App() {
             currentLevel === 3
               ? level3Steps
               : currentLevel === 2
-              ? level2Steps
-              : currentLevel === 1.5
               ? pyramidSteps
               : turn
           }
@@ -3602,10 +3384,10 @@ export default function App() {
           </span>
           {currentLevel === 1 && !isLost && (
             <button
-              onClick={handleDescendToLevel2}
+              onClick={() => handleStartLevel2(energy)}
               className="px-2.5 py-1 bg-[#2d6a4f] hover:bg-[#23533e] text-white font-bold rounded border border-[#2b261f] cursor-pointer shadow-xs"
             >
-              Descend Level 2 ⬇
+              Ascend Level 2 🔺
             </button>
           )}
           <button

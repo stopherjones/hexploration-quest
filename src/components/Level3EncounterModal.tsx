@@ -86,9 +86,10 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const baseDiff = difference ?? 0;
   let effectiveDifference = baseDiff;
   if (baseDiff > 0) {
-    // DO NOT clamp to 0: overshooting into negative fails 0-unlock doors
-    effectiveDifference = baseDiff - totalCardReduction;
+    // Card modifiers reduce positive result towards 0 (clamped at 0)
+    effectiveDifference = Math.max(0, baseDiff - totalCardReduction);
   } else if (baseDiff < 0) {
+    // Card modifiers used in L3 can reduce a negative result to 0 (or turn it into a positive result)
     effectiveDifference = baseDiff + totalCardReduction;
   }
 
@@ -712,7 +713,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                               Selected ({selectedHandCardIds.length}):
                             </span>
                             <span className="font-black text-[#15803d]">
-                              -{totalCardReduction} pts ({baseDiff} → {effectiveDifference})
+                              {baseDiff < 0
+                                ? `+${totalCardReduction} modifier (${baseDiff} → ${effectiveDifference})`
+                                : `-${totalCardReduction} modifier (${baseDiff} → ${effectiveDifference})`}
                             </span>
                           </div>
                         )}
@@ -733,7 +736,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                         <div className="font-mono text-[11px] mb-0.5">
                           Effective Score: <span className="font-black text-xs">{effectiveDifference}</span>
                           {totalCardReduction > 0 && (
-                            <span className="ml-1 text-[9.5px] opacity-80">(Original: {baseDiff}, -{totalCardReduction} cards)</span>
+                            <span className="ml-1 text-[9.5px] opacity-80">
+                              (Original: {baseDiff}, {baseDiff < 0 ? `+${totalCardReduction}` : `-${totalCardReduction}`} modifier)
+                            </span>
                           )}
                         </div>
                         <div>{preview.label}</div>

@@ -869,7 +869,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
 
               {/* Strategic Explanation */}
               <p className="text-[11px] text-[#5c5244] leading-relaxed">
-                Cards banked in Level 1.5 carry forward to <strong>Level 3</strong>. Playing a card permanently reduces your challenge dice rolls towards 0 to dismantle traps and master gates without fighting beasts!
+                Cards banked in Level 2 carry forward to <strong>Level 3</strong>. Playing a card reduces challenge dice rolls towards 0 to dismantle traps and master gates without fighting beasts!
               </p>
 
               {/* Cards Grid */}

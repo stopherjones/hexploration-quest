@@ -50,12 +50,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 : 'FALLEN AT THE CORE'
               : level === 2
               ? won
-                ? 'SUBTERRANEAN ESCAPE!'
-                : 'LOST IN THE TUNNELS'
-              : level === 1.5
-              ? won
-                ? 'HEX PYRAMID ASCENDED!'
-                : 'FALLEN IN THE PYRAMID'
+                ? 'UNDERGROUND CATACOMBS CONQUERED!'
+                : 'LOST IN THE CATACOMBS'
               : won
               ? 'SECRET TUNNEL FOUND!'
               : 'EXPEDITION EXHAUSTED'}
@@ -71,12 +67,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 : 'Your expedition fell before the perils of the 19-Hex Flower Engine. The ancient core remains shrouded in mystery.'
               : level === 2
               ? won
-                ? 'Astounding subterranean navigation! You uncovered the Ace of Hearts, found the ancient escape stair, and returned safely to the world above!'
-                : 'Your energy was completely exhausted in the pitch-black tunnels. The subterranean labyrinth claims another intrepid delve.'
-              : level === 1.5
-              ? won
-                ? 'Astounding foresight! You traversed all 10 columns of the Great Hex Pyramid, survived the Tarot ordeals, and reached the inner sanctuary!'
-                : 'Your energy was depleted or fate caught up with you on the slopes of the 55-hex pyramid.'
+                ? 'Astounding foresight! You navigated through the underground catacombs, survived the Tarot ordeals, and prepared your hand for Level 3!'
+                : 'Your energy was depleted or fate caught up with you in the depths of the underground catacombs.'
               : won
               ? 'Splendid cartography! You reached the Secret Tunnel Entrance and secured your escape before your supplies ran dry.'
               : 'Your energy was completely depleted before locating the Secret Tunnel Entrance. The fog of war claims this voyage.'}
@@ -88,9 +80,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               {level === 3
                 ? 'Utopia Engine Core Ledger'
                 : level === 2
-                ? 'Subterranean Delve Ledger'
-                : level === 1.5
-                ? 'Pyramid Ascent Ledger'
+                ? 'Underground Catacombs Ledger'
                 : 'Expedition Ledger'}
             </div>
             <div className="flex justify-between items-center">
@@ -118,16 +108,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             ) : level === 2 ? (
               <>
                 <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1.5 text-rose-700">
-                    ♥ Cards Drawn:
+                  <span className="flex items-center gap-1.5 text-amber-700">
+                    🔺 Hex Columns:
                   </span>
-                  <span className="font-bold">{cardsDrawn} / 13</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1.5 text-[#78644f]">
-                    <Eye className="w-3.5 h-3.5" /> Corridors Lit:
-                  </span>
-                  <span className="font-bold">{tunnelsCarved}</span>
+                  <span className="font-bold">{won ? '12 / 12 (Ascended)' : '12 Columns'}</span>
                 </div>
               </>
             ) : (
