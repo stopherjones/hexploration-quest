@@ -134,14 +134,14 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Level 3: The 19-Hex Flower Engine Core */}
+          {/* Level 3: The Hex Core */}
           <div className="space-y-1.5 bg-[#dcfce7]/60 text-[#2b261f] p-2.5 rounded-lg border-2 border-[#2b261f]">
             <div className="font-black uppercase text-[#15803d] flex items-center gap-1.5 border-b border-[#2b261f]/20 pb-1 text-xs">
               <span className="text-sm leading-none">⚙️</span>
-              <span>Level 3: The 19-Hex Flower Engine Core</span>
+              <span>Level 3: The Hex Core</span>
             </div>
             <p className="text-[11px] text-[#443d33]">
-              A 19-hex concentric flower grid: Yellow Outer Ring (12 hexes), Orange Middle Ring (6 hexes), and Red Core Boss. Visible fortress walls enclose each ring, with single-colour doorways at portal hexes. Stepping in or peeking costs 1⚡.
+              A 19-hex concentric mechanism: Yellow Outer Ring (12 hexes), Orange Middle Ring (6 hexes), and Red Core Boss. Visible fortress walls enclose each ring, with single-colour doorways at portal hexes. Stepping in or peeking costs 1⚡.
             </p>
             <div className="space-y-1 text-[10.5px] pl-2 border-l-2 border-[#15803d]/40 text-[#443d33]">
               <div>• <strong>Outer Ring (12 Hexes):</strong> 1 Safe Zone (your entry camp), 3 Traps, 4 Portal Doors, and 4 Beast Lairs.</div>

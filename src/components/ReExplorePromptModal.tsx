@@ -134,7 +134,7 @@ export const ReExplorePromptModal: React.FC<ReExplorePromptModalProps> = ({
               <div>
                 <strong className="text-[#2b261f]">Hunt for the Ace of Spades (A♠)</strong>
                 <p className="text-[#695d4d] leading-tight text-[10.5px]">
-                  Revealing A♠ unlocks the Gateway descending to Level 3: The Utopia Engine Core!
+                  Revealing A♠ unlocks the Gateway descending to Level 3: The Hex Core!
                 </p>
               </div>
             </div>

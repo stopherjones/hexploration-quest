@@ -45,7 +45,6 @@ import {
 import {
   createExplorationDeck,
   drawInitialComparisonCard,
-  createLevel3TestHand,
   ExplorationCard,
   CardRank,
   getRankNumericValue,
@@ -108,10 +107,18 @@ export default function App() {
   const [currentLevel, setCurrentLevel] = useState<GameLevel>(() =>
     initialSave ? initialSave.currentLevel : 1
   );
+  const [maxLevelReached, setMaxLevelReached] = useState<GameLevel>(() =>
+    initialSave ? (initialSave as any).maxLevelReached || initialSave.currentLevel || 1 : 1
+  );
+  const [viewingLevel, setViewingLevel] = useState<GameLevel>(() =>
+    initialSave ? initialSave.currentLevel : 1
+  );
   const [showLevelTransitionModal, setShowLevelTransitionModal] = useState<boolean>(false);
   const [level1Turns, setLevel1Turns] = useState<number>(() =>
     initialSave ? initialSave.level1.level1Turns : 1
   );
+
+  const isReviewingPreviousLevel = viewingLevel < currentLevel;
 
   // Level 1.5 Hex Pyramid State
   const [pyramidData, setPyramidData] = useState(() => generatePyramidMap());
@@ -196,7 +203,7 @@ export default function App() {
   );
   const [showChamberExplorationModal, setShowChamberExplorationModal] = useState<boolean>(false);
 
-  // Level 3 State (19-hex Flower Machine)
+  // Level 3 State (19-hex Hex Core)
   const [level3State, setLevel3State] = useState<Level3State>(() =>
     initialSave
       ? {
@@ -243,9 +250,19 @@ export default function App() {
   const [energy, setEnergy] = useState<number>(() =>
     initialSave ? initialSave.energy : MAX_ENERGY
   );
+  const [totalEnergySpent, setTotalEnergySpent] = useState<number>(() =>
+    initialSave ? (initialSave as any).totalEnergySpent || 0 : 0
+  );
   const [turn, setTurn] = useState<number>(() =>
     initialSave ? initialSave.turn : 1
   );
+
+  const cumulativeTurns = useMemo(() => {
+    const l1 = currentLevel === 1 ? turn : (level1Turns || 1);
+    const l2 = currentLevel >= 2 ? (pyramidSteps > 0 ? pyramidSteps : level2Steps) : 0;
+    const l3 = currentLevel >= 3 ? level3Steps : 0;
+    return l1 + l2 + l3;
+  }, [currentLevel, turn, level1Turns, pyramidSteps, level2Steps, level3Steps]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() =>
     initialSave ? initialSave.soundEnabled : true
   );
@@ -422,6 +439,8 @@ export default function App() {
     setReviewingMap(false);
 
     setCurrentLevel(1);
+    setMaxLevelReached(1);
+    setViewingLevel(1);
     setShowLevelTransitionModal(false);
     setLevel1Turns(1);
 
@@ -474,6 +493,7 @@ export default function App() {
     setHasTelescope(false);
     setHasDiceModifier(false);
     setEnergy(MAX_ENERGY);
+    setTotalEnergySpent(0);
     setTurn(1);
     setIsWon(false);
     setIsLost(false);
@@ -516,6 +536,8 @@ export default function App() {
       version: 1,
       timestamp: Date.now(),
       currentLevel,
+      maxLevelReached,
+      totalEnergySpent,
       energy,
       turn,
       statusMessage,
@@ -577,6 +599,8 @@ export default function App() {
     });
   }, [
     currentLevel,
+    maxLevelReached,
+    totalEnergySpent,
     energy,
     turn,
     statusMessage,
@@ -962,8 +986,12 @@ export default function App() {
     }
 
     // Spend energy: steps distance cost + any bog traversal penalty
-    const remainingEnergy = Math.max(0, energy - energyCost - bogPenalty);
+    const energySpent = energyCost + bogPenalty;
+    const remainingEnergy = Math.max(0, energy - energySpent);
     setEnergy(remainingEnergy);
+    if (energySpent > 0) {
+      setTotalEnergySpent((prev) => prev + energySpent);
+    }
 
     // If exhausted, reveal the goal hex on the map immediately!
     if (remainingEnergy <= 0) {
@@ -1256,6 +1284,7 @@ export default function App() {
     } else if (eventPrompt.type === 'rift' && rollResult) {
       if (rollResult % 2 !== 0) {
         sounds.playHazard();
+        setTotalEnergySpent((prev) => prev + 2);
         setEnergy((prev) => {
           const next = Math.max(0, prev - 2);
           if (next <= 0) {
@@ -1271,6 +1300,7 @@ export default function App() {
     } else if (eventPrompt.type === 'tunnel_trap' && rollResult) {
       if (rollResult % 2 !== 0) {
         sounds.playHazard();
+        setTotalEnergySpent((prev) => prev + 2);
         setEnergy((prev) => {
           const next = Math.max(0, prev - 2);
           if (next <= 0) {
@@ -1529,6 +1559,8 @@ export default function App() {
       setEnergy(15);
     }
     setCurrentLevel(2);
+    setMaxLevelReached((prev) => Math.max(prev, 2) as GameLevel);
+    setViewingLevel(2);
     setStatusMessage(
       `Level 2: Hex Pyramid Ascent. Select Higher (row above) or Lower (row below) to traverse all ${PYRAMID_COLS} columns!`
     );
@@ -1748,8 +1780,10 @@ export default function App() {
       return true;
     }
 
-    const remainingEnergy = Math.max(0, resolvedEnergy - pyramidPendingMovementCost);
+    const cost = pyramidPendingMovementCost;
+    const remainingEnergy = Math.max(0, resolvedEnergy - cost);
     setEnergy(remainingEnergy);
+    setTotalEnergySpent((prev) => prev + cost);
     setPyramidPendingMovementCost(null);
 
     if (remainingEnergy <= 0 && !allowZeroEnergy) {
@@ -1985,6 +2019,8 @@ export default function App() {
   const handleDescendToLevel2 = () => {
     sounds.playBonus();
     setCurrentLevel(2);
+    setMaxLevelReached((prev) => Math.max(prev, 2) as GameLevel);
+    setViewingLevel(2);
     setShowLevelTransitionModal(false);
     setShowLevel2VictoryModal(false);
     setReviewingMap(false);
@@ -2207,6 +2243,7 @@ export default function App() {
 
     const nextEnergy = Math.max(0, energy - level2MoveCost);
     setEnergy(nextEnergy);
+    setTotalEnergySpent((prev) => prev + level2MoveCost);
 
     // Compute heading direction from current playerCoord to resolvedTarget and find any intermediate hallway
     let moveDir: DirectionIndex = 2;
@@ -2801,7 +2838,7 @@ export default function App() {
     }
   };
 
-  // Consume cards spent from hand during Level 3 Utopia Engine tests
+  // Consume cards spent from hand during Level 3 Hex Core challenges
   const handleConsumeHandCards = (consumedCardIds: string[]) => {
     setPlayerHand((prev) => prev.filter((c) => !consumedCardIds.includes(c.id)));
   };
@@ -2852,6 +2889,8 @@ export default function App() {
   const handleDescendToLevel3 = () => {
     sounds.playVictory();
     setCurrentLevel(3);
+    setMaxLevelReached((prev) => Math.max(prev, 3) as GameLevel);
+    setViewingLevel(3);
     setShowLevel2VictoryModal(false);
     setLevel3State(generateLevel3Map());
     setActiveLevel3Tile(null);
@@ -2859,7 +2898,7 @@ export default function App() {
     setIsWon(false);
     setIsLost(false);
     setStatusMessage(
-      'Descended to Level 3: The Utopia Engine Core! A 19-hex flower machine awaits. Flip tiles (-1⚡) by stepping in or peeking.'
+      'Descended to Level 3: The Hex Core! A 19-hex mechanism awaits. Flip tiles (-1⚡) by stepping in or peeking.'
     );
   };
 
@@ -2885,6 +2924,7 @@ export default function App() {
 
     const nextEnergy = Math.max(0, energy - 1);
     setEnergy(nextEnergy);
+    setTotalEnergySpent((prev) => prev + 1);
     sounds.playStep();
     setLevel3Steps((prev) => prev + 1);
 
@@ -2914,7 +2954,7 @@ export default function App() {
     } else if (targetTile.type === 'outer_door') {
       if (!targetTile.doorTested && !level3State.outerDoorsUnlocked) {
         setActiveLevel3Tile(targetTile);
-        setStatusMessage('Reached an Outer Portal Door! Test yourself with the Utopia Engine dice (Score 0–10 unlocks).');
+        setStatusMessage('Reached an Outer Portal Door! Test yourself with the Hex Core dice (Score 0–10 unlocks).');
       } else {
         setStatusMessage(
           level3State.outerDoorsUnlocked || targetTile.doorPassed
@@ -2925,7 +2965,7 @@ export default function App() {
     } else if (targetTile.type === 'inner_door') {
       if (!targetTile.doorTested && !level3State.innerDoorsUnlocked) {
         setActiveLevel3Tile(targetTile);
-        setStatusMessage('Reached an Inner Core Gate! Test yourself with the Utopia Engine dice (Score 0 to decrypt).');
+        setStatusMessage('Reached an Inner Core Gate! Test yourself with the Hex Core dice (Score 0 to decrypt).');
       } else {
         setStatusMessage(
           level3State.innerDoorsUnlocked || targetTile.doorPassed
@@ -2944,7 +2984,7 @@ export default function App() {
     } else if (targetTile.type === 'monster') {
       if (!targetTile.monsterDefeated && !targetTile.monsterBypassed) {
         setActiveLevel3Tile(targetTile);
-        setStatusMessage('Subterranean beast lair! Roll Utopia Engine dice to attempt sneaking past.');
+        setStatusMessage('Subterranean beast lair! Roll Hex Core dice to attempt sneaking past.');
       } else {
         setStatusMessage('Passing through cleared beast lair (-1⚡).');
       }
@@ -2958,7 +2998,7 @@ export default function App() {
     } else if (targetTile.type === 'center_boss') {
       if (!level3State.bossDefeated) {
         setActiveLevel3Tile(targetTile);
-        setStatusMessage('ENTERED THE CORE! The Level 5 Utopia Engine Core Construct awakens!');
+        setStatusMessage('ENTERED THE CORE! The Level 5 Hex Core Construct awakens!');
       } else {
         setStatusMessage('The Core Construct lies defeated.');
       }
@@ -2977,6 +3017,8 @@ export default function App() {
 
     const nextEnergy = Math.max(0, energy - 1);
     setEnergy(nextEnergy);
+    setTotalEnergySpent((prev) => prev + 1);
+    setLevel3Steps((prev) => prev + 1);
     sounds.playBonus();
 
     const targetKey = `${targetTile.q},${targetTile.r}`;
@@ -3055,7 +3097,7 @@ export default function App() {
       if (result === 'unlocked') {
         nextUnlocked = true;
         sounds.playVictory();
-        setStatusMessage('MASTER UNLOCK (Score 0)! The Core Gate to the Utopia Engine opened!');
+        setStatusMessage('MASTER UNLOCK (Score 0)! The Core Gate to the Hex Core opened!');
       } else {
         nextFails += 1;
         sounds.playHazard();
@@ -3099,6 +3141,7 @@ export default function App() {
     sounds.playHazard();
     const nextEnergy = Math.max(0, energy - 5);
     setEnergy(nextEnergy);
+    setTotalEnergySpent((prev) => prev + 5);
 
     if (level3PreviousCoord) {
       setLevel3State((prev) => ({
@@ -3161,7 +3204,7 @@ export default function App() {
     setLevel3State((prev) => ({ ...prev, bossDefeated: true }));
     sounds.playVictory();
     setIsWon(true);
-    setStatusMessage('GRAND VICTORY! The Utopia Engine Core Construct is vanquished and Utopia is saved!');
+    setStatusMessage('GRAND VICTORY! The Hex Core Construct is vanquished! Hexploration Complete!');
   };
 
   // Derived stats
@@ -3175,35 +3218,14 @@ export default function App() {
 
   const totalHexes = GRID_COLS * GRID_ROWS;
 
-  const handleStartLevel3Test = () => {
-    sounds.playVictory();
-    setCurrentLevel(3);
-    setEnergy(15);
-    setPlayerHand(createLevel3TestHand());
-    setLevel3State(generateLevel3Map());
-    setActiveLevel3Tile(null);
-    setLevel3Steps(0);
-    setIsWon(false);
-    setIsLost(false);
-    setStatusMessage('Started Level 3 Test: 15⚡ Energy and the Star, Moon, Sun, Judgement and World Tarot cards in Hand.');
-  };
-
-  const handleChangeLevel = (targetLvl: GameLevel) => {
+  const handleSelectViewingLevel = (targetLvl: GameLevel) => {
+    if (targetLvl > maxLevelReached) return;
     sounds.playClick();
-    if (targetLvl === 3) {
-      handleStartLevel3Test();
-      return;
-    }
-    if (targetLvl === 2) {
-      handleStartLevel2();
-      return;
-    }
-    setCurrentLevel(targetLvl);
-    setIsWon(false);
-    setIsLost(false);
-    setActiveLevel3Tile(null);
-    if (targetLvl === 1) {
-      setStatusMessage('Switched to Level 1: Hex Crawl wilderness exploration.');
+    setViewingLevel(targetLvl);
+    if (targetLvl < currentLevel) {
+      setStatusMessage(`Viewing Level ${targetLvl} progress (Read-Only). No actions can be taken in previous levels.`);
+    } else {
+      setStatusMessage(`Resumed active expedition in Level ${currentLevel}.`);
     }
   };
 
@@ -3214,12 +3236,16 @@ export default function App() {
         energy={energy}
         maxEnergy={MAX_ENERGY}
         turn={
-          currentLevel === 3
+          viewingLevel === 3
             ? level3Steps
-            : currentLevel === 2
+            : viewingLevel === 2
             ? pyramidSteps
+            : viewingLevel === 1 && currentLevel > 1
+            ? level1Turns
             : turn
         }
+        totalTurns={cumulativeTurns}
+        totalEnergySpent={totalEnergySpent}
         revealedCount={revealedCount}
         totalHexes={totalHexes}
         goalFound={goalFound}
@@ -3232,8 +3258,9 @@ export default function App() {
         onOpenRules={() => setShowRules(true)}
         onNewGame={handleNewGame}
         level={currentLevel}
-        onChangeLevel={handleChangeLevel}
-        onTestLevel3={handleStartLevel3Test}
+        viewingLevel={viewingLevel}
+        maxLevelReached={maxLevelReached}
+        onSelectViewingLevel={handleSelectViewingLevel}
         level2CardsRemaining={tunnelMap.deck.length}
         level2TargetFound={level2TargetFound}
         level2Streak={explorationStreak}
@@ -3250,22 +3277,36 @@ export default function App() {
 
       {/* 2. Interactive SVG Hex Grid (Middle Map Area) */}
       <main className="flex-1 min-h-0 relative">
-        {currentLevel === 1 ? (
+        {viewingLevel === 1 ? (
           <HexGrid
             tiles={mapData.tiles}
             playerCoord={playerCoord}
-            pathPreview={pathPreview}
+            pathPreview={isReviewingPreviousLevel ? [] : pathPreview}
             knownTowers={knownTowers}
-            isMoveOne={isMoveOne}
+            isMoveOne={isReviewingPreviousLevel ? false : isMoveOne}
             candidateGoalCoords={candidateGoalCoords}
-            deviationState={deviationState}
+            deviationState={
+              isReviewingPreviousLevel
+                ? {
+                    active: false,
+                    usedThisTurn: false,
+                    type: 'none',
+                    pivotIndex: null,
+                    overrideDirection: 1,
+                    step1Distance: 0,
+                    step1Direction: 1,
+                    step2Distance: 0,
+                    step2Direction: 1,
+                  }
+                : deviationState
+            }
             onTileClick={handleTileClick}
-            onPathTileClick={handlePathTileClick}
-            onSelectDeviationBranch={handleSelectDeviationBranch}
-            onExecuteMove={handleExecuteMove}
-            canExecuteMove={diceState.rolled && pathPreview.length > 0 && energy > 0}
+            onPathTileClick={isReviewingPreviousLevel ? () => {} : handlePathTileClick}
+            onSelectDeviationBranch={isReviewingPreviousLevel ? () => {} : handleSelectDeviationBranch}
+            onExecuteMove={isReviewingPreviousLevel ? () => {} : handleExecuteMove}
+            canExecuteMove={!isReviewingPreviousLevel && diceState.rolled && pathPreview.length > 0 && energy > 0}
           />
-        ) : currentLevel === 2 ? (
+        ) : viewingLevel === 2 ? (
           <PyramidGrid
             tiles={pyramidData.tiles}
             playerPos={pyramidPlayerPos}
@@ -3275,7 +3316,7 @@ export default function App() {
             energy={energy}
             playerHand={playerHand}
             onTileClick={handlePyramidTileClick}
-            onPredict={handlePyramidPredict}
+            onPredict={isReviewingPreviousLevel ? () => {} : handlePyramidPredict}
           />
         ) : (
           <div className="h-full min-h-0 w-full overflow-hidden">
@@ -3287,17 +3328,47 @@ export default function App() {
               bossDefeated={level3State.bossDefeated}
               energy={energy}
               maxEnergy={MAX_ENERGY}
-              onStepIn={handleLevel3StepIn}
-              onPeek={handleLevel3Peek}
+              onStepIn={isReviewingPreviousLevel ? () => {} : handleLevel3StepIn}
+              onPeek={isReviewingPreviousLevel ? () => {} : handleLevel3Peek}
               playerHand={playerHand}
-              onSpendCardForEnergy={handleSpendCardForEnergy}
+              onSpendCardForEnergy={isReviewingPreviousLevel ? () => {} : handleSpendCardForEnergy}
             />
           </div>
         )}
       </main>
 
-      {/* 3. Fixed Footer Control Panel (No footer in Level 3) */}
-      {currentLevel === 1 ? (
+      {/* 3. Fixed Footer Control Panel (Read-only review banner when viewing previous level) */}
+      {isReviewingPreviousLevel ? (
+        <div className="shrink-0 bg-[#e4dac3] border-t-2 border-[#2b261f] p-2.5 px-3 shadow-lg font-mono">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0 animate-pulse"></span>
+              <div className="min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#635948]">
+                  Level {viewingLevel} Progress (Review Only)
+                </div>
+                <div className="text-xs font-bold text-[#2b261f] truncate">
+                  {viewingLevel === 1
+                    ? `Wilderness • ${revealedCount}/${totalHexes} surveyed in ${level1Turns} turns`
+                    : viewingLevel === 2
+                    ? `Pyramid Catacombs • ${pyramidSteps} steps taken`
+                    : 'Expedition archive'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                sounds.playClick();
+                setViewingLevel(currentLevel);
+                setStatusMessage(`Returned to active expedition on Level ${currentLevel}.`);
+              }}
+              className="px-3 py-1.5 bg-[#2d6a4f] hover:bg-[#23533e] text-white text-[11px] font-black uppercase tracking-wider rounded border border-[#2b261f] shadow-md cursor-pointer active:scale-95 shrink-0"
+            >
+              Resume L{currentLevel} →
+            </button>
+          </div>
+        </div>
+      ) : currentLevel === 1 ? (
         <ControlPanel
           diceState={diceState}
           deviationState={deviationState}
@@ -3333,7 +3404,7 @@ export default function App() {
         />
       ) : null}
 
-      {/* Level 3 Encounter Modal (Utopia Engine Tests & Combat) */}
+      {/* Level 3 Encounter Modal (Hex Core Tests & Combat) */}
       {activeLevel3Tile && (
         <Level3EncounterModal
           tile={activeLevel3Tile}
@@ -3474,6 +3545,8 @@ export default function App() {
               ? pyramidSteps
               : turn
           }
+          totalTurns={cumulativeTurns}
+          totalEnergySpent={totalEnergySpent}
           energyLeft={energy}
           revealedCount={revealedCount}
           totalHexes={totalHexes}
@@ -3492,7 +3565,13 @@ export default function App() {
       {reviewingMap && (
         <div className="fixed top-14 right-4 z-40 flex items-center gap-2 bg-[#f4edd9]/95 backdrop-blur-xs border-2 border-[#2b261f] py-1.5 px-3 rounded-lg shadow-xl font-mono text-xs select-none">
           <span className="font-bold text-[#2b261f]">
-            {currentLevel === 1 && !isLost ? '🏆 Secret Tunnel Reached!' : isWon ? '🏆 Delve Complete!' : '📍 Map Review'}
+            {currentLevel === 1 && !isLost
+              ? '🏆 Secret Tunnel Reached!'
+              : isWon
+              ? currentLevel === 3
+                ? '🏆 Hexploration Complete!'
+                : '🏆 Level Complete!'
+              : '📍 Map Review'}
           </span>
           {currentLevel === 1 && !isLost && (
             <button

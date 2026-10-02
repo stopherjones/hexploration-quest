@@ -257,7 +257,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
                 </span>
               </div>
               <p className="text-[10.5px] text-[#7c2d12] leading-tight">
-                Instead of replacing or drawing, bank a card into your <strong>Hand for Level 3</strong>! Card values reduce your Utopia Engine dice score towards 0:
+                Instead of replacing or drawing, bank a card into your <strong>Hand for Level 3</strong>! Card values reduce your Hex Core challenge dice score towards 0:
               </p>
               <div className="flex flex-col gap-1.5 pt-1">
                 {/* Option 1: Bank current base card */}

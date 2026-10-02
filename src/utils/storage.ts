@@ -17,6 +17,8 @@ export interface GameSaveData {
   version: number;
   timestamp: number;
   currentLevel: GameLevel;
+  maxLevelReached?: GameLevel;
+  totalEnergySpent?: number;
   energy: number;
   turn: number;
   statusMessage: string;
@@ -68,7 +70,7 @@ export interface GameSaveData {
     explorationResultText: string | null;
   };
 
-  // Level 3 Flower Core
+  // Level 3 Hex Core
   level3: {
     tiles: [string, FlowerTile][];
     playerCoord: { q: number; r: number };

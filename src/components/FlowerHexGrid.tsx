@@ -895,7 +895,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
 
               {/* Strategic Explanation */}
               <p className="text-[11px] text-[#5c5244] leading-relaxed">
-                Cards banked in Level 2 carry forward into <strong>Level 3</strong>. Playing cards in encounter challenges reduces Utopia Engine dice scores towards 0, unlocking doors and disarming traps without combat!
+                Cards banked in Level 2 carry forward into <strong>Level 3</strong>. Playing cards in encounter challenges reduces Hex Core challenge dice scores towards 0, unlocking doors and disarming traps without combat!
               </p>
 
               {/* Cards Grid */}

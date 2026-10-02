@@ -65,7 +65,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const [clearedMessage, setClearedMessage] = useState<string>('');
   const [showEnergySpendOptions, setShowEnergySpendOptions] = useState(false);
 
-  // Utopia Engine Grid (Slots 0,1,2 = Top Row, Slots 3,4,5 = Bottom Row)
+  // Hex Core Grid (Slots 0,1,2 = Top Row, Slots 3,4,5 = Bottom Row)
   const [cells, setCells] = useState<(number | null)[]>([null, null, null, null, null, null]);
   const [cellLocked, setCellLocked] = useState<boolean[]>([false, false, false, false, false, false]);
   const [round, setRound] = useState<1 | 2 | 3>(1);
@@ -204,7 +204,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const [isCombatRolling, setIsCombatRolling] = useState<boolean>(false);
   const [combatRollPending, setCombatRollPending] = useState<boolean>(false);
   const [combatLogs, setCombatLogs] = useState<string[]>(() => {
-    if (isDirectBoss) return ['The Utopia Engine Core Construct awakens! Engage in battle to save Utopia!'];
+    if (isDirectBoss) return ['The Hex Core Construct awakens! Engage in battle!'];
     return [];
   });
   const [combatRound, setCombatRound] = useState<number>(0);
@@ -291,7 +291,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     }
     if (tile.type === 'inner_door') {
       if (diff === 0) {
-        return { label: 'Core Gate Decrypted (Score 0): Opens access to the Utopia Engine Core!', type: 'success' };
+        return { label: 'Core Gate Decrypted (Score 0): Opens access to the Hex Core!', type: 'success' };
       }
       return { label: `Decryption Failed (Score ${diff}): Requires EXACTLY 0! Gate will be permanently locked.`, type: 'fail' };
     }
@@ -368,7 +368,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
       if (finalScore === 0) {
         sounds.playVictory();
         onInnerDoorResult('unlocked');
-        setClearedMessage('Core Gate Unlocked (Score: 0)! Access to the Utopia Engine Core is now open.');
+        setClearedMessage('Core Gate Unlocked (Score: 0)! Access to the Hex Core is now open.');
         setPhase('cleared');
       } else {
         sounds.playHazard();
@@ -579,7 +579,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
           </div>
         )}
 
-        {/* Phase 1 & 2: Utopia Engine Dice Grid & Calculation */}
+        {/* Phase 1 & 2: Hex Core Dice Grid & Calculation */}
         {phase !== 'combat' && (
           <div className="flex flex-col gap-2">
             {/* Help & Rules Concertina (Collapsible behind little triangle icon) */}
@@ -1065,7 +1065,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
             {phase === 'cleared' && (
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-bold text-emerald-800 bg-emerald-100 p-2 rounded border border-emerald-300 w-full text-center">
-                  {clearedMessage || 'Chamber event resolved! Proceed deeper into the flower machine.'}
+                  {clearedMessage || 'Chamber event resolved! Proceed deeper into the Hex Core.'}
                 </span>
                 <button
                   onClick={onClose}

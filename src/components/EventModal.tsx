@@ -9,6 +9,7 @@ import {
   BatteryCharging,
   Eye,
   Flag,
+  MapPin,
   X,
   CheckCircle2,
 } from 'lucide-react';

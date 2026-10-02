@@ -8,6 +8,8 @@ import { PYRAMID_COLS } from '../utils/pyramidEngine';
 interface GameOverModalProps {
   won: boolean;
   turns: number;
+  totalTurns?: number;
+  totalEnergySpent?: number;
   energyLeft: number;
   revealedCount: number;
   totalHexes: number;
@@ -24,6 +26,8 @@ interface GameOverModalProps {
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   won,
   turns,
+  totalTurns,
+  totalEnergySpent = 0,
   energyLeft,
   revealedCount,
   totalHexes,
@@ -50,17 +54,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         >
           {won ? <Trophy className="w-5 h-5 text-yellow-300" /> : <Skull className="w-5 h-5" />}
           <span>
-            {level === 3
-              ? won
-                ? 'UTOPIA ENGINE SAVED!'
-                : 'FALLEN AT THE CORE'
-              : level === 2
-              ? won
-                ? 'UNDERGROUND CATACOMBS CONQUERED!'
-                : 'LOST IN THE CATACOMBS'
-              : won
-              ? 'SECRET TUNNEL FOUND!'
-              : 'EXPEDITION EXHAUSTED'}
+            {won ? (level === 3 ? 'HEXPLORATION COMPLETE!' : 'LEVEL COMPLETE!') : 'HEXPLORATION FAILED!'}
           </span>
         </div>
 
@@ -69,8 +63,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <p className="text-xs leading-relaxed">
             {level === 3
               ? won
-                ? 'Tremendous feat! You breached the Outer Portals, unlocked the Inner Core Gates, and dismantled the supreme Level 5 Core Construct! Utopia has been saved!'
-                : 'Your expedition fell before the perils of the 19-Hex Flower Engine. The ancient core remains shrouded in mystery.'
+                ? 'Tremendous feat! You breached the Outer Portals, unlocked the Inner Core Gates, and dismantled the supreme Level 5 Core Construct! The Hex Core has been conquered!'
+                : 'Your expedition fell before the perils of the 19-Hex Core. The ancient mechanism remains shrouded in mystery.'
               : level === 2
               ? won
                 ? 'Astounding foresight! You navigated through the underground catacombs, survived the Tarot ordeals, and prepared your hand for Level 3!'
@@ -84,31 +78,35 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <div className="bg-[#ede4d3] p-3 rounded-lg border border-[#2b261f]/30 space-y-2 text-left">
             <div className="text-[11px] font-bold uppercase text-[#786e5e] border-b border-[#2b261f]/20 pb-1">
               {level === 3
-                ? 'Utopia Engine Core Ledger'
+                ? 'Hex Core Ledger'
                 : level === 2
                 ? 'Underground Catacombs Ledger'
                 : 'Expedition Ledger'}
             </div>
-            {!isLevel2Victory && (
-              <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1.5">
-                  <Footprints className="w-3.5 h-3.5 text-[#2d6a4f]" /> Total Steps:
-                </span>
-                <span className="font-bold">{turns}</span>
-              </div>
-            )}
             <div className="flex justify-between items-center">
               <span className="flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-[#b45309]" /> Remaining Energy:
+                <Footprints className="w-3.5 h-3.5 text-[#2d6a4f]" /> Total Turns:
               </span>
-              <span className="font-bold">{energyLeft}</span>
+              <span className="font-bold">{totalTurns !== undefined ? totalTurns : turns}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-[#b45309]" /> Total Energy Spent:
+              </span>
+              <span className="font-bold font-mono">{totalEnergySpent}⚡</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-[#786e5e]" /> Remaining Energy:
+              </span>
+              <span className="font-bold">{energyLeft}⚡</span>
             </div>
 
             {level === 3 ? (
               <>
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-1.5 text-emerald-800">
-                    ⚙️ Machine Core:
+                    ⚙️ Hex Core:
                   </span>
                   <span className="font-bold">{won ? 'Vanquished (Victory!)' : 'Unconquered'}</span>
                 </div>

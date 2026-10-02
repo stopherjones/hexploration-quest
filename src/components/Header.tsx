@@ -19,7 +19,11 @@ interface HeaderProps {
   onOpenRules: () => void;
   onNewGame: () => void;
   level?: GameLevel;
-  onChangeLevel?: (lvl: GameLevel) => void;
+  viewingLevel?: GameLevel;
+  maxLevelReached?: GameLevel;
+  onSelectViewingLevel?: (lvl: GameLevel) => void;
+  totalTurns?: number;
+  totalEnergySpent?: number;
   level2CardsRemaining?: number;
   level2TargetFound?: boolean;
   level2Streak?: number;
@@ -29,7 +33,6 @@ interface HeaderProps {
   isReExploring?: boolean;
   onOpenReExplorePrompt?: () => void;
   playerHand?: ExplorationCard[];
-  onTestLevel3?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,7 +51,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onNewGame,
   level = 1,
-  onChangeLevel,
+  viewingLevel = level,
+  maxLevelReached = 1,
+  onSelectViewingLevel,
+  totalTurns,
+  totalEnergySpent = 0,
   level2CardsRemaining = 13,
   level2TargetFound = false,
   level2Streak = 0,
@@ -58,10 +65,10 @@ export const Header: React.FC<HeaderProps> = ({
   isReExploring = false,
   onOpenReExplorePrompt,
   playerHand = [],
-  onTestLevel3,
 }) => {
   const exploredPct = Math.round((revealedCount / totalHexes) * 100);
   const isLowEnergy = energy <= 5;
+  const isReviewingPrevious = viewingLevel < level;
 
   return (
     <header className="shrink-0 bg-[#e8deca] border-b-2 border-[#2b261f] shadow-xs select-none">
@@ -76,49 +83,51 @@ export const Header: React.FC<HeaderProps> = ({
           <span>New Game</span>
         </button>
 
-        {/* Center Level Selector & Test Button */}
-        <div className="flex items-center gap-1.5 font-bold text-xs text-[#2b261f] uppercase font-mono tracking-tight">
-          <div className="flex items-center gap-1">
-            {/* Quick Level Switcher Pills for convenience */}
-            {onChangeLevel && (
-              <div className="flex items-center gap-0.5 ml-1.5 bg-[#dfd3bc] p-0.5 rounded border border-[#2b261f]/30">
-                {([1, 2, 3] as const).map((lvl) => (
-                  <button
-                    key={`lvl-btn-${lvl}`}
-                    onClick={() => onChangeLevel(lvl)}
-                    className={`px-1.5 py-0.2 rounded text-[9px] font-black cursor-pointer transition-colors ${
-                      level === lvl
-                        ? 'bg-[#2d6a4f] text-white shadow-2xs'
-                        : 'text-[#5c5346] hover:bg-[#ece2d0]'
-                    }`}
-                    title={
-                      lvl === 1
-                        ? 'Jump to Level 1 (Wilderness Hex Crawl)'
-                        : lvl === 2
-                        ? 'Jump to Level 2 (Underground Catacombs)'
-                        : 'Jump to Level 3 (15⚡ + 5 Cards)'
-                    }
-                  >
-                    L{lvl}
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Center Static Level Viewer (shows only reached levels, allows reviewing previous progress) */}
+        <div className="flex items-center gap-1 font-bold text-xs text-[#2b261f] uppercase font-mono tracking-tight">
+          {maxLevelReached === 1 ? (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-[#dfd3bc] border border-[#2b261f]/30 rounded text-[10px] font-black text-[#2b261f]">
+              <span className="text-[#6b6252]">LEVEL</span>
+              <span className="px-1.5 py-0.2 bg-[#2d6a4f] text-white rounded text-[9.5px]">1</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-0.5 bg-[#dfd3bc] p-0.5 rounded border border-[#2b261f]/30">
+              <span className="text-[9px] text-[#6b6252] font-black uppercase tracking-wider px-1">
+                LVL:
+              </span>
+              {([1, 2, 3] as const)
+                .filter((lvl) => lvl <= maxLevelReached)
+                .map((lvl) => {
+                  const isCurrentViewing = viewingLevel === lvl;
+                  const isPrevious = lvl < level;
+                  const isActive = lvl === level;
 
-            {/* Dedicated Test Level 3 Button (15⚡ + 5 Cards in hand) */}
-            {onTestLevel3 && (
-              <button
-                type="button"
-                id="btn-test-level3"
-                onClick={onTestLevel3}
-                className="flex items-center gap-1 ml-1 px-1.5 py-0.5 text-[9.5px] font-mono font-black uppercase tracking-wider bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white border border-[#2b261f] rounded shadow-2xs active:translate-y-px cursor-pointer"
-                title="Directly test Level 3: Starts on 15⚡ Energy with the Star, Moon, Sun, Judgement and World Tarot cards in Hand"
-              >
-                <span>Test L3</span>
-                <span className="text-[8.5px] text-[#86efac] font-bold bg-[#14532d] px-1 rounded">15⚡+5🃏</span>
-              </button>
-            )}
-          </div>
+                  return (
+                    <button
+                      key={`lvl-view-${lvl}`}
+                      onClick={() => onSelectViewingLevel && onSelectViewingLevel(lvl)}
+                      className={`px-1.5 py-0.2 rounded text-[9.5px] font-black transition-colors ${
+                        isCurrentViewing
+                          ? isPrevious
+                            ? 'bg-[#b45309] text-white shadow-2xs'
+                            : 'bg-[#2d6a4f] text-white shadow-2xs'
+                          : 'text-[#5c5346] hover:bg-[#ece2d0] cursor-pointer'
+                      }`}
+                      title={
+                        isActive
+                          ? `Level ${lvl} (Current Active Expedition)`
+                          : `Review Level ${lvl} Progress (Read-Only)`
+                      }
+                    >
+                      <span>L{lvl}</span>
+                      {isPrevious && isCurrentViewing && (
+                        <span className="text-[7.5px] ml-0.5 opacity-90 font-normal">👁️</span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -143,9 +152,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Top Banner (Energy display only; turn, seen %, goal status removed) */}
-      <div className="flex items-center justify-center py-1 bg-[#ede4d3] text-center border-t border-[#2b261f]/20">
-        <div className="flex items-center gap-1.5 px-3">
+      {/* Top Banner (Energy display & review mode badge) */}
+      <div className="flex items-center justify-between px-3 py-1 bg-[#ede4d3] border-t border-[#2b261f]/20">
+        <div className="flex items-center gap-1.5">
           <span className="text-[10px] uppercase font-mono font-bold text-[#5c5446]">⚡ Energy:</span>
           <span
             className={`text-sm font-black font-mono tracking-tight ${
@@ -155,6 +164,19 @@ export const Header: React.FC<HeaderProps> = ({
             {energy}
           </span>
           <span className="text-xs font-mono text-[#786e5e]">/{maxEnergy}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isReviewingPrevious && (
+            <div className="flex items-center gap-1 text-[9px] font-bold text-[#92400e] bg-[#fef3c7] border border-[#d97706]/40 px-1.5 py-0.2 rounded-full font-mono">
+              <span>👁️ L{viewingLevel} Review</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-[#786e5e] uppercase">
+            <span>TURNS {totalTurns !== undefined ? totalTurns : turn}</span>
+            <span className="opacity-40">•</span>
+            <span>SPENT {totalEnergySpent}⚡</span>
+          </div>
         </div>
       </div>
     </header>

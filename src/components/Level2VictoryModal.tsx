@@ -34,7 +34,7 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
               The Gateway to Level 3 Opens!
             </h3>
             <p className="text-[#5c5346] leading-relaxed text-[11px]">
-              You drew the legendary <strong>Ace of Spades</strong>! Deep underground, a colossal stone portal slides open, revealing the massive flower-petal gearworks of the ancient Utopia Machine.
+              You drew the legendary <strong>Ace of Spades</strong>! Deep underground, a colossal stone portal slides open, revealing the massive gearworks of the ancient Hex Core.
             </p>
           </div>
 
@@ -103,10 +103,10 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
           {/* Level 3 Teaser */}
           <div className="bg-[#fdfbf7] p-2.5 rounded-lg border border-[#2b261f]/20 text-left space-y-1 text-[10.5px]">
             <span className="text-[#2d6a4f] font-bold uppercase flex items-center gap-1">
-              <span>⚙️</span> Level 3: The 19-Hex Flower Engine Core
+              <span>⚙️</span> Level 3: The Hex Core
             </span>
             <p className="text-[#5c5346]">
-              Use your banked hand cards to reduce your Utopia Engine dice score towards 0 (unlocking doors and disarming traps without monsters)!
+              Use your banked hand cards to reduce your Hex Core challenge dice score towards 0 (unlocking doors and disarming traps without monsters)!
             </p>
           </div>
 
@@ -117,7 +117,7 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
               className="w-full py-2.5 px-4 bg-[#2d6a4f] hover:bg-[#23533e] active:bg-[#1b4332] text-white font-mono font-black text-xs sm:text-sm uppercase tracking-wider rounded-lg border-2 border-[#2b261f] shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:translate-y-0.5"
             >
               <ArrowDown className="w-4 h-4" />
-              <span>Enter Level 3: The Flower Engine Core</span>
+              <span>Enter Level 3: The Hex Core</span>
             </button>
           </div>
         </div>
