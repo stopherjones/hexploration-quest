@@ -3474,7 +3474,11 @@ export default function App() {
       />
 
       {/* Rules Modal */}
-      <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />
+      <RulesModal
+        isOpen={showRules}
+        onClose={() => setShowRules(false)}
+        currentLevel={viewingLevel || currentLevel}
+      />
 
       {/* Interactive Event Prompt Modal (Shrines, Rifts, Traps, Vaults) */}
       <EventModal prompt={eventPrompt} onResolve={handleResolveEvent} />
