@@ -179,6 +179,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             )}
           </div>
 
+          {/* Level 3 Rules Teaser */}
+          {isLevel2Victory && (
+            <div className="bg-[#fdfbf7] p-2.5 rounded-lg border border-[#2b261f]/20 text-left space-y-1 text-[10.5px]">
+              <span className="text-[#2d6a4f] font-bold uppercase flex items-center gap-1">
+                <span>⚙️</span> Level 3: The Hex Core
+              </span>
+              <p className="text-[#5c5346] leading-relaxed">
+                Level 3: The Hex Core. A 19-hex concentric mechanism of yellow outer rings, orange gates, and the red central core. Stepping in or peeking costs 1⚡. Disarm traps, unlock doors, and sneak past beasts with challenge dice rolls. Spend banked hand cards for energy or dice modifiers to defeat the Level 5 Hex Core Construct!
+              </p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="space-y-2 pt-1">
             <button
