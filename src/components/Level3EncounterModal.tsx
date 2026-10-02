@@ -210,8 +210,30 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
   const [combatRound, setCombatRound] = useState<number>(0);
   const [monsterDefeated, setMonsterDefeated] = useState<boolean>(false);
 
-  // Collapsible Help & Rules Concertina State
-  const [showHelp, setShowHelp] = useState<boolean>(false);
+  // Collapsible Help & Rules Concertina State (defaults to visible, remembers user preference if hidden)
+  const [showHelp, setShowHelp] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('hex_level3_show_info');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    } catch {
+      // ignore
+    }
+    return true;
+  });
+
+  const handleToggleHelp = () => {
+    setShowHelp((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('hex_level3_show_info', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Roll the dice pair for the current round
   const handleRollRoundDice = () => {
@@ -586,7 +608,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
             <div className="w-full">
               <button
                 type="button"
-                onClick={() => setShowHelp((prev) => !prev)}
+                onClick={handleToggleHelp}
                 className="w-full flex items-center justify-between px-2.5 py-1 bg-[#ede4d3] hover:bg-[#e2d6c1] text-[#2b261f] border border-[#2b261f]/20 rounded text-[10.5px] font-mono font-bold cursor-pointer transition-colors"
               >
                 <span className="flex items-center gap-1.5">
@@ -608,7 +630,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                   </span>
                 </span>
                 <span className="text-[9px] text-[#786e5e] font-normal underline">
-                  {showHelp ? 'Hide' : 'Rules'}
+                  {showHelp ? 'Hide' : 'Show'}
                 </span>
               </button>
               {showHelp && (
