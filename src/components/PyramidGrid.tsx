@@ -533,7 +533,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
               fontFamily="monospace"
               fill={handCount > 0 ? '#ffffff' : '#786e5e'}
             >
-              {handCount > 0 ? '👁 Tap to view hand' : 'Bank honour cards'}
+              {handCount > 0 ? '👁 Tap to view hand' : 'Bank picture cards'}
             </text>
           </g>
         </g>
@@ -870,7 +870,7 @@ export const PyramidGrid: React.FC<PyramidGridProps> = ({
                   <div className="text-2xl">🃏</div>
                   <div className="font-bold text-xs">Your hand is currently empty</div>
                   <div className="text-[10px]">
-                    Draw honour cards (A, K, Q, J) to bank cards into your hand!
+                    Draw picture cards (J, Q, K) to bank cards into your hand!
                   </div>
                 </div>
               ) : (

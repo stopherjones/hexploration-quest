@@ -9,7 +9,7 @@ import { ExplorationCard } from '../utils/explorationDeck';
 import { sounds } from '../utils/sound';
 import { DiePipFace } from './UtopiaEncounterModal';
 import { TarotModifierArt } from './TarotModifierArt';
-import { ShieldAlert, Sparkles, Swords, Skull, Trophy, KeyRound, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ShieldAlert, Sparkles, Swords, Skull, Trophy, KeyRound, AlertTriangle, RotateCcw, Zap } from 'lucide-react';
 
 interface Level3EncounterModalProps {
   tile: FlowerTile;
@@ -63,6 +63,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     isDirectBoss ? 'combat' : 'grid'
   );
   const [clearedMessage, setClearedMessage] = useState<string>('');
+  const [showEnergySpendOptions, setShowEnergySpendOptions] = useState(false);
 
   // Utopia Engine Grid (Slots 0,1,2 = Top Row, Slots 3,4,5 = Bottom Row)
   const [cells, setCells] = useState<(number | null)[]>([null, null, null, null, null, null]);
@@ -79,26 +80,26 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
 
   // Hand card reduction selection
   const [selectedHandCardIds, setSelectedHandCardIds] = useState<string[]>([]);
+  const [selectedHandCardSigns, setSelectedHandCardSigns] = useState<Record<string, 1 | -1>>({});
   const [hasTarotDiceModifiers] = useState(() =>
     playerHand.some((card) => card.level3DiceModifier)
   );
 
-  // Calculate card reductions
+  // Calculate signed card modifiers
+  const baseDiff = difference ?? 0;
   const selectedCards = playerHand.filter((c) => selectedHandCardIds.includes(c.id));
   const selectedMagicCard = selectedCards.find((card) => card.level3SetScore !== undefined);
-  const totalCardReduction = selectedCards
+  const selectedModifierCards = selectedCards
     .filter((card) => card.level3SetScore === undefined && !card.level3DiceModifier)
-    .reduce((sum, c) => sum + c.value, 0);
+  const getCardSign = (cardId: string): 1 | -1 =>
+    selectedHandCardSigns[cardId] ?? (baseDiff > 0 ? -1 : 1);
+  const totalCardModifier = selectedModifierCards
+    .reduce((sum, card) => sum + getCardSign(card.id) * card.value, 0);
+  const cardModifierLabel = selectedModifierCards
+    .map((card) => `${getCardSign(card.id) > 0 ? '+' : '-'}${card.value}`)
+    .join(' ');
 
-  const baseDiff = difference ?? 0;
-  let effectiveDifference = baseDiff;
-  if (baseDiff > 0) {
-    // Card modifiers reduce positive result towards 0 (clamped at 0)
-    effectiveDifference = Math.max(0, baseDiff - totalCardReduction);
-  } else if (baseDiff < 0) {
-    // Card modifiers used in L3 can reduce a negative result to 0 (or turn it into a positive result)
-    effectiveDifference = baseDiff + totalCardReduction;
-  }
+  let effectiveDifference = baseDiff + totalCardModifier;
   if (selectedMagicCard?.level3SetScore !== undefined) {
     effectiveDifference = selectedMagicCard.level3SetScore;
   }
@@ -107,17 +108,49 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     sounds.playClick();
     const selectedCard = playerHand.find((card) => card.id === id);
     if (!selectedCard || selectedCard.level3DiceModifier) return;
-    setSelectedHandCardIds((prev) => {
-      if (prev.includes(id)) return prev.filter((cardId) => cardId !== id);
-      if (selectedCard.level3SetScore !== undefined) return [id];
-      return [
-        ...prev.filter((cardId) => {
-          const card = playerHand.find((handCard) => handCard.id === cardId);
-          return card?.level3SetScore === undefined;
-        }),
-        id,
-      ];
+    if (selectedHandCardIds.includes(id)) {
+      setSelectedHandCardIds((prev) => prev.filter((cardId) => cardId !== id));
+      setSelectedHandCardSigns((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+
+    if (selectedCard.level3SetScore !== undefined) {
+      setSelectedHandCardIds([id]);
+      setSelectedHandCardSigns({});
+      return;
+    }
+
+    const nextSelectedIds = [
+      ...selectedHandCardIds.filter((cardId) => {
+        const card = playerHand.find((handCard) => handCard.id === cardId);
+        return card?.level3SetScore === undefined;
+      }),
+      id,
+    ];
+    setSelectedHandCardIds(nextSelectedIds);
+    setSelectedHandCardSigns((prev) => ({
+      ...Object.fromEntries(Object.entries(prev).filter(([cardId]) => nextSelectedIds.includes(cardId))),
+      [id]: baseDiff > 0 ? -1 : 1,
+    }));
+  };
+
+  const spendCardForEnergy = (card: ExplorationCard) => {
+    const energyGained = Math.min(card.value, maxEnergy - energy);
+    if (energyGained <= 0 || !onConsumeHandCards) return;
+    onConsumeHandCards([card.id]);
+    setSelectedHandCardIds((prev) => prev.filter((cardId) => cardId !== card.id));
+    setSelectedHandCardSigns((prev) => {
+      const next = { ...prev };
+      delete next[card.id];
+      return next;
     });
+    onModifyEnergy(energyGained);
+    setShowEnergySpendOptions(false);
+    sounds.playBonus();
   };
 
   const applyDiceModifier = (card: ExplorationCard, dieIndex: 0 | 1, value: number) => {
@@ -154,6 +187,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     setBottomNumber(null);
     setDifference(null);
     setSelectedHandCardIds([]);
+    setSelectedHandCardSigns({});
     setPhase('grid');
   };
 
@@ -310,6 +344,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
     if (selectedHandCardIds.length > 0 && onConsumeHandCards) {
       onConsumeHandCards(selectedHandCardIds);
       setSelectedHandCardIds([]);
+      setSelectedHandCardSigns({});
     }
 
     const finalScore = effectiveDifference;
@@ -382,7 +417,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
         setMonster(spawned);
         setMonsterHp(spawned.maxHp);
         setCombatLogs([
-          `Detection! Score ${finalScore}${totalCardReduction > 0 ? ` (reduced by -${totalCardReduction} via cards)` : ''} awakened ${spawned.name}! (${spawned.maxHp} HP, ${spawned.description})`,
+          `Detection! Score ${finalScore}${cardModifierLabel ? ` (cards ${cardModifierLabel})` : ''} awakened ${spawned.name}! (${spawned.maxHp} HP, ${spawned.description})`,
         ]);
         setPhase('combat');
       }
@@ -500,10 +535,49 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
               </span>
             </div>
           </div>
-          <span className="text-xs font-black bg-[#e8deca] px-2 py-0.5 rounded border border-[#2b261f]/30">
-            {energy}⚡
-          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-xs font-black bg-[#e8deca] px-2 py-0.5 rounded border border-[#2b261f]/30">
+              {energy}/{maxEnergy}⚡
+            </span>
+            {energy < maxEnergy && playerHand.some((card) => card.value > 0) && (
+              <button
+                type="button"
+                onClick={() => setShowEnergySpendOptions((open) => !open)}
+                aria-expanded={showEnergySpendOptions}
+                title="Spend a hand card to restore energy"
+                className="flex items-center gap-1 rounded border border-emerald-800/40 bg-emerald-50 px-1.5 py-1 text-[9px] font-black uppercase text-emerald-900 hover:bg-emerald-100"
+              >
+                <Zap className="h-3 w-3" /> Spend
+              </button>
+            )}
+          </div>
         </div>
+
+        {showEnergySpendOptions && energy < maxEnergy && playerHand.some((card) => card.value > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-emerald-800/25 bg-emerald-50 px-2 py-1.5">
+            <span className="mr-1 flex items-center gap-1 text-[9.5px] font-black uppercase text-emerald-900">
+              Choose a card
+            </span>
+            {playerHand.filter((card) => card.value > 0).map((card) => {
+              const energyGained = Math.min(card.value, maxEnergy - energy);
+              return (
+                <button
+                  key={`energy-${card.id}`}
+                  type="button"
+                  title={`Spend ${card.rank}${card.suit} to restore ${energyGained} energy`}
+                  disabled={energyGained <= 0 || !onConsumeHandCards}
+                  onClick={() => spendCardForEnergy(card)}
+                  className="flex items-center gap-1 rounded border border-emerald-800/40 bg-white px-1.5 py-1 text-[9.5px] font-bold text-emerald-950 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <span>{card.rank}{card.suit}</span>
+                  <span className="flex items-center gap-0.5 text-emerald-700">
+                    +{energyGained}<Zap className="h-2.5 w-2.5" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Phase 1 & 2: Utopia Engine Dice Grid & Calculation */}
         {phase !== 'combat' && (
@@ -620,7 +694,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                       <span>Hand Cards Available:</span>
                     </span>
                     <span className="bg-[#ede4d3] px-1.5 py-0.2 rounded border border-[#2b261f]/20 font-mono text-[#2b261f]">
-                      {playerHand.length} card{playerHand.length === 1 ? '' : 's'} (-{playerHand.reduce((s, c) => s + c.value, 0)} pts)
+                      {playerHand.length} card{playerHand.length === 1 ? '' : 's'} (±{playerHand.reduce((s, c) => s + c.value, 0)} pts)
                     </span>
                   </div>
 
@@ -637,7 +711,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                               {card.rank}{card.suit}
                             </span>
                             <span className="text-[9px] font-bold text-[#15803d] bg-emerald-50 px-1 rounded">
-                              -{card.value}
+                              ±{card.value}
                             </span>
                           </div>
                         );
@@ -703,7 +777,10 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                       {selectedHandCardIds.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => setSelectedHandCardIds([])}
+                          onClick={() => {
+                            setSelectedHandCardIds([]);
+                            setSelectedHandCardSigns({});
+                          }}
                           className="text-[9.5px] text-amber-900 underline hover:text-amber-700 cursor-pointer font-bold"
                         >
                           Clear Selection
@@ -718,46 +795,63 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                     ) : (
                       <>
                         <p className="text-[9.5px] text-[#5c5346] leading-none">
-                          Select regular cards to adjust the score, or a magic card to set it:
+                          Select cards, then choose + or − for each card; magic cards set the score:
                         </p>
 
                         <div className="flex flex-wrap gap-1 justify-center py-0.5">
                           {playerHand.map((card) => {
                             const isSelected = selectedHandCardIds.includes(card.id);
                             const isRed = card.suit === '♦';
+                            const canModifyScore = card.level3SetScore === undefined && !card.level3DiceModifier;
+                            const sign = getCardSign(card.id);
 
                             return (
-                              <button
-                                key={card.id}
-                                type="button"
-                                onClick={() => toggleSelectCard(card.id)}
-                                disabled={Boolean(card.level3DiceModifier)}
-                                className={`px-1.5 py-1 rounded-md border font-mono flex flex-col items-center gap-0.2 cursor-pointer transition-all select-none shadow-2xs ${
-                                  isSelected
-                                    ? 'bg-[#dcfce7] border-[#16a34a] ring-2 ring-[#16a34a] scale-105'
-                                    : 'bg-white hover:bg-[#fff9ed] border-[#2b261f]/30'
-                                }`}
-                              >
-                                {card.tarotCard ? (
-                                  <TarotModifierArt card={card} className="h-8 w-7 object-contain" />
-                                ) : (
-                                  <div className={`text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
-                                    {card.rank}{card.suit}
+                              <div key={card.id} className="flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSelectCard(card.id)}
+                                  disabled={Boolean(card.level3DiceModifier)}
+                                  className={`px-1.5 py-1 rounded-md border font-mono flex flex-col items-center gap-0.2 cursor-pointer transition-all select-none shadow-2xs ${
+                                    isSelected
+                                      ? 'bg-[#dcfce7] border-[#16a34a] ring-2 ring-[#16a34a] scale-105'
+                                      : 'bg-white hover:bg-[#fff9ed] border-[#2b261f]/30'
+                                  }`}
+                                >
+                                  {card.tarotCard ? (
+                                    <TarotModifierArt card={card} className="h-8 w-7 object-contain" />
+                                  ) : (
+                                    <div className={`text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
+                                      {card.rank}{card.suit}
+                                    </div>
+                                  )}
+                                  <div className="text-[8.5px] font-bold text-[#5c5244] leading-none">
+                                    {card.tarotCard
+                                      ? card.tarotCard === 'judgement' ? 'SET SCORE 1' :
+                                        card.tarotCard === 'world' ? 'SET SCORE 0' :
+                                          card.tarotCard.toUpperCase()
+                                      : `${isSelected ? sign > 0 ? '+' : '-' : '±'}${card.value}`}
                                   </div>
+                                  {isSelected && (
+                                    <span className="text-[7px] font-black bg-[#16a34a] text-white px-0.5 rounded leading-tight">
+                                      {card.level3SetScore !== undefined ? 'SET' : 'SPEND'}
+                                    </span>
+                                  )}
+                                </button>
+                                {isSelected && canModifyScore && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedHandCardSigns((prev) => ({
+                                      ...prev,
+                                      [card.id]: sign === 1 ? -1 : 1,
+                                    }))}
+                                    title={`Switch to ${sign === 1 ? 'subtracting' : 'adding'} this card`}
+                                    aria-label={`Switch ${card.rank}${card.suit} to ${sign === 1 ? 'subtract' : 'add'}`}
+                                    className="rounded border border-[#2b261f]/30 bg-[#ede4d3] px-1.5 py-1 text-[10px] font-black hover:bg-[#dfd3bc]"
+                                  >
+                                    {sign === 1 ? '−' : '+'}
+                                  </button>
                                 )}
-                                <div className="text-[8.5px] font-bold text-[#5c5244] leading-none">
-                                  {card.tarotCard
-                                    ? card.tarotCard === 'judgement' ? 'SET SCORE 1' :
-                                      card.tarotCard === 'world' ? 'SET SCORE 0' :
-                                        card.tarotCard.toUpperCase()
-                                    : `-${card.value}`}
-                                </div>
-                                {isSelected && (
-                                  <span className="text-[7px] font-black bg-[#16a34a] text-white px-0.5 rounded leading-tight">
-                                    {card.level3SetScore !== undefined ? 'SET' : 'SPEND'}
-                                  </span>
-                                )}
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
@@ -770,9 +864,7 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                             <span className="font-black text-[#15803d]">
                               {selectedMagicCard
                                 ? `Magic card sets score to ${selectedMagicCard.level3SetScore}`
-                                : baseDiff < 0
-                                ? `+${totalCardReduction} modifier (${baseDiff} → ${effectiveDifference})`
-                                : `-${totalCardReduction} modifier (${baseDiff} → ${effectiveDifference})`}
+                                : `${cardModifierLabel} modifier (${baseDiff} → ${effectiveDifference})`}
                             </span>
                           </div>
                         )}
@@ -792,9 +884,9 @@ export const Level3EncounterModal: React.FC<Level3EncounterModalProps> = ({
                       <div className={`w-full text-center text-[10px] p-1.5 rounded border ${badgeClass} leading-tight`}>
                         <div className="font-mono text-[11px] mb-0.5">
                           Effective Score: <span className="font-black text-xs">{effectiveDifference}</span>
-                          {totalCardReduction > 0 && (
+                          {cardModifierLabel && (
                             <span className="ml-1 text-[9.5px] opacity-80">
-                              (Original: {baseDiff}, {baseDiff < 0 ? `+${totalCardReduction}` : `-${totalCardReduction}`} modifier)
+                              (Original: {baseDiff}, cards {cardModifierLabel})
                             </span>
                           )}
                         </div>

@@ -47,7 +47,7 @@ export const PyramidExplorationModal: React.FC<PyramidExplorationModalProps> = (
 
   const isHigherPrediction = prediction === 'higher';
   const isHonorCard = drawnCard
-    ? drawnCard.rank === 'A' || drawnCard.rank === 'K' || drawnCard.rank === 'Q' || drawnCard.rank === 'J'
+    ? drawnCard.rank === 'K' || drawnCard.rank === 'Q' || drawnCard.rank === 'J'
     : false;
 
   return (
@@ -214,11 +214,11 @@ export const PyramidExplorationModal: React.FC<PyramidExplorationModalProps> = (
             </button>
           )}
 
-          {/* Honour Card Banking Choice: ONLY 2 choices as requested */}
+          {/* Picture Card Banking Choice */}
           {pendingHonorChoice && drawnCard && (
             <div className="bg-[#fff7ed] p-2.5 rounded-lg border-2 border-[#ea580c] space-y-2 text-left">
               <div className="text-xs font-black text-[#c2410c] flex items-center justify-between">
-                <span>👑 HONOUR CARD DRAWN ({drawnCard.rank}{drawnCard.suit})!</span>
+                <span>👑 PICTURE CARD DRAWN ({drawnCard.rank}{drawnCard.suit})!</span>
                 <span className="text-[10px] bg-[#ffedd5] px-1.5 py-0.5 rounded border border-[#fdba74] font-bold">
                   Streak Preserved
                 </span>
@@ -244,7 +244,7 @@ export const PyramidExplorationModal: React.FC<PyramidExplorationModalProps> = (
             </div>
           )}
 
-          {/* Return to Map Button (when card is drawn and honor choice resolved) */}
+          {/* Return to Map Button (when card is drawn and picture-card choice resolved) */}
           {drawnCard && !pendingHonorChoice && (
             <button
               type="button"

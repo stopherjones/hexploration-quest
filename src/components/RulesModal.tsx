@@ -90,7 +90,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <strong>Fortune Shrines:</strong> Roll Fate D6: 1 Pip = Free Move 1 Hex (step into any adjacent hex for 0 ⚡), 2 Pips = Brass Telescope (Towers reveal all 6 rays), 3 Pips = Dice Modifier (±1 to either die each turn), 4 = Free Move 1 Hex & +2 Energy, 5 = Telescope & +2 Energy, 6 = Dice Modifier & +2 Energy.
               </div>
               <div className="p-1.5 bg-[#d9d0c1] rounded border border-[#2b261f]/20 sm:col-span-2">
-                <strong>Clue Cairns (1 per column):</strong> When revealed, each cairn activates and signposts the bearing to the Secret Tunnel Entrance based on coordinate proportions:
+                <strong>Clue Cairns:</strong> When revealed, each cairn points toward the Secret Tunnel Entrance based on its relative position:
                 <div className="mt-1 pl-2 border-l-2 border-[#2b261f]/30 space-y-0.5 text-[10.5px]">
                   <div>• <strong>North / South (↑ N / ↓ S):</strong> Secret Tunnel is predominantly north or south. All tiles north or south of the cairn are highlighted.</div>
                   <div>• <strong>East / West (→ E / ← W):</strong> Secret Tunnel is predominantly east or west. All tiles east or west of the cairn are highlighted.</div>
@@ -120,15 +120,15 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <span>Level 2: The Underground Catacombs</span>
             </div>
             <p className="text-[11px] text-[#443d33]">
-              Make your way through the underground catacombs by drawing cards and predicting if the next card draw will be higher or lower (ranks 2-10). Honour cards (J,Q,K,A) allow you to draw cards into your hand in preparation for Level 3. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
+              Predict whether each drawn card is higher or lower than the base card; Aces count as 1. Picture cards (J, Q, K) preserve your call and streak and let you bank a card into your hand. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
             </p>
             <div className="space-y-1 text-[10.5px]">
               <div className="pl-2 border-l-2 border-[#2d6a4f]/50 space-y-0.5 text-[#443d33]">
                 <div>• <strong>Predict & Advance:</strong> Start in Column 1 with a base card. To predict Higher, advance to the hex on the row above in the next column. To predict Lower, advance to the hex on the row below (-1⚡ Move).</div>
-                <div>• <strong>Modal Card Draw:</strong> Moving into a hex reveals whether your prediction was correct, push, or an Honour card!</div>
+                <div>• <strong>Modal Card Draw:</strong> Moving into a hex reveals whether your prediction was correct, a push, or a picture card!</div>
                 <div>• <strong>Full 52-Card Deck:</strong> Includes all suits (♠, ♥, ♦, ♣). Victory is reaching the 12th column!</div>
                 <div>• <strong>Streaks & Pair Pushes:</strong> Correct predictions build cumulative streaks (+1, +2, +3⚡). Incorrect predictions drain energy. Drawing a pair resets your streak but neither costs nor grants energy (Push)!</div>
-                <div>• <strong>Honour Cards (J, Q, K, A):</strong> Preserve your streak and call, giving you the choice to bank your current base card into your Hand (drawing a fresh base), or draw a new card from the deck into your Hand!</div>
+                <div>• <strong>Picture Cards (J, Q, K):</strong> Preserve your streak and call, giving you the choice to bank your current base card into your Hand (drawing a fresh base), or draw a new card from the deck into your Hand!</div>
                 <div>• <strong>Event Hexes:</strong> Stepping into an event hex triggers a draw from the Tarot deck! Rewards include energy boosts, streak boosts, and cards into your Hand; hazards include energy drain or card discard!</div>
               </div>
             </div>
@@ -149,6 +149,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <div>• <strong>Trap Disarming:</strong> Outer traps deactivate permanently on <strong>0–10</strong>, or temporarily on <strong>11–99</strong>. If you return to a temporarily deactivated trap, it reactivates! Any other result loses <strong>5⚡ Energy</strong> and retreats to the previous hex (no monster encounter). Inner traps permanently disable on <strong>0</strong>, or temporarily on <strong>1–10</strong> (else -5⚡ and retreat).</div>
               <div>• <strong>Door Unlocks:</strong> Outer doors unlock on <strong>0–10</strong> to access the Inner Ring (no code fragments). Inner gates unlock on <strong>0</strong> to reach the Boss. Any failed test permanently locks that door!</div>
               <div>• <strong>Monsters & Sneaking:</strong> Sneak past outer beasts on <strong>0–10</strong>; sneak past inner guardians on <strong>0</strong>. Any other score triggers combat! Monsters have <strong>HP equal to their level</strong> (L1: 1 HP, L2: 2 HP, L3: 3 HP, L4: 4 HP, L5: 5 HP).</div>
+              <div>• <strong>Hand Cards:</strong> Spend a card to restore Energy equal to its value, or spend it to adjust a challenge score toward 0.</div>
               <div>• <strong>Final Boss Rolls Reversed:</strong> The Level 5 Core Construct has <strong>5 HP</strong> and <strong>reversed combat rolls</strong>: receives damage on <strong>4, 5, 6</strong> and deals harm on 1, 2, 3 (-1⚡). Defeat the Core Construct to win!</div>
             </div>
           </div>

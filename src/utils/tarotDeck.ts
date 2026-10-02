@@ -42,7 +42,7 @@ export const MAJOR_ARCANA: TarotCard[] = [
     flavor: 'A leap into the unknown with an open heart and boundless hope.',
     effectDescription: 'What madness: Skip straight to the right-hand column without drawing any cards.',
     effectType: 'skip_columns',
-    skipColumns: 1,
+    skipColumns: 11,
   },
   {
     id: 'tarot-1',

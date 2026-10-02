@@ -78,7 +78,7 @@ export function getCardDetails(rank: HeartCardRank): Omit<TunnelCard, 'id'> {
         suit: '♥',
         effect: 'treasure',
         name: 'Ace of Hearts — Primordial Vault',
-        description: 'Honor Card! Bank a card into your Hand for Level 3 to reduce Utopia Engine dice scores, then draw a card for exits.',
+        description: 'Picture Card! Bank a card into your Hand for Level 3, then draw a card for exits.',
       };
     case '2':
     case '4':
@@ -116,7 +116,7 @@ export function getCardDetails(rank: HeartCardRank): Omit<TunnelCard, 'id'> {
         suit: '♥',
         effect: 'trap',
         name: 'Jack of Hearts — Trapped Chamber',
-        description: 'Honor Card! Bank a card into your Hand for Level 3 to reduce Utopia Engine dice scores, then draw a card for exits.',
+        description: 'Picture Card! Bank a card into your Hand for Level 3, then draw a card for exits.',
       };
     case 'Q':
       return {
@@ -124,7 +124,7 @@ export function getCardDetails(rank: HeartCardRank): Omit<TunnelCard, 'id'> {
         suit: '♥',
         effect: 'treasure',
         name: 'Queen of Hearts — Ancient Vault',
-        description: 'Honor Card! Bank a card into your Hand for Level 3 to reduce Utopia Engine dice scores, then draw a card for exits.',
+        description: 'Picture Card! Bank a card into your Hand for Level 3, then draw a card for exits.',
       };
     case 'K':
       return {
@@ -132,7 +132,7 @@ export function getCardDetails(rank: HeartCardRank): Omit<TunnelCard, 'id'> {
         suit: '♥',
         effect: 'treasure',
         name: 'King of Hearts — Royal Crypt',
-        description: 'Honor Card! Bank a card into your Hand for Level 3 to reduce Utopia Engine dice scores, then draw a card for exits.',
+        description: 'Picture Card! Bank a card into your Hand for Level 3, then draw a card for exits.',
       };
   }
 }

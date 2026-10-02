@@ -7,7 +7,7 @@ import {
   getAxialNeighbors,
 } from '../utils/level3Engine';
 import { ExplorationCard } from '../utils/explorationDeck';
-import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent, Backpack, X } from 'lucide-react';
+import { KeyRound, ShieldAlert, Sparkles, Skull, Eye, Footprints, Lock, Unlock, Swords, Tent, Backpack, X, Zap } from 'lucide-react';
 import { TarotModifierArt } from './TarotModifierArt';
 import { MapZoomViewport } from './MapZoomViewport';
 
@@ -18,10 +18,12 @@ interface FlowerHexGridProps {
   innerDoorsUnlocked: boolean;
   bossDefeated?: boolean;
   energy: number;
+  maxEnergy: number;
   onStepIn: (target: FlowerTile) => void;
   onPeek: (target: FlowerTile) => void;
   onSelectTile?: (tile: FlowerTile) => void;
   playerHand?: ExplorationCard[];
+  onSpendCardForEnergy?: (card: ExplorationCard) => void;
 }
 
 interface BoundaryEdge {
@@ -40,10 +42,12 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
   innerDoorsUnlocked,
   bossDefeated = false,
   energy,
+  maxEnergy,
   onStepIn,
   onPeek,
   onSelectTile,
   playerHand = [],
+  onSpendCardForEnergy,
 }) => {
   const [selectedCoord, setSelectedCoord] = useState<FlowerHexCoord | null>(null);
   const [showHandModal, setShowHandModal] = useState<boolean>(false);
@@ -900,7 +904,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                   <div className="text-2xl">🃏</div>
                   <div className="font-bold text-xs">Your hand is currently empty</div>
                   <div className="text-[10px]">
-                    Draw honour cards in Level 2 to bank cards into your hand!
+                    Draw picture cards in Level 2 to bank cards into your hand!
                   </div>
                 </div>
               ) : (
@@ -910,7 +914,7 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                     return (
                       <div
                         key={`flower-hand-card-${card.id || idx}`}
-                        className="bg-white border-2 border-[#2b261f] rounded-lg shadow p-2 flex flex-col justify-between items-center h-28 relative"
+                        className="bg-white border-2 border-[#2b261f] rounded-lg shadow p-2 flex flex-col justify-between items-center h-36 relative"
                       >
                         {card.tarotCard ? (
                           <>
@@ -949,6 +953,18 @@ export const FlowerHexGrid: React.FC<FlowerHexGridProps> = ({
                               <span className="text-[9px] font-black text-[#15803d] bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
                                 -{card.value} pts
                               </span>
+                              {card.value > 0 && (
+                                <button
+                                  type="button"
+                                  disabled={!onSpendCardForEnergy || energy >= maxEnergy}
+                                  onClick={() => onSpendCardForEnergy?.(card)}
+                                  title={`Spend ${card.rank}${card.suit} to restore ${Math.min(card.value, maxEnergy - energy)} energy`}
+                                  className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-emerald-800/40 bg-emerald-50 px-1 py-0.5 text-[9px] font-black text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                  <Zap className="h-3 w-3" />
+                                  Spend · +{Math.min(card.value, maxEnergy - energy)}
+                                </button>
+                              )}
                             </div>
                           </>
                         )}

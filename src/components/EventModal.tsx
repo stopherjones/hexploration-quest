@@ -9,7 +9,6 @@ import {
   BatteryCharging,
   Eye,
   Flag,
-  MapPin,
   X,
   CheckCircle2,
 } from 'lucide-react';
@@ -172,16 +171,6 @@ export const EventModal: React.FC<EventModalProps> = ({ prompt, onResolve }) => 
 
         {/* Content Body */}
         <div className="p-5 space-y-4 font-mono text-xs text-[#2b261f]">
-          {/* Coordinates & Category Pill */}
-          {prompt.coord && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#eae0cc] border border-[#2b261f]/30 rounded-full text-[11px] font-bold text-[#44403c]">
-              <MapPin className="w-3 h-3 text-[#2d6a4f]" />
-              <span>
-                Col {prompt.coord.col}, Row {prompt.coord.row}
-              </span>
-            </div>
-          )}
-
           {/* Description */}
           <p className="leading-relaxed text-[#2b261f] text-xs sm:text-sm font-medium">
             {prompt.description}

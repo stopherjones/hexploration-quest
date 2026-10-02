@@ -440,7 +440,7 @@ export const UtopiaEncounterModal: React.FC<UtopiaEncounterProps> = ({
                 Chamber Encounter
               </span>
               <span className="text-[10px] text-[#5c5346]">
-                {card.name} — Room ({chamberCoord.col}, {chamberCoord.row})
+                {card.name}
               </span>
             </div>
           </div>

@@ -96,8 +96,8 @@ export function createExplorationDeck(): ExplorationCard[] {
 }
 
 /**
- * Draws cards from deck until a non-honor (2..10) is found to serve as starting card.
- * Honor cards drawn during this setup are discarded.
+ * Draws cards until a numbered card (2..10) is found as the starting comparison card.
+ * Picture cards drawn during setup are discarded.
  */
 export function drawInitialComparisonCard(deck: ExplorationCard[]): {
   card: ExplorationCard;

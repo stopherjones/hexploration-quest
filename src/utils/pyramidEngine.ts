@@ -57,12 +57,12 @@ export function createFull52Deck(): ExplorationCard[] {
   const cards: ExplorationCard[] = [];
   for (const suit of ALL_FOUR_SUITS) {
     for (const rank of ALL_RANKS) {
-      const isHonor = rank === 'J' || rank === 'Q' || rank === 'K' || rank === 'A';
+      const isHonor = rank === 'J' || rank === 'Q' || rank === 'K';
       cards.push({
         id: `card-${suit}-${rank}-${Math.random().toString(36).substring(2, 7)}`,
         suit,
         rank,
-        value: getRankNumericValue(rank),
+        value: rank === 'A' ? 1 : getRankNumericValue(rank),
         isHonor,
         isAceOfSpades: false, // In Level 2, Ace of Spades is treated as a regular Ace; victory is reaching the final column.
       });
@@ -91,7 +91,7 @@ export function generatePyramidMap(): {
   const deck = createFull52Deck();
   const tarotDeck = createShuffledTarotDeck();
 
-  // Draw initial non-honor base card for the starting hex at (0, 0)
+  // Draw an initial numbered or Ace base card for the starting hex at (0, 0)
   let initialBaseIdx = deck.findIndex((c) => !c.isHonor);
   if (initialBaseIdx === -1) initialBaseIdx = 0;
   const [baseCard] = deck.splice(initialBaseIdx, 1);

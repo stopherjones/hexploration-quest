@@ -240,7 +240,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
                 </button>
               </div>
               <div className="text-[10px] text-[#5c5244] leading-snug text-center pt-0.5">
-                Drawing J, Q, K, A lets you bank cards into your hand for Level 3 dice reduction!
+                Drawing J, Q, K, or a non-Spade Ace lets you bank cards into your hand for Level 3!
               </div>
             </div>
           )}
@@ -250,7 +250,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
               <div className="text-xs font-bold text-[#9a3412] flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <span>👑</span>
-                  <span>Honor Card Drawn: {drawnCard.rank} of {getSuitName(drawnCard.suit)}!</span>
+                  <span>Picture Card Drawn: {drawnCard.rank} of {getSuitName(drawnCard.suit)}!</span>
                 </span>
                 <span className="text-[10px] bg-[#ffedd5] text-[#9a3412] px-1.5 py-0.5 rounded border border-[#fdba74] font-black uppercase">
                   Streak Preserved
@@ -290,7 +290,7 @@ export const ChamberExplorationModal: React.FC<ChamberExplorationModalProps> = (
                   </span>
                 </button>
 
-                {/* Option 3: Bank drawn honor card */}
+                {/* Option 3: Bank drawn picture card */}
                 <button
                   type="button"
                   onClick={() => onFaceChoice('bank_drawn')}

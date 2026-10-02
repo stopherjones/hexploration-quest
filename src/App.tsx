@@ -396,7 +396,7 @@ export default function App() {
 
       sounds.playHazard();
       setStatusMessage(
-        `Expedition exhausted! The Secret Tunnel Entrance has been revealed at (${mapData.goalCoord.col}, ${mapData.goalCoord.row}).`
+        'Expedition exhausted! The Secret Tunnel Entrance has been revealed.'
       );
 
       if (gameOverTimeoutRef.current) {
@@ -791,7 +791,7 @@ export default function App() {
     if (remainingDistance <= 0) {
       // User tapped the end of the line: confirm or show message
       setStatusMessage(
-        `Final destination of move (${coord.col}, ${coord.row}). Click 'CONFIRM MOVE' to step here, or tap an earlier hex on the line to deviate.`
+        "Final hex of this move. Click 'CONFIRM MOVE' to step here, or tap an earlier hex on the line to deviate."
       );
       return;
     }
@@ -1187,7 +1187,7 @@ export default function App() {
     // Standard move message (no bogs traversed, destination is blank wilderness)
     const cairnMsg = activatedCairnClue ? ` Activated Cairn along path: Secret Tunnel lies to the ${activatedCairnClue}!` : '';
     setStatusMessage(
-      `Moved to (${destination.col}, ${destination.row}). Energy: ${remainingEnergy}/${MAX_ENERGY}.${cairnMsg} Roll for your next move.`
+      `Moved to a new hex. Energy: ${remainingEnergy}/${MAX_ENERGY}.${cairnMsg} Roll for your next move.`
     );
 
     // Check Energy Exhaustion
@@ -1570,11 +1570,11 @@ export default function App() {
     setShowPyramidDrawModal(true);
 
     setStatusMessage(
-      `Moved to Col ${nextCol + 1} (${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}). Reveal the card and resolve any Tarot event before paying ${movementCost}⚡.`
+      `Moved ${prediction === 'higher' ? '▲ HIGHER' : '▼ LOWER'}. Reveal the card and resolve any Tarot event before paying ${movementCost}⚡.`
     );
   };
 
-  // Step 2: Inside modal, draw card & evaluate Higher / Lower / Pair / Honour
+  // Step 2: Inside modal, draw card & evaluate Higher / Lower / Pair / Picture Card
   const handlePyramidModalDrawCard = () => {
     if (pyramidDrawnCard) return; // already drawn
     sounds.playCardFlip();
@@ -1601,13 +1601,13 @@ export default function App() {
     const baseVal = pyramidBaseCard ? pyramidBaseCard.value : 7;
     const drawnVal = drawn.value;
 
-    // Check Honour card (A, K, Q, J only)
-    const isHonor = drawn.rank === 'A' || drawn.rank === 'K' || drawn.rank === 'Q' || drawn.rank === 'J';
+    // In Level 2, Aces are rank 1; only J/Q/K are picture cards.
+    const isHonor = drawn.rank === 'K' || drawn.rank === 'Q' || drawn.rank === 'J';
     drawn.isHonor = isHonor;
     if (isHonor) {
       if (pyramidMustSucceed && !forcedSuccess) {
         setIsLost(true);
-        setStatusMessage('The Devil demanded a successful prediction, but an Honour card cannot satisfy the trial.');
+        setStatusMessage('The Devil demanded a successful prediction, but a picture card cannot satisfy the trial.');
         setPyramidResultText('The required successful prediction was not made. The delve is lost.');
         return;
       }
@@ -1615,10 +1615,10 @@ export default function App() {
       sounds.playBonus();
       setPyramidPendingHonorChoice('face_gamble');
       setPyramidResultText(
-        `${forcedSuccess ? 'Justice guarantees success! ' : ''}Honour card drawn: ${drawn.rank}${drawn.suit}! Call and streak are preserved. Choose how to bank for Level 3:`
+        `${forcedSuccess ? 'Justice guarantees success! ' : ''}Picture card drawn: ${drawn.rank}${drawn.suit}! Call and streak are preserved. Choose how to bank for Level 3:`
       );
       setStatusMessage(
-        `Honour card ${drawn.rank}${drawn.suit} drawn! Streak preserved. Choose banking option.`
+        `Picture card ${drawn.rank}${drawn.suit} drawn! Streak preserved. Choose banking option.`
       );
       return;
     }
@@ -1696,7 +1696,7 @@ export default function App() {
     }
   };
 
-  // Step 3: Honour choice (Strictly only 2 options as requested: bank base or draw new to hand)
+  // Step 3: Picture-card choice (bank base or draw a new card to hand)
   const handlePyramidHonorChoice = (choice: 'bank_base' | 'draw_new_to_hand') => {
     sounds.playCardFlip();
     if (choice === 'bank_base') {
@@ -1709,7 +1709,7 @@ export default function App() {
       let currentDeck = [...pyramidDeck];
       if (currentDeck.length === 0) currentDeck = createFull52Deck();
       let freshBaseIdx = currentDeck.findIndex(
-        (c) => !(c.rank === 'A' || c.rank === 'K' || c.rank === 'Q' || c.rank === 'J')
+        (c) => !(c.rank === 'K' || c.rank === 'Q' || c.rank === 'J')
       );
       if (freshBaseIdx === -1) freshBaseIdx = 0;
       const [freshBase] = currentDeck.splice(freshBaseIdx, 1);
@@ -1765,9 +1765,9 @@ export default function App() {
   const handlePyramidModalContinue = () => {
     setShowPyramidDrawModal(false);
 
-    // Promote drawn card to base card if it was numbered or pair (not honor A, K, Q, J)
+    // Promote drawn card to base unless it was a picture card.
     const isHonorCard = pyramidDrawnCard
-      ? pyramidDrawnCard.rank === 'A' || pyramidDrawnCard.rank === 'K' || pyramidDrawnCard.rank === 'Q' || pyramidDrawnCard.rank === 'J'
+      ? pyramidDrawnCard.rank === 'K' || pyramidDrawnCard.rank === 'Q' || pyramidDrawnCard.rank === 'J'
       : false;
     if (pyramidDrawnCard && !isHonorCard) {
       setPyramidBaseCard(pyramidDrawnCard);
@@ -1995,7 +1995,7 @@ export default function App() {
     const newTunnelDeck = createShuffledHeartsDeck();
     const newTunnelMap = createTunnelMap(newTunnelDeck);
 
-    // Initialise 39-card Exploration Deck (♠, ♣, ♦) and draw non-honor starting card
+    // Initialise 39-card Exploration Deck (♠, ♣, ♦) and draw a numbered starting card
     const freshExpDeck = createExplorationDeck();
     const { card: initialBaseCard, remainingDeck: afterInitDeck } =
       drawInitialComparisonCard(freshExpDeck);
@@ -2282,13 +2282,13 @@ export default function App() {
           );
         } else {
           setStatusMessage(
-            `Re-Exploration (-2⚡): Entered unexplored chamber (${resolvedTarget.col}, ${resolvedTarget.row}). Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} in the chamber survey popup!`
+            `Re-Exploration (-2⚡): Entered an unexplored chamber. Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} in the chamber survey popup!`
           );
         }
       } else {
         // Chamber was already surveyed in this re-exploration cycle
         setStatusMessage(
-          `Traversing previously surveyed chamber (${resolvedTarget.col}, ${resolvedTarget.row}) (-2⚡). Head towards unexplored chambers to survey!`
+          'Traversing a previously surveyed chamber (-2⚡). Head towards unexplored chambers to survey!'
         );
         if (nextEnergy <= 0) {
           sounds.playHazard();
@@ -2348,7 +2348,7 @@ export default function App() {
       );
     } else {
       setStatusMessage(
-        `Entered chamber (${resolvedTarget.col}, ${resolvedTarget.row}). Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} in the chamber survey popup!`
+        `Entered an unexplored chamber. Predict Higher or Lower than ${comparisonCard?.rank || ''}${comparisonCard?.suit || ''} in the chamber survey popup!`
       );
     }
 
@@ -2503,7 +2503,7 @@ export default function App() {
             base = freshBase;
           }
 
-          const honorCard: ExplorationCard = {
+          const pictureCard: ExplorationCard = {
             id: `delve-${nextCard.rank}♥-${Date.now()}`,
             suit: '♥',
             rank: nextCard.rank as CardRank,
@@ -2512,10 +2512,10 @@ export default function App() {
             isAceOfSpades: false,
           };
 
-          setDrawnExplorationCard(honorCard);
+          setDrawnExplorationCard(pictureCard);
           setPendingExplorationChoice('face_gamble');
           setExplorationResultText(
-            `Honor Card Drawn: ${nextCard.name}! Instead of a trap/vault modal, choose which card to bank into your Hand for Level 3 dice reduction:`
+            `Picture Card Drawn: ${nextCard.name}! Instead of a trap/vault modal, choose which card to bank into your Hand for Level 3 dice reduction:`
           );
           setShowChamberExplorationModal(true);
           setStatusMessage(
@@ -2636,7 +2636,7 @@ export default function App() {
       return;
     }
 
-    // If drawn card is an Honor card (J, Q, K, or non-Spade Ace):
+    // If drawn card is a picture card (J, Q, K, or non-Spade Ace):
     // NOTE: Drawing JQKA does NOT affect your streak or your guess!
     // Give the card flip animation time (700ms) to complete before displaying the choices!
     if (drawn.isHonor) {
@@ -2644,11 +2644,11 @@ export default function App() {
         sounds.playBonus();
         setPendingExplorationChoice('face_gamble');
         setExplorationResultText(
-          `Honor card drawn: ${drawn.rank} of ${drawn.suit}! Your "${prediction.toUpperCase()}" call and streak are preserved. Choose: Discard base (${comparisonCard?.rank || ''}${comparisonCard?.suit || ''}) for a fresh card, OR draw again keeping your "${prediction.toUpperCase()}" guess seeking the Ace of Spades (A♠)!`
+          `Picture card drawn: ${drawn.rank} of ${drawn.suit}! Your "${prediction.toUpperCase()}" call and streak are preserved. Choose: Discard base (${comparisonCard?.rank || ''}${comparisonCard?.suit || ''}) for a fresh card, OR draw again keeping your "${prediction.toUpperCase()}" guess seeking the Ace of Spades (A♠)!`
         );
       }, 700);
       setStatusMessage(
-        `Honor card ${drawn.rank}${drawn.suit} drawn! Streak & "${prediction.toUpperCase()}" guess preserved.`
+        `Picture card ${drawn.rank}${drawn.suit} drawn! Streak & "${prediction.toUpperCase()}" guess preserved.`
       );
       return;
     }
@@ -2727,7 +2727,7 @@ export default function App() {
     }, 1200);
   };
 
-  // Honor Card Choice: Bank Base to Hand vs. Draw New Card into Hand (or Bank Drawn)
+  // Picture Card Choice: Bank Base to Hand vs. Draw New Card into Hand (or Bank Drawn)
   const handleFaceChoice = (choice: 'bank_base' | 'draw_new_to_hand' | 'bank_drawn') => {
     sounds.playCardFlip();
     if (choice === 'bank_base') {
@@ -2793,7 +2793,7 @@ export default function App() {
       setPendingExplorationChoice(null);
       setActivePrediction(null);
       setExplorationResultText(
-        `👑 Banked drawn honor ${bankedDrawn.rank}${bankedDrawn.suit} (Value: ${bankedDrawn.value}) into your Hand! Base card ${comparisonCard?.rank}${comparisonCard?.suit} remains active. Hand has ${playerHand.length + 1} card(s) saved for Level 3.`
+        `👑 Banked drawn picture card ${bankedDrawn.rank}${bankedDrawn.suit} (Value: ${bankedDrawn.value}) into your Hand! Base card ${comparisonCard?.rank}${comparisonCard?.suit} remains active. Hand has ${playerHand.length + 1} card(s) saved for Level 3.`
       );
       setStatusMessage(
         `Banked ${bankedDrawn.rank}${bankedDrawn.suit} into Hand! Base ${comparisonCard?.rank}${comparisonCard?.suit} kept. Hand has ${playerHand.length + 1} cards.`
@@ -2804,6 +2804,13 @@ export default function App() {
   // Consume cards spent from hand during Level 3 Utopia Engine tests
   const handleConsumeHandCards = (consumedCardIds: string[]) => {
     setPlayerHand((prev) => prev.filter((c) => !consumedCardIds.includes(c.id)));
+  };
+
+  const handleSpendCardForEnergy = (card: ExplorationCard) => {
+    if (card.value <= 0) return;
+    setPlayerHand((prev) => prev.filter((heldCard) => heldCard.id !== card.id));
+    setEnergy((prev) => Math.min(MAX_ENERGY, prev + card.value));
+    sounds.playBonus();
   };
 
   // Re-Exploration: Player chooses to continue exploring the fully drawn map
@@ -3279,9 +3286,11 @@ export default function App() {
               innerDoorsUnlocked={level3State.innerDoorsUnlocked}
               bossDefeated={level3State.bossDefeated}
               energy={energy}
+              maxEnergy={MAX_ENERGY}
               onStepIn={handleLevel3StepIn}
               onPeek={handleLevel3Peek}
               playerHand={playerHand}
+              onSpendCardForEnergy={handleSpendCardForEnergy}
             />
           </div>
         )}

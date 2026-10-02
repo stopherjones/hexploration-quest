@@ -98,7 +98,7 @@ export const LEVEL3_MONSTERS: Record<number, MonsterDef> = {
 /**
  * Determines the monster level awakened by an alignment difference:
  * Outer Ring:
- * - 100 to 250 or -1 to -250 -> Level 1 (1 HP, damaged on 4, 5, 6)
+ * - 1 to 250 or -1 to -250 -> Level 1 (1 HP, damaged on 4, 5, 6)
  * - 251 to 400 or -251 to -400 -> Level 2 (1 HP, damaged on 5, 6)
  * - 401 to 555 or -401 to -555 -> Level 3 (1 HP, damaged on 6)
  * Inner Ring:
@@ -109,7 +109,7 @@ export function getSpawnedMonsterLevel(
   ring: 'outer' | 'inner' | 'center'
 ): 1 | 2 | 3 | 4 {
   let baseLevel: 1 | 2 | 3 = 1;
-  if ((difference >= 100 && difference <= 250) || (difference >= -250 && difference <= -1)) {
+  if ((difference >= 1 && difference <= 250) || (difference >= -250 && difference <= -1)) {
     baseLevel = 1;
   } else if ((difference >= 251 && difference <= 400) || (difference >= -400 && difference <= -251)) {
     baseLevel = 2;
