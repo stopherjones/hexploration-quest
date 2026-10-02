@@ -231,10 +231,18 @@ export const HexGrid: React.FC<HexGridProps> = ({
             }
           }
 
+          const isInteractive =
+            isMoveOneTarget ||
+            (isPlayerHex && pathPreview.length > 0) ||
+            (isPathHex && pathStepIndex !== undefined) ||
+            tile.revealed ||
+            isKnownTower ||
+            isPossibleGoalCandidate;
+
           return (
             <g
               key={tile.id}
-              className="cursor-pointer"
+              className={isInteractive ? 'cursor-pointer' : 'cursor-default'}
               onClick={(e) => {
                 e.stopPropagation();
 

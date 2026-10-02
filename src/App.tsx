@@ -1374,34 +1374,47 @@ export default function App() {
 
     // Tile Info Pop-up when clicking a tile
     if (!tile) return;
-    sounds.playClick();
 
     // 1. Unrevealed / Fogged tile
     if (!tile.revealed) {
       const isKnownTower = knownTowers.some((t) => t.col === coord.col && t.row === coord.row);
+      const isGoalCandidate =
+        !goalFound &&
+        candidateGoalCoords.some((c) => c.col === coord.col && c.row === coord.row);
+
       if (isKnownTower) {
+        sounds.playClick();
         setEventPrompt({
-          title: 'Charted Watchtower',
+          title: 'Uncharted Watchtower',
           category: 'Tile Inspection',
           description:
-            'A distant watchtower mapped during a wilderness survey. Shrouded in fog of war. Move to this hex to scale its high ramparts and unveil all 6 adjacent hexes.',
+            'A distant watchtower sighted through reconnaissance. Shrouded in fog of war. Move onto this hex to scale its high ramparts and unveil all 6 adjacent hexes.',
           type: 'tower',
           coord,
           statBadge: 'Known Watchtower (Unvisited)',
         });
-      } else {
+        return;
+      }
+
+      if (isGoalCandidate) {
+        sounds.playClick();
         setEventPrompt({
-          title: 'Uncharted Territory',
+          title: 'Secret Tunnel Candidate',
           category: 'Tile Inspection',
           description:
-            'This region is shrouded in dense fog. You can scout it using the "Scout Adjacent Hex" action (-1 ⚡) if next to your pawn, or roll and move through it to explore.',
-          type: 'info',
+            'This unrevealed hex aligns with the directional bearings of your discovered Clue Cairns. Triangulate with additional cairns to narrow down the search, or venture into the fog to investigate!',
+          type: 'clue',
           coord,
-          statBadge: 'Fog of War',
+          statBadge: 'Potential Tunnel Entrance (Cairn Triangulation)',
         });
+        return;
       }
+
+      // Ordinary uncharted tile: do not show tile inspection modal
       return;
     }
+
+    sounds.playClick();
 
     // 2. Revealed tile inspection
     switch (tile.type) {

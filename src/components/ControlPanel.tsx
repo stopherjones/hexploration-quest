@@ -1,4 +1,5 @@
 import React from 'react';
+import tunnelImg from '../assets/tunnel.png';
 import {
   DirectionIndex,
   DiceState,
@@ -232,9 +233,31 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Middle: Visual reminder of the Goal Hex */}
             <div className="flex items-center gap-2 px-2.5 py-1 bg-[#fdfbf7] rounded-lg border border-[#2b261f]/25 text-[11px] font-mono shadow-2xs">
-              <span className="text-base leading-none shrink-0">
-                {goalFound ? '🌟' : goalClue ? '🧭' : '❓'}
-              </span>
+              {goalFound || goalClue ? (
+                <div className="relative shrink-0 flex items-center justify-center w-6 h-6">
+                  <img
+                    src={tunnelImg}
+                    alt="Secret Tunnel Entrance Hex"
+                    className={`w-6 h-6 object-contain transition-transform ${
+                      goalFound
+                        ? 'animate-pulse scale-105 drop-shadow-sm'
+                        : 'drop-shadow-xs'
+                    }`}
+                  />
+                  {goalFound && (
+                    <span className="absolute -top-1 -right-1 text-[9px] leading-none">🌟</span>
+                  )}
+                </div>
+              ) : (
+                <div className="relative shrink-0 flex items-center justify-center w-6 h-6">
+                  <img
+                    src={tunnelImg}
+                    alt="Secret Tunnel Entrance Hex"
+                    className="w-6 h-6 object-contain opacity-40 grayscale-[50%]"
+                  />
+                  <span className="absolute -bottom-0.5 -right-0.5 text-[8.5px] font-bold text-[#786e5e]">❓</span>
+                </div>
+              )}
               <div className="flex flex-col min-w-0 flex-1 leading-tight">
                 <div className="flex items-center justify-between">
                   <span className="font-black text-[#2b261f] text-[10px] uppercase">
