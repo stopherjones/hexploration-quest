@@ -106,7 +106,7 @@ export const Level2VictoryModal: React.FC<Level2VictoryModalProps> = ({
               <span>⚙️</span> Level 3: The Hex Core
             </span>
             <p className="text-[#5c5346] leading-relaxed">
-              Level 3: The Hex Core. A 19-hex concentric mechanism of yellow outer rings, orange gates, and the red central core. Stepping in or peeking costs 1⚡. Disarm traps, unlock doors, and sneak past beasts with challenge dice rolls. Spend banked hand cards for energy or dice modifiers to defeat the Level 5 Hex Core Construct!
+              Level 3: The Hex Core. A concentric map of outer, middle and inner core hexes. Moving or peeking costs 1. Roll pairs of dice and place them too create two 3-digit numbers. Use the difference between these to disarm traps, unlock doors, and sneak past beasts. Use banked hand cards to modify dice rolls, sum results, or to buy energy, before facing the final boss battle!
             </p>
           </div>
 

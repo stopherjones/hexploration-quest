@@ -66,7 +66,7 @@ export const LevelTransitionModal: React.FC<LevelTransitionModalProps> = ({
               <span>🏛️</span> Level 2: The Underground Catacombs
             </span>
             <p className="text-[#5c5346] leading-relaxed">
-              Level 2: The Underground Catacombs. Predict whether each drawn card is higher or lower than the base card; Aces count as 1. Picture cards (J, Q, K) preserve your call and streak and let you bank a card into your hand. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
+              Level 2: The Underground Catacombs. Predict whether the next card drawn will be higher or lower; Aces count as 1. Chain correct predictions to build a cumulative streak bonus, but be careful as successive wrong guesses will build a negative streak. Picture cards (J, Q, K) preserve your streak and let you bank a card into your hand for use in the next level. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
             </p>
           </div>
 

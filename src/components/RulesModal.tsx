@@ -203,7 +203,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose, current
               </div>
 
               <p className="text-[11px] text-[#443d33]">
-                Predict whether each drawn card is higher or lower than the base card; Aces count as 1. Picture cards (J, Q, K) preserve your call and streak and let you bank a card into your hand. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
+                Level 2: The Underground Catacombs. Predict whether the next card drawn will be higher or lower; Aces count as 1. Chain correct predictions to build a cumulative streak bonus, but be careful as successive wrong guesses will build a negative streak. Picture cards (J, Q, K) preserve your streak and let you bank a card into your hand for use in the next level. Event hexes draw cards from the Tarot deck, offering both positive and negative events!
               </p>
 
               <div className="space-y-1 text-[10.5px]">
@@ -241,7 +241,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose, current
               </div>
 
               <p className="text-[11px] text-[#443d33]">
-                A 19-hex concentric mechanism: Yellow Outer Ring (12 hexes), Orange Middle Ring (6 hexes), and Red Core Boss. Visible fortress walls enclose each ring, with single-colour doorways at portal hexes. Stepping in or peeking costs 1⚡.
+                Level 3: The Hex Core. A concentric map of outer, middle and inner core hexes. Moving or peeking costs 1. Roll pairs of dice and place them too create two 3-digit numbers. Use the difference between these to disarm traps, unlock doors, and sneak past beasts. Use banked hand cards to modify dice rolls, sum results, or to buy energy, before facing the final boss battle!
               </p>
 
               <div className="space-y-1 text-[10.5px] pl-2 border-l-2 border-[#15803d]/40 text-[#443d33]">
